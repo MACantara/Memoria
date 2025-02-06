@@ -89,13 +89,22 @@ def parse_flashcards(text):
             
             question = card_response[question_start:correct_start].replace("correct:", "").strip()
             correct_answer = card_response[correct_start:incorrect_start].replace("incorrect:", "").strip()
-            incorrect_answers = [ans.strip() for ans in card_response[incorrect_start:].split(";")]
+            incorrect_answers = [
+                ans.strip().split('**')[0].strip() # Remove any **text** markers
+                for ans in card_response[incorrect_start:].split(";")
+                if ans.strip()
+            ]
 
-            flashcards.append({
-                "question": question,
-                "correct_answer": correct_answer,
-                "incorrect_answers": incorrect_answers,
-            })
+            # Clean up any remaining markdown or extra text
+            question = question.replace('*', '').strip()
+            correct_answer = correct_answer.replace('*', '').strip()
+            
+            if len(incorrect_answers) >= 3:  # Ensure we have enough wrong answers
+                flashcards.append({
+                    "question": question,
+                    "correct_answer": correct_answer,
+                    "incorrect_answers": incorrect_answers[:3],  # Take only first 3 wrong answers
+                })
         except ValueError as e:
             print(f"Error parsing flashcard: {e}")
             continue
