@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Study {{ topic.name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="topic-header">
+        <h1>{{ topic.name }}</h1>
+        <a href="{{ url_for('index') }}" class="button">Back to Topics</a>
+    </div>
+
+    <div class="progress-container">
+        <span id="cardNumber">Card 1 of {{flashcards|length}}</span>
+        <div class="navigation-container">
+            <button id="prevCard" class="nav-button">&lt; Previous</button>
+            <button id="nextCard" class="nav-button">Next &gt;</button>
+        </div>
+        <div class="score-display">
+            <span>Score: <span id="score">0</span></span>
+        </div>
+    </div>
+
+    <div id="flashcardsContainer">
+        {% for flashcard in flashcards %}
+            <div class="flashcard" 
+                 data-id="{{ flashcard.id }}"
+                 data-correct="{{ flashcard.correct_answer }}"
+                 data-incorrect='{{ flashcard.incorrect_answers }}'>
+                <h3>Question:</h3>
+                <p>{{ flashcard.question }}</p>
+                <form class="answer-form">
+                    <!-- Answers will be populated by JavaScript -->
+                </form>
+                <div class="stats">
+                    <span>Correct: {{ flashcard.correct_count }}</span>
+                    <span>Incorrect: {{ flashcard.incorrect_count }}</span>
+                    <span>Last Reviewed: {{ flashcard.last_reviewed.strftime('%Y-%m-%d %H:%M') if flashcard.last_reviewed else 'Never' }}</span>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
