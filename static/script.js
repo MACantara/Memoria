@@ -41,17 +41,22 @@ document.addEventListener('DOMContentLoaded', function() {
     function initializeFlashcard(flashcard) {
         const answersForm = flashcard.querySelector('.answer-form');
         const correctAnswer = flashcard.dataset.correct;
-        const incorrectAnswers = JSON.parse(flashcard.dataset.incorrect);
+        const incorrectAnswers = JSON.parse(flashcard.dataset.incorrect)
+            .map(answer => answer.trim().split('**')[0].trim()); // Clean up any extra text
         
         // Combine and shuffle answers
-        const allAnswers = [correctAnswer, ...incorrectAnswers];
+        const allAnswers = [correctAnswer, ...incorrectAnswers]
+            .filter(answer => answer && answer.length > 0)  // Remove empty answers
+            .map(answer => answer.replace(/\*\*.*?\*\*/g, '').trim()); // Remove any **text**
+        
         shuffleArray(allAnswers);
         
         // Create answer options
         answersForm.innerHTML = allAnswers.map((answer, index) => `
             <div class="answer-option">
                 <input type="radio" id="${flashcard.dataset.id}-${index}" 
-                       name="flashcard-${flashcard.dataset.id}" value="${answer}">
+                       name="flashcard-${flashcard.dataset.id}" 
+                       value="${answer.replace(/"/g, '&quot;')}">
                 <label for="${flashcard.dataset.id}-${index}">
                     <span class="key-hint">${index + 1}</span>${answer}
                 </label>
