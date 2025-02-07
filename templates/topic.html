@@ -106,30 +106,31 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        let deckModal;
-        let generateModal;
+        // Initialize modals with proper configuration
+        const deckModal = new bootstrap.Modal(document.getElementById('deckModal'), {
+            backdrop: true,
+            keyboard: true
+        });
         
-        // Initialize modals when needed
+        const generateModal = new bootstrap.Modal(document.getElementById('generateModal'), {
+            backdrop: true,
+            keyboard: true
+        });
+        
         document.getElementById('createDeckBtn').onclick = () => {
-            if (!deckModal) {
-                deckModal = new bootstrap.Modal(document.getElementById('deckModal'));
-            }
             document.getElementById('createDeckForm').reset();
             deckModal.show();
         };
         
         document.querySelectorAll('.add-cards-btn').forEach(button => {
             button.addEventListener('click', () => {
-                if (!generateModal) {
-                    generateModal = new bootstrap.Modal(document.getElementById('generateModal'));
-                }
                 document.getElementById('generateForm').reset();
                 document.getElementById('generateDeckId').value = button.dataset.deckId;
                 generateModal.show();
             });
         });
 
-        // Handle deck creation form submission
+        // Handle form submissions
         document.getElementById('createDeckForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const formData = new FormData(e.target);
@@ -144,7 +145,7 @@
                 
                 if (response.ok) {
                     deckModal.hide();
-                    window.location.reload();
+                    location.reload();
                 } else {
                     throw new Error('Failed to create deck');
                 }
@@ -156,7 +157,6 @@
             }
         });
 
-        // Handle generate cards form submission
         document.getElementById('generateForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const formData = new FormData(e.target);
@@ -172,7 +172,7 @@
                 
                 if (response.ok) {
                     generateModal.hide();
-                    window.location.reload();
+                    location.reload();
                 } else {
                     throw new Error('Failed to generate cards');
                 }
@@ -183,14 +183,6 @@
                 submitButton.disabled = false;
                 submitButton.innerHTML = '<i class="bi bi-magic"></i> Generate';
             }
-        });
-
-        // Handle modal close buttons
-        document.querySelectorAll('.btn-close, .btn-secondary').forEach(button => {
-            button.addEventListener('click', () => {
-                deckModal.hide();
-                generateModal.hide();
-            });
         });
     </script>
 </body>
