@@ -116,24 +116,75 @@ document.addEventListener('DOMContentLoaded', function() {
                 score++;
                 document.getElementById('score').textContent = score;
                 
-                // Check if all cards have been answered correctly
                 if (score === flashcardsArray.length) {
                     showCompletion();
-                } else {
-                    // Keep the card in array but mark it as completed
-                    flashcard.dataset.completed = 'true';
-                    showNextRemainingCard();
+                    return;
                 }
+                flashcard.dataset.completed = 'true';
             } else {
-                // Move incorrect card to end
                 moveCardToEnd(flashcard);
-                showNextRemainingCard();
             }
+            
+            // Always find and show the next card, whether the answer was correct or not
+            findNextCardToShow();
         }, 1500);
     }
 
+    function findNextCardToShow() {
+        // First, try to find an unanswered card
+        let nextIndex = -1;
+        
+        // Look for unanswered cards first
+        for (let i = 0; i < flashcardsArray.length; i++) {
+            if (isCardUnanswered(flashcardsArray[i])) {
+                nextIndex = i;
+                break;
+            }
+        }
+        
+        // If no unanswered cards, look for incorrectly answered cards
+        if (nextIndex === -1) {
+            for (let i = 0; i < flashcardsArray.length; i++) {
+                if (!flashcardsArray[i].dataset.completed) {
+                    nextIndex = i;
+                    break;
+                }
+            }
+        }
+        
+        // If we found a card to show, show it
+        if (nextIndex !== -1) {
+            currentCardIndex = nextIndex;
+            showCard(currentCardIndex);
+        } else {
+            // If no cards found, we must be done
+            showCompletion();
+        }
+    }
+
+    function isCardUnanswered(flashcard) {
+        return !flashcard.dataset.completed && !flashcard.dataset.attempted;
+    }
+
     function moveCardToEnd(flashcard) {
-        flashcardsContainer.appendChild(flashcard);
+        // Mark the card as attempted
+        flashcard.dataset.attempted = 'true';
+        
+        // Find the position to insert the card:
+        // - After all unanswered cards
+        // - But before completed cards
+        let insertIndex = flashcardsArray.length;
+        for (let i = 0; i < flashcardsArray.length; i++) {
+            if (!isCardUnanswered(flashcardsArray[i]) && 
+                flashcardsArray[i].dataset.completed !== 'true') {
+                insertIndex = i;
+                break;
+            }
+        }
+        
+        // Move the card to the appropriate position
+        flashcardsContainer.insertBefore(flashcard, flashcardsArray[insertIndex]);
+        
         // Reset the radio buttons
         flashcard.querySelectorAll('input[type="radio"]').forEach(radio => {
             radio.checked = false;
@@ -143,21 +194,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function showNextRemainingCard() {
-        currentCardIndex++;
-        if (currentCardIndex >= flashcardsArray.length) {
-            currentCardIndex = 0;
-        }
-        
-        // Skip completed cards
-        while (currentCardIndex < flashcardsArray.length && 
-               flashcardsArray[currentCardIndex].dataset.completed === 'true') {
-            currentCardIndex++;
-            if (currentCardIndex >= flashcardsArray.length) {
-                currentCardIndex = 0;
-            }
-        }
-        
-        showCard(currentCardIndex);
+        findNextCardToShow();
     }
 
     function showCompletion() {
