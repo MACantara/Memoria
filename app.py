@@ -22,6 +22,7 @@ def index():
 @app.route("/generate", methods=["POST"])
 def generate():
     user_input = request.form["topic"]
+    batch_size = 100  # Maximum flashcards per request
     
     # Check if topic exists
     topic = Topic.query.filter_by(name=user_input).first()
@@ -31,31 +32,99 @@ def generate():
         db.session.commit()
 
     client = genai.Client(api_key=api_key)
-    prompt = f"""Generate 5 unique flashcards about {user_input}. 
-    For each flashcard provide:
-    1. A question
-    2. The correct answer
-    3. Three incorrect but plausible answers
-    Format each flashcard as: question: [the question] correct: [correct answer] incorrect: [wrong answer 1]; [wrong answer 2]; [wrong answer 3]"""
+    prompt_template = f"""You are an expert educator creating flashcards about {user_input}.
+    Generate comprehensive, accurate, and engaging flashcards following these guidelines:
 
-    response = client.models.generate_content(
-        model="gemini-2.0-flash-lite-preview-02-05", contents=prompt
-    )
-
-    for card in parse_flashcards(response.text):
-        flashcard = Flashcard(
-            question=card['question'],
-            correct_answer=card['correct_answer'],
-            incorrect_answers=json.dumps(card['incorrect_answers']),
-            topic_id=topic.id
-        )
-        db.session.add(flashcard)
+    1. Each flashcard must have:
+       - A clear, concise question that tests understanding
+       - One definitively correct answer
+       - Three plausible but incorrect answers
+       - All answers should be roughly the same length and style
     
-    db.session.commit()
+    2. Question types should include:
+       - Factual recall (25% of cards)
+       - Concept application (25% of cards)
+       - Problem-solving (25% of cards)
+       - Relationships between concepts (25% of cards)
+    
+    3. Ensure:
+       - No duplicate questions or answers
+       - All content is factually accurate
+       - Clear, unambiguous wording
+       - Progressive difficulty (easy -> medium -> hard)
+    
+    4. Format each flashcard exactly as:
+    question: [question text]
+    correct: [correct answer]
+    incorrect: [wrong answer 1]; [wrong answer 2]; [wrong answer 3]
+
+    Generate exactly {batch_size} unique flashcards covering different aspects of the topic.
+    Ensure comprehensive coverage by:
+    1. Breaking down the topic into key subtopics
+    2. Creating equal numbers of cards for each subtopic
+    3. Varying question types within each subtopic
+    4. Including both fundamental and advanced concepts"""
+
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.0-flash-lite-preview-02-05",
+            contents=prompt_template
+        )
+        
+        batch_cards = parse_flashcards(response.text)
+        if not batch_cards:
+            raise ValueError("No valid flashcards generated")
+            
+        # Add unique cards to the database
+        cards_added = 0
+        for card in batch_cards:
+            # Check if similar question already exists
+            if not Flashcard.query.filter_by(
+                topic_id=topic.id, 
+                question=card['question']
+            ).first():
+                flashcard = Flashcard(
+                    question=card['question'],
+                    correct_answer=card['correct_answer'],
+                    incorrect_answers=json.dumps(card['incorrect_answers']),
+                    topic_id=topic.id
+                )
+                db.session.add(flashcard)
+                cards_added += 1
+        
+        db.session.commit()
+        print(f"Successfully added {cards_added} flashcards")
+            
+    except Exception as e:
+        print(f"Error in flashcard generation: {e}")
+        db.session.rollback()
     
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return jsonify({"success": True, "redirect_url": url_for('get_topic_flashcards', topic_id=topic.id)})
     return redirect(url_for('get_topic_flashcards', topic_id=topic.id))
+
+def is_topic_sufficiently_covered(topic_id):
+    """Check if the topic has sufficient coverage based on card variety and concepts."""
+    flashcards = Flashcard.query.filter_by(topic_id=topic_id).all()
+    
+    if len(flashcards) < 20:
+        return False
+        
+    # Basic heuristic: check for question variety using keywords
+    question_types = {
+        'what': 0, 'how': 0, 'why': 0, 'when': 0, 
+        'define': 0, 'explain': 0, 'compare': 0, 'analyze': 0
+    }
+    
+    for card in flashcards:
+        question = card.question.lower()
+        for keyword in question_types:
+            if keyword in question:
+                question_types[keyword] += 1
+                
+    # Ensure we have at least 3 different types of questions
+    different_types = sum(1 for count in question_types.values() if count > 0)
+    return different_types >= 3
 
 @app.route("/topic/<int:topic_id>")
 def get_topic_flashcards(topic_id):
