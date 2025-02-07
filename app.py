@@ -16,6 +16,10 @@ app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 
+# Create tables if they don't exist
+with app.app_context():
+    db.create_all()
+
 @app.route("/", methods=["GET"])
 def index():
     topics = Topic.query.order_by(Topic.created_at.desc()).all()
@@ -182,7 +186,6 @@ def parse_flashcards(text):
 
     return flashcards
 
-if __name__ == "__main__":
-    with app.app_context():
-        db.create_all()
-    app.run(host="0.0.0.0", debug=True)
+# Remove the if __name__ == "__main__" block
+# Instead, export the app for Vercel
+app.debug = True

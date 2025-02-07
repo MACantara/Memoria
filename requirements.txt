@@ -3,3 +3,4 @@ google-genai
 python-dotenv
 flask-sqlalchemy
 psycopg2-binary
+vercel
