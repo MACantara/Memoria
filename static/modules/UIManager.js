@@ -26,12 +26,24 @@ export class UIManager {
     showCompletion(score, total) {
         const container = document.getElementById('flashcardsContainer');
         container.innerHTML = `
-            <div class="completion-message">
-                <h2>🎉 Congratulations!</h2>
-                <p>You've successfully completed all flashcards.</p>
-                <p>Final Score: ${score}/${total}</p>
-                <a href="${window.location.href}" class="button">Study Again</a>
-                <a href="/" class="button">Back to Topics</a>
+            <div class="card text-center p-5">
+                <div class="card-body">
+                    <h2 class="card-title mb-4">
+                        <i class="bi bi-emoji-smile-fill text-success"></i> Congratulations!
+                    </h2>
+                    <p class="card-text fs-5">You've successfully completed all flashcards.</p>
+                    <p class="card-text fs-4 text-success fw-bold">
+                        <i class="bi bi-trophy-fill"></i> Final Score: ${score}/${total}
+                    </p>
+                    <div class="d-flex justify-content-center gap-3 mt-4">
+                        <a href="${window.location.href}" class="btn btn-primary">
+                            <i class="bi bi-arrow-repeat"></i> Study Again
+                        </a>
+                        <a href="/" class="btn btn-outline-primary">
+                            <i class="bi bi-house-door"></i> Back to Topics
+                        </a>
+                    </div>
+                </div>
             </div>
         `;
     }
@@ -39,24 +51,33 @@ export class UIManager {
     renderAnswerOptions(flashcard, allAnswers) {
         const answersForm = flashcard.querySelector('.answer-form');
         answersForm.innerHTML = allAnswers.map((answer, index) => `
-            <div class="answer-option">
-                <input type="radio" id="${flashcard.dataset.id}-${index}" 
-                       name="flashcard-${flashcard.dataset.id}" 
-                       value="${answer.replace(/"/g, '&quot;')}">
-                <label for="${flashcard.dataset.id}-${index}">
-                    <span class="key-hint">${index + 1}</span>${answer}
-                </label>
-            </div>
+            <label class="form-check answer-option p-3 mb-3 rounded border user-select-none w-100" 
+                   role="button" 
+                   style="cursor: pointer"
+                   for="${flashcard.dataset.id}-${index}">
+                <div class="d-flex align-items-center">
+                    <input class="form-check-input" type="radio" 
+                           id="${flashcard.dataset.id}-${index}" 
+                           name="flashcard-${flashcard.dataset.id}" 
+                           value="${answer.replace(/"/g, '&quot;')}">
+                    <div class="ms-2">
+                        <span class="badge bg-light text-dark me-2">${index + 1}</span>
+                        ${answer}
+                    </div>
+                </div>
+            </label>
         `).join('');
     }
 
     showAnswerFeedback(flashcard, isCorrect) {
         const feedback = document.createElement('div');
-        feedback.classList.add('feedback');
-        feedback.textContent = isCorrect ? '✓ Correct!' : '✗ Incorrect - Moving to next question';
-        feedback.classList.add(isCorrect ? 'correct' : 'incorrect');
+        feedback.classList.add('alert', isCorrect ? 'alert-success' : 'alert-danger', 'mt-3');
         
-        const existingFeedback = flashcard.querySelector('.feedback');
+        feedback.innerHTML = isCorrect ? 
+            '<i class="bi bi-check-circle-fill"></i> Correct!' : 
+            '<i class="bi bi-x-circle-fill"></i> Incorrect - Moving to next question';
+        
+        const existingFeedback = flashcard.querySelector('.alert');
         if (existingFeedback) {
             existingFeedback.remove();
         }

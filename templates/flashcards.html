@@ -2,43 +2,68 @@
 <html>
 <head>
     <title>Study {{ deck.name }} - {{ deck.topic.name }}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/flashcards.css') }}">
 </head>
-<body>
-    <div class="navigation-header">
-        <a href="{{ url_for('get_topic_flashcards', topic_id=deck.topic_id) }}" class="back-button">← Back to Topic</a>
-        <h1>{{ deck.name }}</h1>
-        <div class="stats">
-            <span id="cardNumber">Card 1 of {{ flashcards|length }}</span>
-            <span>Score: <span id="score">0</span></span>
-        </div>
-    </div>
-
-    <div id="flashcardsContainer">
-        {% for flashcard in flashcards %}
-        <div class="flashcard" 
-             data-id="{{ flashcard.id }}"
-             data-correct="{{ flashcard.correct_answer }}"
-             data-incorrect="{{ flashcard.incorrect_answers }}"
-             style="display: none;">
-            <div class="question">
-                <h2>{{ flashcard.question }}</h2>
+<body class="bg-light">
+    <div class="container py-4">
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center gap-3">
+                        <a href="{{ url_for('get_topic_flashcards', topic_id=deck.topic_id) }}" 
+                           class="btn btn-outline-primary">
+                            <i class="bi bi-arrow-left"></i> Back to Topic
+                        </a>
+                        <h1 class="h2 mb-0">{{ deck.name }}</h1>
+                    </div>
+                    <div class="d-flex gap-3 align-items-center">
+                        <span id="cardNumber" class="text-muted">Card 1 of {{ flashcards|length }}</span>
+                        <span class="badge bg-success fs-6">Score: <span id="score">0</span></span>
+                    </div>
+                </div>
             </div>
-            <form class="answer-form">
-                <!-- Answer options will be dynamically inserted here -->
-            </form>
         </div>
-        {% endfor %}
+
+        <div id="flashcardsContainer">
+            {% for flashcard in flashcards %}
+            <div class="card flashcard mb-4" 
+                 data-id="{{ flashcard.id }}"
+                 data-correct="{{ flashcard.correct_answer }}"
+                 data-incorrect="{{ flashcard.incorrect_answers }}"
+                 style="display: none;">
+                <div class="card-body">
+                    <h2 class="card-title h4">{{ flashcard.question }}</h2>
+                    <form class="answer-form mt-4">
+                        <!-- Answer options will be dynamically inserted here -->
+                    </form>
+                    <div class="mt-3 p-2 bg-light rounded small">
+                        <div class="row text-muted">
+                            <div class="col-4">
+                                <i class="bi bi-check-circle"></i> Correct: {{ flashcard.correct_count }}
+                            </div>
+                            <div class="col-4">
+                                <i class="bi bi-x-circle"></i> Incorrect: {{ flashcard.incorrect_count }}
+                            </div>
+                            <div class="col-4">
+                                <i class="bi bi-clock"></i> Last: {{ flashcard.last_reviewed.strftime('%Y-%m-%d %H:%M') if flashcard.last_reviewed else 'Never' }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script type="module">
         import { FlashcardManager } from '{{ url_for("static", filename="modules/FlashcardManager.js") }}';
         
         const manager = new FlashcardManager();
         manager.initialize();
 
-        // Add keyboard navigation
         document.addEventListener('keydown', (e) => {
             manager.handleKeyboardNavigation(e.key);
         });

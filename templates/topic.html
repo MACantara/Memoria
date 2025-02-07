@@ -2,130 +2,188 @@
 <html>
 <head>
     <title>{{ topic.name }} - Flashcard Decks</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/topic.css') }}">
 </head>
-<body>
-    <div class="topic-header">
-        <div class="navigation">
-            <a href="{{ url_for('index') }}" class="back-button">← Back to Topics</a>
-            <h1>{{ topic.name }}</h1>
+<body class="bg-light">
+    <div class="container py-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div class="d-flex align-items-center gap-3">
+                <a href="{{ url_for('index') }}" class="btn btn-outline-primary">
+                    <i class="bi bi-arrow-left"></i> Back to Topics
+                </a>
+                <h1 class="h2 mb-0">{{ topic.name }}</h1>
+            </div>
+            <button id="createDeckBtn" class="btn btn-primary">
+                <i class="bi bi-plus-lg"></i> Create New Deck
+            </button>
         </div>
-        <button id="createDeckBtn" class="button">Create New Deck</button>
+
+        <div class="row g-4">
+            {% for deck in decks %}
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body">
+                        <h3 class="card-title h5">{{ deck.name }}</h3>
+                        <p class="card-text">{{ deck.description }}</p>
+                        <p class="card-text text-success fw-bold">
+                            <i class="bi bi-layers"></i> {{ deck.flashcards|length }} cards
+                        </p>
+                        <div class="d-flex gap-2">
+                            <a href="{{ url_for('get_deck_flashcards', deck_id=deck.id) }}" 
+                               class="btn btn-primary flex-grow-1">
+                               <i class="bi bi-play-fill"></i> Study
+                            </a>
+                            <button class="btn btn-outline-primary add-cards-btn" data-deck-id="{{ deck.id }}">
+                                <i class="bi bi-plus-lg"></i> Add Cards
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
     </div>
 
-    <div class="decks-container">
-        {% for deck in decks %}
-        <div class="deck-card">
-            <h3>{{ deck.name }}</h3>
-            <p>{{ deck.description }}</p>
-            <p class="deck-stats">{{ deck.flashcards|length }} cards</p>
-            <div class="deck-actions">
-                <a href="{{ url_for('get_deck_flashcards', deck_id=deck.id) }}" class="button">Study</a>
-                <button class="button secondary add-cards-btn" data-deck-id="{{ deck.id }}">Add Cards</button>
+    <!-- Create Deck Modal -->
+    <div class="modal fade" id="deckModal" tabindex="-1" style="display: none;" data-bs-backdrop="static">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Create New Deck</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="createDeckForm">
+                        <input type="hidden" name="topic_id" value="{{ topic.id }}">
+                        <div class="mb-3">
+                            <label for="deckName" class="form-label">Deck Name:</label>
+                            <input type="text" class="form-control" id="deckName" name="name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="deckDescription" class="form-label">Description:</label>
+                            <textarea class="form-control" id="deckDescription" name="description" rows="3"></textarea>
+                        </div>
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Create</button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
-        {% endfor %}
     </div>
 
-    <div id="deckModal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <h2>Create New Deck</h2>
-            <form id="createDeckForm">
-                <input type="hidden" name="topic_id" value="{{ topic.id }}">
-                <div class="form-group">
-                    <label for="deckName">Deck Name:</label>
-                    <input type="text" id="deckName" name="name" required>
+    <!-- Generate Cards Modal -->
+    <div class="modal fade" id="generateModal" tabindex="-1" style="display: none;" data-bs-backdrop="static">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Generate Flashcards</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="form-group">
-                    <label for="deckDescription">Description:</label>
-                    <textarea id="deckDescription" name="description"></textarea>
+                <div class="modal-body">
+                    <form id="generateForm">
+                        <input type="hidden" name="topic_id" value="{{ topic.id }}">
+                        <input type="hidden" name="deck_id" id="generateDeckId">
+                        <div class="mb-3">
+                            <label for="subtopic" class="form-label">Enter a subtopic or aspect to focus on:</label>
+                            <input type="text" class="form-control" id="subtopic" name="subtopic" 
+                                   placeholder="Leave empty to generate general cards about {{ topic.name }}">
+                        </div>
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-magic"></i> Generate
+                            </button>
+                        </div>
+                    </form>
                 </div>
-                <div class="form-actions">
-                    <button type="submit" class="button">Create</button>
-                    <button type="button" class="button secondary" onclick="closeModal()">Cancel</button>
-                </div>
-            </form>
+            </div>
         </div>
     </div>
 
-    <!-- Add new modal for generating cards -->
-    <div id="generateModal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <h2>Generate Flashcards</h2>
-            <form id="generateForm">
-                <input type="hidden" name="topic_id" value="{{ topic.id }}">
-                <input type="hidden" name="deck_id" id="generateDeckId">
-                <div class="form-group">
-                    <label for="subtopic">Enter a subtopic or aspect to focus on:</label>
-                    <input type="text" id="subtopic" name="subtopic" 
-                           placeholder="Leave empty to generate general cards about {{ topic.name }}" 
-                           class="form-input">
-                </div>
-                <div class="form-actions">
-                    <button type="submit" class="button">Generate</button>
-                    <button type="button" class="button secondary" onclick="closeGenerateModal()">Cancel</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // Initialize modals with proper configuration
+        const deckModal = new bootstrap.Modal(document.getElementById('deckModal'), {
+            backdrop: true,
+            keyboard: true
+        });
+        
+        const generateModal = new bootstrap.Modal(document.getElementById('generateModal'), {
+            backdrop: true,
+            keyboard: true
+        });
+        
         document.getElementById('createDeckBtn').onclick = () => {
-            document.getElementById('deckModal').style.display = 'block';
+            document.getElementById('createDeckForm').reset();
+            deckModal.show();
         };
-
-        function closeModal() {
-            document.getElementById('deckModal').style.display = 'none';
-        }
-
-        document.getElementById('createDeckForm').onsubmit = async (e) => {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            const response = await fetch('/deck/create', {
-                method: 'POST',
-                body: formData
-            });
-            const data = await response.json();
-            if (data.success) {
-                location.reload();
-            }
-        };
-
-        function closeGenerateModal() {
-            document.getElementById('generateModal').style.display = 'none';
-        }
-
-        // Update deck-specific card generation
+        
         document.querySelectorAll('.add-cards-btn').forEach(button => {
             button.addEventListener('click', () => {
-                const deckId = button.dataset.deckId;
-                document.getElementById('generateDeckId').value = deckId;
-                document.getElementById('generateModal').style.display = 'block';
+                document.getElementById('generateForm').reset();
+                document.getElementById('generateDeckId').value = button.dataset.deckId;
+                generateModal.show();
             });
         });
 
-        document.getElementById('generateForm').onsubmit = async (e) => {
+        // Handle form submissions
+        document.getElementById('createDeckForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const formData = new FormData(e.target);
-            
+            const submitButton = e.target.querySelector('button[type="submit"]');
+            submitButton.disabled = true;
+
             try {
-                const response = await fetch('/generate_for_deck', {
+                const response = await fetch('/api/decks', {
                     method: 'POST',
                     body: formData
                 });
-                const data = await response.json();
                 
-                if (data.success) {
+                if (response.ok) {
+                    deckModal.hide();
                     location.reload();
                 } else {
-                    alert(data.error || 'Failed to generate flashcards');
+                    throw new Error('Failed to create deck');
                 }
             } catch (error) {
-                console.error('Error:', error);
-                alert('Failed to generate flashcards');
+                console.error('Error creating deck:', error);
+                alert('Failed to create deck. Please try again.');
+            } finally {
+                submitButton.disabled = false;
             }
-        };
+        });
+
+        document.getElementById('generateForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const submitButton = e.target.querySelector('button[type="submit"]');
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<i class="bi bi-hourglass-split"></i> Generating...';
+
+            try {
+                const response = await fetch('/api/flashcards/generate', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    generateModal.hide();
+                    location.reload();
+                } else {
+                    throw new Error('Failed to generate cards');
+                }
+            } catch (error) {
+                console.error('Error generating cards:', error);
+                alert('Failed to generate cards. Please try again.');
+            } finally {
+                submitButton.disabled = false;
+                submitButton.innerHTML = '<i class="bi bi-magic"></i> Generate';
+            }
+        });
     </script>
 </body>
 </html>
