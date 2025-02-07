@@ -16,14 +16,18 @@ body {
     transition: all 0.2s ease;
 }
 
+.answer-option:hover {
+    background-color: rgba(0,0,0,0.03);
+}
+
 .answer-option.correct {
-    background-color: #d4edda;
-    border-color: #c3e6cb;
+    background-color: var(--bs-success-bg-subtle) !important;
+    border-color: var(--bs-success) !important;
 }
 
 .answer-option.incorrect {
-    background-color: #f8d7da;
-    border-color: #f5c6cb;
+    background-color: var(--bs-danger-bg-subtle) !important;
+    border-color: var(--bs-danger) !important;
 }
 
 .key-hint {

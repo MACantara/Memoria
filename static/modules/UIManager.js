@@ -51,16 +51,21 @@ export class UIManager {
     renderAnswerOptions(flashcard, allAnswers) {
         const answersForm = flashcard.querySelector('.answer-form');
         answersForm.innerHTML = allAnswers.map((answer, index) => `
-            <div class="form-check answer-option p-3 mb-3 rounded border">
-                <input class="form-check-input" type="radio" 
-                       id="${flashcard.dataset.id}-${index}" 
-                       name="flashcard-${flashcard.dataset.id}" 
-                       value="${answer.replace(/"/g, '&quot;')}">
-                <label class="form-check-label ms-2 w-100" for="${flashcard.dataset.id}-${index}">
-                    <span class="badge bg-light text-dark me-2">${index + 1}</span>
-                    ${answer}
-                </label>
-            </div>
+            <label class="form-check answer-option p-3 mb-3 rounded border user-select-none w-100" 
+                   role="button" 
+                   style="cursor: pointer"
+                   for="${flashcard.dataset.id}-${index}">
+                <div class="d-flex align-items-center">
+                    <input class="form-check-input" type="radio" 
+                           id="${flashcard.dataset.id}-${index}" 
+                           name="flashcard-${flashcard.dataset.id}" 
+                           value="${answer.replace(/"/g, '&quot;')}">
+                    <div class="ms-2">
+                        <span class="badge bg-light text-dark me-2">${index + 1}</span>
+                        ${answer}
+                    </div>
+                </div>
+            </label>
         `).join('');
     }
 
