@@ -32,7 +32,8 @@ export class FlashcardManager {
         shuffleArray(allAnswers);
         this.ui.renderAnswerOptions(flashcard, allAnswers);
         
-        answersForm.querySelectorAll('input[type="radio"]').forEach(radio => {
+        // Update to use Bootstrap form-check-input class
+        answersForm.querySelectorAll('.form-check-input').forEach(radio => {
             radio.addEventListener('click', () => this.handleAnswer(radio.value, flashcard));
         });
     }
@@ -44,6 +45,16 @@ export class FlashcardManager {
     async handleAnswer(selectedAnswer, flashcard) {
         const isCorrect = selectedAnswer === flashcard.dataset.correct;
         await updateProgress(flashcard.dataset.id, isCorrect);
+        
+        // Add visual feedback using Bootstrap classes
+        flashcard.querySelectorAll('.answer-option').forEach(option => {
+            const radio = option.querySelector('input[type="radio"]');
+            if (radio.value === flashcard.dataset.correct) {
+                option.classList.add('border-success', 'bg-success-subtle');
+            } else if (radio.checked && !isCorrect) {
+                option.classList.add('border-danger', 'bg-danger-subtle');
+            }
+        });
         
         this.ui.showAnswerFeedback(flashcard, isCorrect);
 
