@@ -7,7 +7,10 @@
 </head>
 <body>
     <div class="topic-header">
-        <h1>{{ topic.name }}</h1>
+        <div class="navigation">
+            <a href="{{ url_for('index') }}" class="back-button">← Back to Topics</a>
+            <h1>{{ topic.name }}</h1>
+        </div>
         <button id="createDeckBtn" class="button">Create New Deck</button>
     </div>
 
