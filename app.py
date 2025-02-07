@@ -119,6 +119,86 @@ def generate():
         return jsonify({"success": True, "redirect_url": url_for('get_topic_flashcards', topic_id=topic.id)})
     return redirect(url_for('get_topic_flashcards', topic_id=topic.id))
 
+@app.route("/generate_for_deck", methods=["POST"])
+def generate_for_deck():
+    deck_id = request.form.get("deck_id")
+    subtopic = request.form.get("subtopic", "").strip()
+    
+    deck = Deck.query.get_or_404(deck_id)
+    topic = Topic.query.get_or_404(deck.topic_id)
+    
+    focus = f"{topic.name} - {subtopic}" if subtopic else topic.name
+    
+    client = genai.Client(api_key=api_key)
+    prompt_template = f"""You are an expert educator creating flashcards about {focus}.
+    Generate exactly 100 comprehensive, accurate, and engaging flashcards following these guidelines:
+
+    1. Each flashcard must have:
+       - A clear, concise question that tests understanding
+       - One definitively correct answer
+       - Three plausible but incorrect answers
+       - All answers should be roughly the same length and style
+    
+    2. Question types should include:
+       - Factual recall (25% of cards)
+       - Concept application (25% of cards)
+       - Problem-solving (25% of cards)
+       - Relationships between concepts (25% of cards)
+    
+    3. Ensure:
+       - No duplicate questions or answers
+       - All content is factually accurate
+       - Clear, unambiguous wording
+       - Progressive difficulty (easy -> medium -> hard)
+    
+    4. Format each flashcard exactly as:
+    question: [question text]
+    correct: [correct answer]
+    incorrect: [wrong answer 1]; [wrong answer 2]; [wrong answer 3]
+
+    Ensure comprehensive coverage by:
+    1. Breaking down the topic into key subtopics
+    2. Creating equal numbers of cards for each subtopic
+    3. Varying question types within each subtopic
+    4. Including both fundamental and advanced concepts"""
+
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.0-flash-lite-preview-02-05",
+            contents=prompt_template
+        )
+        
+        batch_cards = parse_flashcards(response.text)
+        if not batch_cards:
+            return jsonify({"success": False, "error": "No valid flashcards generated"})
+            
+        cards_added = 0
+        for card in batch_cards:
+            if not Flashcard.query.filter_by(
+                deck_id=deck_id, 
+                question=card['question']
+            ).first():
+                flashcard = Flashcard(
+                    question=card['question'],
+                    correct_answer=card['correct_answer'],
+                    incorrect_answers=json.dumps(card['incorrect_answers']),
+                    topic_id=deck.topic_id,
+                    deck_id=deck_id
+                )
+                db.session.add(flashcard)
+                cards_added += 1
+        
+        db.session.commit()
+        return jsonify({
+            "success": True, 
+            "message": f"Successfully added {cards_added} flashcards to deck"
+        })
+            
+    except Exception as e:
+        print(f"Error in flashcard generation: {e}")
+        db.session.rollback()
+        return jsonify({"success": False, "error": str(e)})
+
 def is_topic_sufficiently_covered(topic_id):
     """Check if the topic has sufficient coverage based on card variety and concepts."""
     flashcards = Flashcard.query.filter_by(topic_id=topic_id).all()

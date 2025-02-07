@@ -49,6 +49,27 @@
         </div>
     </div>
 
+    <!-- Add new modal for generating cards -->
+    <div id="generateModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h2>Generate Flashcards</h2>
+            <form id="generateForm">
+                <input type="hidden" name="topic_id" value="{{ topic.id }}">
+                <input type="hidden" name="deck_id" id="generateDeckId">
+                <div class="form-group">
+                    <label for="subtopic">Enter a subtopic or aspect to focus on:</label>
+                    <input type="text" id="subtopic" name="subtopic" 
+                           placeholder="Leave empty to generate general cards about {{ topic.name }}" 
+                           class="form-input">
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="button">Generate</button>
+                    <button type="button" class="button secondary" onclick="closeGenerateModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
         document.getElementById('createDeckBtn').onclick = () => {
             document.getElementById('deckModal').style.display = 'block';
@@ -68,6 +89,41 @@
             const data = await response.json();
             if (data.success) {
                 location.reload();
+            }
+        };
+
+        function closeGenerateModal() {
+            document.getElementById('generateModal').style.display = 'none';
+        }
+
+        // Update deck-specific card generation
+        document.querySelectorAll('.add-cards-btn').forEach(button => {
+            button.addEventListener('click', () => {
+                const deckId = button.dataset.deckId;
+                document.getElementById('generateDeckId').value = deckId;
+                document.getElementById('generateModal').style.display = 'block';
+            });
+        });
+
+        document.getElementById('generateForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            
+            try {
+                const response = await fetch('/generate_for_deck', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert(data.error || 'Failed to generate flashcards');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to generate flashcards');
             }
         };
     </script>
