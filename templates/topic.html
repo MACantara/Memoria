@@ -1,68 +1,71 @@
-{% extends "base.html" %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ topic.name }} - Flashcard Decks</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
+</head>
+<body>
+    <div class="topic-header">
+        <h1>{{ topic.name }}</h1>
+        <button id="createDeckBtn" class="button">Create New Deck</button>
+    </div>
 
-{% block content %}
-<div class="topic-header">
-    <h1>{{ topic.name }}</h1>
-    <button id="createDeckBtn" class="button">Create New Deck</button>
-</div>
+    <div class="decks-container">
+        {% for deck in decks %}
+        <div class="deck-card">
+            <h3>{{ deck.name }}</h3>
+            <p>{{ deck.description }}</p>
+            <p class="deck-stats">{{ deck.flashcards|length }} cards</p>
+            <div class="deck-actions">
+                <a href="{{ url_for('get_deck_flashcards', deck_id=deck.id) }}" class="button">Study</a>
+                <button class="button secondary add-cards-btn" data-deck-id="{{ deck.id }}">Add Cards</button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
 
-<div class="decks-container">
-    {% for deck in decks %}
-    <div class="deck-card">
-        <h3>{{ deck.name }}</h3>
-        <p>{{ deck.description }}</p>
-        <p class="deck-stats">{{ deck.flashcards|length }} cards</p>
-        <div class="deck-actions">
-            <a href="{{ url_for('get_deck_flashcards', deck_id=deck.id) }}" class="button">Study</a>
-            <button class="button secondary add-cards-btn" data-deck-id="{{ deck.id }}">Add Cards</button>
+    <div id="deckModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h2>Create New Deck</h2>
+            <form id="createDeckForm">
+                <input type="hidden" name="topic_id" value="{{ topic.id }}">
+                <div class="form-group">
+                    <label for="deckName">Deck Name:</label>
+                    <input type="text" id="deckName" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="deckDescription">Description:</label>
+                    <textarea id="deckDescription" name="description"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="button">Create</button>
+                    <button type="button" class="button secondary" onclick="closeModal()">Cancel</button>
+                </div>
+            </form>
         </div>
     </div>
-    {% endfor %}
-</div>
 
-<div id="deckModal" class="modal" style="display: none;">
-    <div class="modal-content">
-        <h2>Create New Deck</h2>
-        <form id="createDeckForm">
-            <input type="hidden" name="topic_id" value="{{ topic.id }}">
-            <div class="form-group">
-                <label for="deckName">Deck Name:</label>
-                <input type="text" id="deckName" name="name" required>
-            </div>
-            <div class="form-group">
-                <label for="deckDescription">Description:</label>
-                <textarea id="deckDescription" name="description"></textarea>
-            </div>
-            <div class="form-actions">
-                <button type="submit" class="button">Create</button>
-                <button type="button" class="button secondary" onclick="closeModal()">Cancel</button>
-            </div>
-        </form>
-    </div>
-</div>
-{% endblock %}
+    <script>
+        document.getElementById('createDeckBtn').onclick = () => {
+            document.getElementById('deckModal').style.display = 'block';
+        };
 
-{% block scripts %}
-<script>
-document.getElementById('createDeckBtn').onclick = () => {
-    document.getElementById('deckModal').style.display = 'block';
-};
+        function closeModal() {
+            document.getElementById('deckModal').style.display = 'none';
+        }
 
-function closeModal() {
-    document.getElementById('deckModal').style.display = 'none';
-}
-
-document.getElementById('createDeckForm').onsubmit = async (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const response = await fetch('/deck/create', {
-        method: 'POST',
-        body: formData
-    });
-    const data = await response.json();
-    if (data.success) {
-        location.reload();
-    }
-};
-</script>
-{% endblock %}
+        document.getElementById('createDeckForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const response = await fetch('/deck/create', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await response.json();
+            if (data.success) {
+                location.reload();
+            }
+        };
+    </script>
+</body>
+</html>

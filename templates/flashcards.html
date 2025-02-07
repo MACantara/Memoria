@@ -1,46 +1,46 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Study {{ topic.name }}</title>
+    <title>Study {{ deck.name }} - {{ deck.topic.name }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/flashcards.css') }}">
 </head>
 <body>
-    <div class="topic-header">
-        <h1>{{ topic.name }}</h1>
-        <a href="{{ url_for('index') }}" class="button">Back to Topics</a>
-    </div>
-
-    <div class="progress-container">
-        <span id="cardNumber">Card 1 of {{flashcards|length}}</span>
-        <div class="navigation-container">
-            <button id="prevCard" class="nav-button">&lt; Previous</button>
-            <button id="nextCard" class="nav-button">Next &gt;</button>
-        </div>
-        <div class="score-display">
+    <div class="navigation-header">
+        <a href="{{ url_for('get_topic_flashcards', topic_id=deck.topic_id) }}" class="back-button">← Back to Topic</a>
+        <h1>{{ deck.name }}</h1>
+        <div class="stats">
+            <span id="cardNumber">Card 1 of {{ flashcards|length }}</span>
             <span>Score: <span id="score">0</span></span>
         </div>
     </div>
 
     <div id="flashcardsContainer">
         {% for flashcard in flashcards %}
-            <div class="flashcard" 
-                 data-id="{{ flashcard.id }}"
-                 data-correct="{{ flashcard.correct_answer }}"
-                 data-incorrect='{{ flashcard.incorrect_answers }}'>
-                <h3>Question:</h3>
-                <p>{{ flashcard.question }}</p>
-                <form class="answer-form">
-                    <!-- Answers will be populated by JavaScript -->
-                </form>
-                <div class="stats">
-                    <span>Correct: {{ flashcard.correct_count }}</span>
-                    <span>Incorrect: {{ flashcard.incorrect_count }}</span>
-                    <span>Last Reviewed: {{ flashcard.last_reviewed.strftime('%Y-%m-%d %H:%M') if flashcard.last_reviewed else 'Never' }}</span>
-                </div>
+        <div class="flashcard" 
+             data-id="{{ flashcard.id }}"
+             data-correct="{{ flashcard.correct_answer }}"
+             data-incorrect="{{ flashcard.incorrect_answers }}"
+             style="display: none;">
+            <div class="question">
+                <h2>{{ flashcard.question }}</h2>
             </div>
+            <form class="answer-form">
+                <!-- Answer options will be dynamically inserted here -->
+            </form>
+        </div>
         {% endfor %}
     </div>
 
-    <script src="{{ url_for('static', filename='script.js') }}" type="module"></script>
+    <script type="module">
+        import { FlashcardManager } from '{{ url_for("static", filename="modules/FlashcardManager.js") }}';
+        
+        const manager = new FlashcardManager();
+        manager.initialize();
+
+        // Add keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            manager.handleKeyboardNavigation(e.key);
+        });
+    </script>
 </body>
 </html>
