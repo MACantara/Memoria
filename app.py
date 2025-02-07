@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 import os
 import json
 from google import genai
-from models import db, Topic, Flashcard
+from models import db, Topic, Flashcard, Deck
 from datetime import datetime
 
 load_dotenv()
@@ -36,6 +36,15 @@ def generate():
         topic = Topic(name=user_input)
         db.session.add(topic)
         db.session.commit()
+
+    # Create a new deck for this generation
+    deck = Deck(
+        name=f"Generated {datetime.utcnow().strftime('%Y-%m-%d %H:%M')}",
+        description=f"Automatically generated flashcards about {user_input}",
+        topic_id=topic.id
+    )
+    db.session.add(deck)
+    db.session.commit()
 
     client = genai.Client(api_key=api_key)
     prompt_template = f"""You are an expert educator creating flashcards about {user_input}.
@@ -86,14 +95,15 @@ def generate():
         for card in batch_cards:
             # Check if similar question already exists
             if not Flashcard.query.filter_by(
-                topic_id=topic.id, 
+                deck_id=deck.id, 
                 question=card['question']
             ).first():
                 flashcard = Flashcard(
                     question=card['question'],
                     correct_answer=card['correct_answer'],
                     incorrect_answers=json.dumps(card['incorrect_answers']),
-                    topic_id=topic.id
+                    topic_id=topic.id,
+                    deck_id=deck.id
                 )
                 db.session.add(flashcard)
                 cards_added += 1
@@ -135,8 +145,30 @@ def is_topic_sufficiently_covered(topic_id):
 @app.route("/topic/<int:topic_id>")
 def get_topic_flashcards(topic_id):
     topic = Topic.query.get_or_404(topic_id)
-    flashcards = Flashcard.query.filter_by(topic_id=topic_id).all()
-    return render_template("flashcards.html", topic=topic, flashcards=flashcards)
+    decks = Deck.query.filter_by(topic_id=topic_id).order_by(Deck.created_at.desc()).all()
+    return render_template("topic.html", topic=topic, decks=decks)
+
+@app.route("/deck/<int:deck_id>")
+def get_deck_flashcards(deck_id):
+    deck = Deck.query.get_or_404(deck_id)
+    flashcards = Flashcard.query.filter_by(deck_id=deck_id).all()
+    return render_template("flashcards.html", deck=deck, flashcards=flashcards)
+
+@app.route("/deck/create", methods=["POST"])
+def create_deck():
+    topic_id = request.form.get("topic_id")
+    name = request.form.get("name", "New Deck")
+    description = request.form.get("description", "")
+    
+    deck = Deck(
+        name=name,
+        description=description,
+        topic_id=topic_id
+    )
+    db.session.add(deck)
+    db.session.commit()
+    
+    return jsonify({"success": True, "deck_id": deck.id})
 
 @app.route("/update_progress", methods=["POST"])
 def update_progress():
@@ -186,6 +218,23 @@ def parse_flashcards(text):
 
     return flashcards
 
-# Remove the if __name__ == "__main__" block
-# Instead, export the app for Vercel
-app.debug = True
+# Configuration for local development
+if __name__ == "__main__":
+    # Ensure all tables exist
+    with app.app_context():
+        try:
+            db.create_all()
+            print("Database tables created successfully")
+        except Exception as e:
+            print(f"Error creating database tables: {e}")
+
+    # Enable debug mode for development
+    app.debug = True
+    
+    # Run the application
+    try:
+        print("Starting development server...")
+        print("Access the application at: http://localhost:5000")
+        app.run(host='0.0.0.0', port=5000)
+    except Exception as e:
+        print(f"Error starting development server: {e}")
