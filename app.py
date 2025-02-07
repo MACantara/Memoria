@@ -10,7 +10,9 @@ load_dotenv()
 api_key = os.getenv("GOOGLE_GEMINI_API_KEY")
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///flashcards.db'
+# Update database URL to use postgresql:// instead of postgres://
+db_url = os.getenv('POSTGRES_URL_NON_POOLING', '').replace('postgres://', 'postgresql://')
+app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 
