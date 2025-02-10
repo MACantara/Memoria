@@ -20,10 +20,17 @@
                         <div class="input-group">
                             <input type="text" class="form-control" id="topic" name="topic" required 
                                    placeholder="Enter any topic to generate flashcards...">
-                            <button class="btn btn-primary" type="submit">
-                                <i class="bi bi-plus-circle me-2"></i>Generate Flashcards
+                            <button class="btn btn-primary" type="submit" id="generateBtn">
+                                <span class="normal-state">
+                                    <i class="bi bi-plus-circle me-2"></i>Generate Flashcards
+                                </span>
+                                <span class="loading-state d-none">
+                                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                    Generating...
+                                </span>
                             </button>
                         </div>
+                        <div id="generateStatus" class="mt-2"></div>
                     </div>
                 </form>
             </div>
