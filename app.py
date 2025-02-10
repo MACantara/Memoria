@@ -39,7 +39,7 @@ def generate():
 
     # Create a new deck for this generation
     deck = Deck(
-        name=f"Generated {datetime.utcnow().strftime('%Y-%m-%d %H:%M')}",
+        name=f"{user_input} Flashcards",
         description=f"Automatically generated flashcards about {user_input}",
         topic_id=topic.id
     )
