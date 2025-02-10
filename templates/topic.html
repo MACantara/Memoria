@@ -96,10 +96,17 @@
                         </div>
                         <div class="d-flex justify-content-end gap-2">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-magic"></i> Generate
+                            <button type="submit" class="btn btn-primary" id="generateBtn">
+                                <span class="normal-state">
+                                    <i class="bi bi-magic"></i> Generate
+                                </span>
+                                <span class="loading-state d-none">
+                                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                    Generating...
+                                </span>
                             </button>
                         </div>
+                        <div id="generateStatus" class="mt-3"></div>
                     </form>
                 </div>
             </div>
@@ -159,12 +166,23 @@
             }
         });
 
+        // Handle form submissions with loading states
         document.getElementById('generateForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const formData = new FormData(e.target);
             const submitButton = e.target.querySelector('button[type="submit"]');
+            const normalState = submitButton.querySelector('.normal-state');
+            const loadingState = submitButton.querySelector('.loading-state');
+            const statusDiv = document.getElementById('generateStatus');
+
             submitButton.disabled = true;
-            submitButton.innerHTML = '<i class="bi bi-hourglass-split"></i> Generating...';
+            normalState.classList.add('d-none');
+            loadingState.classList.remove('d-none');
+            statusDiv.innerHTML = `
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> Generating flashcards... This may take a minute.
+                </div>
+            `;
 
             try {
                 const response = await fetch('/api/flashcards/generate', {
@@ -173,17 +191,29 @@
                 });
                 
                 if (response.ok) {
-                    generateModal.hide();
-                    location.reload();
+                    statusDiv.innerHTML = `
+                        <div class="alert alert-success">
+                            <i class="bi bi-check-circle"></i> Flashcards generated successfully!
+                        </div>
+                    `;
+                    setTimeout(() => {
+                        generateModal.hide();
+                        location.reload();
+                    }, 1000);
                 } else {
                     throw new Error('Failed to generate cards');
                 }
             } catch (error) {
                 console.error('Error generating cards:', error);
-                alert('Failed to generate cards. Please try again.');
+                statusDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle"></i> Failed to generate cards. Please try again.
+                    </div>
+                `;
             } finally {
                 submitButton.disabled = false;
-                submitButton.innerHTML = '<i class="bi bi-magic"></i> Generate';
+                normalState.classList.remove('d-none');
+                loadingState.classList.add('d-none');
             }
         });
     </script>
