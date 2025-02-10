@@ -144,7 +144,7 @@
         submitButton.disabled = true;
 
         try {
-            const response = await fetch('/api/decks', {
+            const response = await fetch('/deck/create', {
                 method: 'POST',
                 body: formData
             });
