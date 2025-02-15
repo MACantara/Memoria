@@ -52,3 +52,46 @@ export async function deleteDeck(deckId) {
         alert('Failed to delete deck. Please try again.');
     }
 }
+
+export async function renameTopic(topicId, newName) {
+    try {
+        const response = await fetch(`/topic/rename/${topicId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ name: newName })
+        });
+        if (response.ok) {
+            location.reload();
+        } else {
+            throw new Error('Failed to rename topic');
+        }
+    } catch (error) {
+        console.error('Error renaming topic:', error);
+        alert('Failed to rename topic. Please try again.');
+    }
+}
+
+export async function renameDeck(deckId, newName, newDescription) {
+    try {
+        const response = await fetch(`/deck/rename/${deckId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+                name: newName,
+                description: newDescription 
+            })
+        });
+        if (response.ok) {
+            location.reload();
+        } else {
+            throw new Error('Failed to rename deck');
+        }
+    } catch (error) {
+        console.error('Error renaming deck:', error);
+        alert('Failed to rename deck. Please try again.');
+    }
+}
