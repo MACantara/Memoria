@@ -18,3 +18,37 @@ export async function updateProgress(flashcardId, isCorrect) {
         })
     });
 }
+
+export async function deleteTopic(topicId) {
+    if (!confirm('Are you sure you want to delete this topic?')) return;
+    try {
+        const response = await fetch(`/topic/delete/${topicId}`, {
+            method: 'DELETE'
+        });
+        if (response.ok) {
+            location.reload();
+        } else {
+            throw new Error('Failed to delete topic');
+        }
+    } catch (error) {
+        console.error('Error deleting topic:', error);
+        alert('Failed to delete topic. Please try again.');
+    }
+}
+
+export async function deleteDeck(deckId) {
+    if (!confirm('Are you sure you want to delete this deck?')) return;
+    try {
+        const response = await fetch(`/deck/delete/${deckId}`, {
+            method: 'DELETE'
+        });
+        if (response.ok) {
+            location.reload();
+        } else {
+            throw new Error('Failed to delete deck');
+        }
+    } catch (error) {
+        console.error('Error deleting deck:', error);
+        alert('Failed to delete deck. Please try again.');
+    }
+}

@@ -40,7 +40,19 @@
             {% for topic in topics %}
             <div class="col-md-6 col-lg-4">
                 <div class="card h-100 shadow-sm">
-                    <div class="card-body">
+                    <div class="card-body position-relative">
+                        <div class="dropdown position-absolute top-0 end-0 mt-2 me-2">
+                            <button class="btn btn-link text-secondary p-0" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-three-dots-vertical"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-start">
+                                <li>
+                                    <button class="dropdown-item text-danger" onclick="deleteTopic({{ topic.id }})">
+                                        <i class="bi bi-trash me-2"></i>Delete Topic
+                                    </button>
+                                </li>
+                            </ul>
+                        </div>
                         <h3 class="card-title h5">{{ topic.name }}</h3>
                         <p class="card-text text-muted small">
                             <i class="bi bi-calendar3"></i> Created: {{ topic.created_at.strftime('%Y-%m-%d') }}
@@ -67,4 +79,8 @@
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='script.js') }}" type="module"></script>
+<script type="module">
+    import { deleteTopic } from "{{ url_for('static', filename='modules/utils.js') }}";
+    window.deleteTopic = deleteTopic;
+</script>
 {% endblock %}
