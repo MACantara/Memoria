@@ -299,6 +299,33 @@ def delete_topic(topic_id):
         db.session.rollback()
         return jsonify({"success": False, "error": str(e)}), 500
 
+@app.route("/topic/rename/<int:topic_id>", methods=["PUT"])
+def rename_topic(topic_id):
+    """Rename a topic"""
+    topic = Topic.query.get_or_404(topic_id)
+    try:
+        data = request.json
+        topic.name = data.get('name')
+        db.session.commit()
+        return jsonify({"success": True, "message": "Topic renamed successfully"})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route("/deck/rename/<int:deck_id>", methods=["PUT"])
+def rename_deck(deck_id):
+    """Rename a deck"""
+    deck = Deck.query.get_or_404(deck_id)
+    try:
+        data = request.json
+        deck.name = data.get('name')
+        deck.description = data.get('description', deck.description)
+        db.session.commit()
+        return jsonify({"success": True, "message": "Deck renamed successfully"})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "error": str(e)}), 500
+
 def parse_flashcards(text):
     flashcards = []
     flashcard_responses = text.split("question:")
