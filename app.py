@@ -264,6 +264,41 @@ def update_progress():
     db.session.commit()
     return jsonify({"success": True})
 
+@app.route("/deck/delete/<int:deck_id>", methods=["DELETE"])
+def delete_deck(deck_id):
+    """Delete a deck and its associated flashcards."""
+    deck = Deck.query.get_or_404(deck_id)
+    try:
+        # Delete associated flashcards
+        flashcards = Flashcard.query.filter_by(deck_id=deck_id).all()
+        for flashcard in flashcards:
+            db.session.delete(flashcard)
+        db.session.delete(deck)
+        db.session.commit()
+        return jsonify({"success": True, "message": "Deck deleted successfully"})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route("/topic/delete/<int:topic_id>", methods=["DELETE"])
+def delete_topic(topic_id):
+    """Delete a topic along with its decks and flashcards."""
+    topic = Topic.query.get_or_404(topic_id)
+    try:
+        # Delete decks and their flashcards
+        decks = Deck.query.filter_by(topic_id=topic_id).all()
+        for deck in decks:
+            flashcards = Flashcard.query.filter_by(deck_id=deck.id).all()
+            for flashcard in flashcards:
+                db.session.delete(flashcard)
+            db.session.delete(deck)
+        db.session.delete(topic)
+        db.session.commit()
+        return jsonify({"success": True, "message": "Topic deleted successfully"})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "error": str(e)}), 500
+
 def parse_flashcards(text):
     flashcards = []
     flashcard_responses = text.split("question:")
