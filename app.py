@@ -25,7 +25,7 @@ def index():
     topics = Topic.query.order_by(Topic.created_at.desc()).all()
     return render_template("index.html", topics=topics)
 
-@app.route("/generate", methods=["POST"])
+@app.route("/generate-flashcards", methods=["POST"])
 def generate():
     user_input = request.form["topic"]
     batch_size = 100  # Maximum flashcards per request

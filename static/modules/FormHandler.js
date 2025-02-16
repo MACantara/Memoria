@@ -30,7 +30,7 @@ export class FormHandler {
         `;
         
         try {
-            const response = await fetch('/generate', {
+            const response = await fetch('/generate-flashcards', {
                 method: 'POST',
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest'
