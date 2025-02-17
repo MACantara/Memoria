@@ -12,13 +12,20 @@ class FlashcardDecks(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     description = db.Column(db.Text)
     
-    # Self-referential foreign key
+    # Self-referential relationship
     parent_deck_id = db.Column(db.Integer, db.ForeignKey('flashcard_decks.flashcard_deck_id'), nullable=True)
     
-    # Relationship to parent deck
-    parent_deck = db.relationship('FlashcardDeck', remote_side=[flashcard_deck_id], backref='child_decks', lazy=True)
+    # Fix: Change FlashcardDeck to FlashcardDecks in the relationship
+    parent_deck = db.relationship('FlashcardDecks', 
+                                remote_side=[flashcard_deck_id],
+                                backref=db.backref('child_decks', lazy=True),
+                                lazy=True)
     
-    flashcards = db.relationship('Flashcard', backref='flashcard_deck', lazy=True)
+    # Relationship to flashcards
+    flashcards = db.relationship('Flashcards', 
+                               backref='deck',
+                               lazy=True,
+                               cascade='all, delete-orphan')
 
 class Flashcards(db.Model):
     __tablename__ = 'flashcards'  # Explicitly name the table
