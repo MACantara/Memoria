@@ -222,6 +222,20 @@ def create_deck():
     
     return jsonify({"success": True, "deck_id": deck.flashcard_deck_id})
 
+@app.route("/deck/rename/<int:deck_id>", methods=["PUT"])
+def rename_deck(deck_id):
+    """Rename a deck"""
+    deck = FlashcardDecks.query.get_or_404(deck_id)
+    try:
+        data = request.json
+        deck.name = data.get('name')
+        deck.description = data.get('description')
+        db.session.commit()
+        return jsonify({"success": True, "message": "Deck renamed successfully"})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "error": str(e)}), 500
+
 @app.route("/update_progress", methods=["POST"])
 def update_progress():
     data = request.json
