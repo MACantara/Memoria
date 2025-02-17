@@ -206,6 +206,21 @@ def get_deck_flashcards(deck_id):
         flashcards = Flashcards.query.filter_by(flashcard_deck_id=deck_id).all()
         return render_template("flashcards.html", deck=deck, flashcards=flashcards)
 
+@app.route("/deck/<int:deck_id>/study")
+def study_deck(deck_id):
+    """Study a deck's flashcards"""
+    deck = FlashcardDecks.query.get_or_404(deck_id)
+    
+    # Get all flashcards from this deck and its sub-decks
+    flashcards = Flashcards.query.join(FlashcardDecks).filter(
+        db.or_(
+            FlashcardDecks.flashcard_deck_id == deck_id,
+            FlashcardDecks.parent_deck_id == deck_id
+        )
+    ).all()
+    
+    return render_template("flashcards.html", deck=deck, flashcards=flashcards)
+
 @app.route("/deck/create", methods=["POST"])
 def create_deck():
     parent_deck_id = request.form.get("parent_deck_id")
