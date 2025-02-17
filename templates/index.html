@@ -174,25 +174,26 @@
 {% block scripts %}
 <script src="{{ url_for('static', filename='script.js') }}" type="module"></script>
 <script type="module">
-    import { deleteTopic, renameTopic } from "{{ url_for('static', filename='modules/utils.js') }}";
-    window.deleteTopic = deleteTopic;
-    window.renameTopic = renameTopic;
-    
-    window.showRenameTopicModal = (topicId, currentName) => {
-        const modal = new bootstrap.Modal(document.getElementById('renameTopicModal'));
-        document.getElementById('topicId').value = topicId;
-        document.getElementById('newTopicName').value = currentName;
+    import { deleteDeck, renameDeck } from "{{ url_for('static', filename='modules/utils.js') }}";
+    // Make deleteDeck available globally
+    window.deleteDeck = deleteDeck;
+    window.showRenameDeckModal = (deckId, currentName, currentDescription) => {
+        const modal = new bootstrap.Modal(document.getElementById('renameDeckModal'));
+        document.getElementById('deckId').value = deckId;
+        document.getElementById('newDeckName').value = currentName;
+        document.getElementById('newDeckDescription').value = currentDescription;
         modal.show();
     };
     
-    document.getElementById('renameTopicForm').addEventListener('submit', async (e) => {
+    document.getElementById('renameDeckForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const topicId = document.getElementById('topicId').value;
-        const newName = document.getElementById('newTopicName').value;
-        await renameTopic(topicId, newName);
+        const deckId = document.getElementById('deckId').value;
+        const newName = document.getElementById('newDeckName').value;
+        const newDescription = document.getElementById('newDeckDescription').value;
+        await renameDeck(deckId, newName, newDescription);
+        location.reload();
     });
-</script>
-<script>
+
     const emptyDeckModal = new bootstrap.Modal(document.getElementById('createEmptyDeckModal'));
 
     document.getElementById('createEmptyDeckBtn').onclick = () => {
