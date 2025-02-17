@@ -198,8 +198,13 @@ def generate_for_deck():
 @app.route("/deck/<int:deck_id>")
 def get_deck_flashcards(deck_id):
     deck = FlashcardDecks.query.get_or_404(deck_id)
-    flashcards = Flashcards.query.filter_by(flashcard_deck_id=deck_id).all()
-    return render_template("flashcards.html", deck=deck, flashcards=flashcards)
+    if deck.parent_deck_id is None:
+        # This is a main deck, show its sub-decks
+        return render_template("deck.html", deck=deck)
+    else:
+        # This is a sub-deck, show its flashcards
+        flashcards = Flashcards.query.filter_by(flashcard_deck_id=deck_id).all()
+        return render_template("flashcards.html", deck=deck, flashcards=flashcards)
 
 @app.route("/deck/create", methods=["POST"])
 def create_deck():
