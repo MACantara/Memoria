@@ -262,6 +262,28 @@ def update_progress():
     db.session.commit()
     return jsonify({"success": True})
 
+@app.route("/deck/create_empty", methods=["POST"])
+def create_empty_deck():
+    """Create a new empty deck without any flashcards"""
+    try:
+        data = request.json
+        deck = FlashcardDecks(
+            name=data.get('name', 'New Deck'),
+            description=data.get('description', ''),
+            parent_deck_id=None  # This is a main deck
+        )
+        db.session.add(deck)
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "deck_id": deck.flashcard_deck_id,
+            "message": "Empty deck created successfully"
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "error": str(e)}), 500
+
 def parse_flashcards(text):
     flashcards = []
     flashcard_responses = text.split("question:")
