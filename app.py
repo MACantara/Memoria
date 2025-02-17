@@ -235,6 +235,18 @@ def rename_deck(deck_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"success": False, "error": str(e)}), 500
+    
+@app.route("/deck/delete/<int:deck_id>", methods=["DELETE"])
+def delete_deck(deck_id):
+    """Delete a deck and all its flashcards"""
+    deck = FlashcardDecks.query.get_or_404(deck_id)
+    try:
+        db.session.delete(deck)
+        db.session.commit()
+        return jsonify({"success": True, "message": "Deck deleted successfully"})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route("/update_progress", methods=["POST"])
 def update_progress():
