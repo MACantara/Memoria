@@ -7,7 +7,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 
 from app import app, db
-from models import Topic, Deck, Flashcard
+from models import db, FlashcardDecks, Flashcards
 
 def parse_datetime(datetime_str):
     if datetime_str:
@@ -21,40 +21,35 @@ def restore_backup(backup_file):
             backup_data = json.load(f)
         
         # Clear existing data
-        Flashcard.query.delete()
-        Deck.query.delete()
-        Topic.query.delete()
+        print("Clearing existing data...")
+        Flashcards.query.delete()
+        FlashcardDecks.query.delete()
         db.session.commit()
         
-        # Restore topics
-        for topic_data in backup_data['topics']:
-            topic = Topic(
-                id=topic_data['id'],
-                name=topic_data['name'],
-                created_at=parse_datetime(topic_data['created_at'])
-            )
-            db.session.add(topic)
-        
-        # Restore decks
+        # First restore all decks without parent relationships
+        print("\nRestoring decks...")
         for deck_data in backup_data['decks']:
-            deck = Deck(
-                id=deck_data['id'],
+            deck = FlashcardDecks(
+                flashcard_deck_id=deck_data['flashcard_deck_id'],
                 name=deck_data['name'],
                 description=deck_data['description'],
-                topic_id=deck_data['topic_id'],
+                parent_deck_id=deck_data['parent_deck_id'],
                 created_at=parse_datetime(deck_data['created_at'])
             )
             db.session.add(deck)
         
-        # Restore flashcards
+        # Commit decks to ensure all IDs are available for flashcards
+        db.session.commit()
+        
+        # Now restore flashcards
+        print("Restoring flashcards...")
         for card_data in backup_data['flashcards']:
-            card = Flashcard(
-                id=card_data['id'],
+            card = Flashcards(
+                flashcard_id=card_data['flashcard_id'],
                 question=card_data['question'],
                 correct_answer=card_data['correct_answer'],
                 incorrect_answers=card_data['incorrect_answers'],
-                topic_id=card_data['topic_id'],
-                deck_id=card_data['deck_id'],
+                flashcard_deck_id=card_data['flashcard_deck_id'],
                 created_at=parse_datetime(card_data['created_at']),
                 last_reviewed=parse_datetime(card_data['last_reviewed']),
                 correct_count=card_data['correct_count'],
@@ -63,8 +58,8 @@ def restore_backup(backup_file):
             db.session.add(card)
         
         db.session.commit()
-        print(f"Restored {len(backup_data['topics'])} topics, "
-              f"{len(backup_data['decks'])} decks, and "
+        print(f"\nRestore completed successfully!")
+        print(f"Restored {len(backup_data['decks'])} decks and "
               f"{len(backup_data['flashcards'])} flashcards")
 
 if __name__ == '__main__':
