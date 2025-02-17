@@ -37,11 +37,15 @@ export async function deleteTopic(topicId) {
 }
 
 export async function deleteDeck(deckId) {
-    if (!confirm('Are you sure you want to delete this deck?')) return;
+    if (!confirm('Are you sure you want to delete this deck? This cannot be undone.')) {
+        return;
+    }
+    
     try {
         const response = await fetch(`/deck/delete/${deckId}`, {
             method: 'DELETE'
         });
+        
         if (response.ok) {
             location.reload();
         } else {
@@ -82,9 +86,10 @@ export async function renameDeck(deckId, newName, newDescription) {
             },
             body: JSON.stringify({ 
                 name: newName,
-                description: newDescription 
+                description: newDescription
             })
         });
+        
         if (response.ok) {
             location.reload();
         } else {
