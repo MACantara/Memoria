@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 import os
 import json
 from google import genai
-from models import db, Topic, Flashcard, Deck
+from models import db, FlashcardDecks, Flashcards
 from datetime import datetime
 
 load_dotenv()
@@ -22,32 +22,26 @@ with app.app_context():
 
 @app.route("/", methods=["GET"])
 def index():
-    topics = Topic.query.order_by(Topic.created_at.desc()).all()
-    return render_template("index.html", topics=topics)
+    decks = FlashcardDecks.query.filter(FlashcardDecks.parent_deck_id.is_(None))\
+        .order_by(FlashcardDecks.created_at.desc()).all()
+    return render_template("index.html", decks=decks)
 
 @app.route("/generate", methods=["POST"])
 def generate():
-    user_input = request.form["topic"]
-    batch_size = 100  # Maximum flashcards per request
+    deck_name = request.form["topic"]
+    batch_size = 100
     
-    # Check if topic exists
-    topic = Topic.query.filter_by(name=user_input).first()
-    if not topic:
-        topic = Topic(name=user_input)
-        db.session.add(topic)
-        db.session.commit()
-
-    # Create a new deck for this generation
-    deck = Deck(
-        name=f"{user_input} Flashcards",
-        description=f"Automatically generated flashcards about {user_input}",
-        topic_id=topic.id
+    # Create a new main deck
+    deck = FlashcardDecks(
+        name=deck_name,
+        description=f"Generated {datetime.utcnow().strftime('%Y-%m-%d %H:%M')}",
+        parent_deck_id=None
     )
     db.session.add(deck)
     db.session.commit()
 
     client = genai.Client(api_key=api_key)
-    prompt_template = f"""You are an expert educator creating flashcards about {user_input}.
+    prompt_template = f"""You are an expert educator creating flashcards about {deck_name}.
     Generate comprehensive, accurate, and engaging flashcards following these guidelines:
 
     1. Each flashcard must have:
@@ -90,20 +84,17 @@ def generate():
         if not batch_cards:
             raise ValueError("No valid flashcards generated")
             
-        # Add unique cards to the database
         cards_added = 0
         for card in batch_cards:
-            # Check if similar question already exists
-            if not Flashcard.query.filter_by(
-                deck_id=deck.id, 
+            if not Flashcards.query.filter_by(
+                flashcard_deck_id=deck.flashcard_deck_id,
                 question=card['question']
             ).first():
-                flashcard = Flashcard(
+                flashcard = Flashcards(
                     question=card['question'],
                     correct_answer=card['correct_answer'],
                     incorrect_answers=json.dumps(card['incorrect_answers']),
-                    topic_id=topic.id,
-                    deck_id=deck.id
+                    flashcard_deck_id=deck.flashcard_deck_id
                 )
                 db.session.add(flashcard)
                 cards_added += 1
@@ -116,21 +107,27 @@ def generate():
         db.session.rollback()
     
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return jsonify({"success": True, "redirect_url": url_for('get_topic_flashcards', topic_id=topic.id)})
-    return redirect(url_for('get_topic_flashcards', topic_id=topic.id))
+        return jsonify({"success": True, "redirect_url": url_for('get_deck_flashcards', deck_id=deck.flashcard_deck_id)})
+    return redirect(url_for('get_deck_flashcards', deck_id=deck.flashcard_deck_id))
 
 @app.route("/generate_for_deck", methods=["POST"])
 def generate_for_deck():
     deck_id = request.form.get("deck_id")
     subtopic = request.form.get("subtopic", "").strip()
     
-    deck = Deck.query.get_or_404(deck_id)
-    topic = Topic.query.get_or_404(deck.topic_id)
+    deck = FlashcardDecks.query.get_or_404(deck_id)
     
-    focus = f"{topic.name} - {subtopic}" if subtopic else topic.name
-    
+    # Create a sub-deck for this generation
+    sub_deck = FlashcardDecks(
+        name=f"{subtopic if subtopic else 'Generated'} {datetime.utcnow().strftime('%Y-%m-%d %H:%M')}",
+        description=f"Generated flashcards about {subtopic if subtopic else deck.name}",
+        parent_deck_id=deck.flashcard_deck_id
+    )
+    db.session.add(sub_deck)
+    db.session.commit()
+
     client = genai.Client(api_key=api_key)
-    prompt_template = f"""You are an expert educator creating flashcards about {focus}.
+    prompt_template = f"""You are an expert educator creating flashcards about {subtopic if subtopic else deck.name}.
     Generate exactly 100 comprehensive, accurate, and engaging flashcards following these guidelines:
 
     1. Each flashcard must have:
@@ -174,16 +171,15 @@ def generate_for_deck():
             
         cards_added = 0
         for card in batch_cards:
-            if not Flashcard.query.filter_by(
-                deck_id=deck_id, 
+            if not Flashcards.query.filter_by(
+                flashcard_deck_id=sub_deck.flashcard_deck_id,
                 question=card['question']
             ).first():
-                flashcard = Flashcard(
+                flashcard = Flashcards(
                     question=card['question'],
                     correct_answer=card['correct_answer'],
                     incorrect_answers=json.dumps(card['incorrect_answers']),
-                    topic_id=deck.topic_id,
-                    deck_id=deck_id
+                    flashcard_deck_id=sub_deck.flashcard_deck_id
                 )
                 db.session.add(flashcard)
                 cards_added += 1
@@ -199,61 +195,37 @@ def generate_for_deck():
         db.session.rollback()
         return jsonify({"success": False, "error": str(e)})
 
-def is_topic_sufficiently_covered(topic_id):
-    """Check if the topic has sufficient coverage based on card variety and concepts."""
-    flashcards = Flashcard.query.filter_by(topic_id=topic_id).all()
-    
-    if len(flashcards) < 20:
-        return False
-        
-    # Basic heuristic: check for question variety using keywords
-    question_types = {
-        'what': 0, 'how': 0, 'why': 0, 'when': 0, 
-        'define': 0, 'explain': 0, 'compare': 0, 'analyze': 0
-    }
-    
-    for card in flashcards:
-        question = card.question.lower()
-        for keyword in question_types:
-            if keyword in question:
-                question_types[keyword] += 1
-                
-    # Ensure we have at least 3 different types of questions
-    different_types = sum(1 for count in question_types.values() if count > 0)
-    return different_types >= 3
-
-@app.route("/topic/<int:topic_id>")
-def get_topic_flashcards(topic_id):
-    topic = Topic.query.get_or_404(topic_id)
-    decks = Deck.query.filter_by(topic_id=topic_id).order_by(Deck.created_at.desc()).all()
-    return render_template("topic.html", topic=topic, decks=decks)
-
 @app.route("/deck/<int:deck_id>")
 def get_deck_flashcards(deck_id):
-    deck = Deck.query.get_or_404(deck_id)
-    flashcards = Flashcard.query.filter_by(deck_id=deck_id).all()
-    return render_template("flashcards.html", deck=deck, flashcards=flashcards)
+    deck = FlashcardDecks.query.get_or_404(deck_id)
+    if deck.parent_deck_id is None:
+        # This is a main deck, show its sub-decks
+        return render_template("deck.html", deck=deck)
+    else:
+        # This is a sub-deck, show its flashcards
+        flashcards = Flashcards.query.filter_by(flashcard_deck_id=deck_id).all()
+        return render_template("flashcards.html", deck=deck, flashcards=flashcards)
 
 @app.route("/deck/create", methods=["POST"])
 def create_deck():
-    topic_id = request.form.get("topic_id")
+    parent_deck_id = request.form.get("parent_deck_id")
     name = request.form.get("name", "New Deck")
     description = request.form.get("description", "")
     
-    deck = Deck(
+    deck = FlashcardDecks(
         name=name,
         description=description,
-        topic_id=topic_id
+        parent_deck_id=parent_deck_id
     )
     db.session.add(deck)
     db.session.commit()
     
-    return jsonify({"success": True, "deck_id": deck.id})
+    return jsonify({"success": True, "deck_id": deck.flashcard_deck_id})
 
 @app.route("/update_progress", methods=["POST"])
 def update_progress():
     data = request.json
-    flashcard = Flashcard.query.get_or_404(data['flashcard_id'])
+    flashcard = Flashcards.query.get_or_404(data['flashcard_id'])
     
     if data['is_correct']:
         flashcard.correct_count += 1
@@ -263,68 +235,6 @@ def update_progress():
     flashcard.last_reviewed = datetime.utcnow()
     db.session.commit()
     return jsonify({"success": True})
-
-@app.route("/deck/delete/<int:deck_id>", methods=["DELETE"])
-def delete_deck(deck_id):
-    """Delete a deck and its associated flashcards."""
-    deck = Deck.query.get_or_404(deck_id)
-    try:
-        # Delete associated flashcards
-        flashcards = Flashcard.query.filter_by(deck_id=deck_id).all()
-        for flashcard in flashcards:
-            db.session.delete(flashcard)
-        db.session.delete(deck)
-        db.session.commit()
-        return jsonify({"success": True, "message": "Deck deleted successfully"})
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"success": False, "error": str(e)}), 500
-
-@app.route("/topic/delete/<int:topic_id>", methods=["DELETE"])
-def delete_topic(topic_id):
-    """Delete a topic along with its decks and flashcards."""
-    topic = Topic.query.get_or_404(topic_id)
-    try:
-        # Delete decks and their flashcards
-        decks = Deck.query.filter_by(topic_id=topic_id).all()
-        for deck in decks:
-            flashcards = Flashcard.query.filter_by(deck_id=deck.id).all()
-            for flashcard in flashcards:
-                db.session.delete(flashcard)
-            db.session.delete(deck)
-        db.session.delete(topic)
-        db.session.commit()
-        return jsonify({"success": True, "message": "Topic deleted successfully"})
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"success": False, "error": str(e)}), 500
-
-@app.route("/topic/rename/<int:topic_id>", methods=["PUT"])
-def rename_topic(topic_id):
-    """Rename a topic"""
-    topic = Topic.query.get_or_404(topic_id)
-    try:
-        data = request.json
-        topic.name = data.get('name')
-        db.session.commit()
-        return jsonify({"success": True, "message": "Topic renamed successfully"})
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"success": False, "error": str(e)}), 500
-
-@app.route("/deck/rename/<int:deck_id>", methods=["PUT"])
-def rename_deck(deck_id):
-    """Rename a deck"""
-    deck = Deck.query.get_or_404(deck_id)
-    try:
-        data = request.json
-        deck.name = data.get('name')
-        deck.description = data.get('description', deck.description)
-        db.session.commit()
-        return jsonify({"success": True, "message": "Deck renamed successfully"})
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"success": False, "error": str(e)}), 500
 
 def parse_flashcards(text):
     flashcards = []

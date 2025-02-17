@@ -4,31 +4,36 @@ from sqlalchemy.dialects.postgresql import JSON  # Add PostgreSQL-specific JSON 
 
 db = SQLAlchemy()
 
-class Topic(db.Model):
-    __tablename__ = 'topics'  # Explicitly name the table
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), unique=True, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    flashcards = db.relationship('Flashcard', backref='topic', lazy=True)
-    decks = db.relationship('Deck', backref='topic', lazy=True)
-
-class Deck(db.Model):
-    __tablename__ = 'decks'
-    id = db.Column(db.Integer, primary_key=True)
+class FlashcardDecks(db.Model):
+    __tablename__ = 'flashcard_decks'
+    
+    flashcard_deck_id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
-    description = db.Column(db.Text)
-    topic_id = db.Column(db.Integer, db.ForeignKey('topics.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    flashcards = db.relationship('Flashcard', backref='deck', lazy=True)
+    description = db.Column(db.Text)
+    
+    # Self-referential relationship
+    parent_deck_id = db.Column(db.Integer, db.ForeignKey('flashcard_decks.flashcard_deck_id'), nullable=True)
+    
+    # Fix: Change FlashcardDeck to FlashcardDecks in the relationship
+    parent_deck = db.relationship('FlashcardDecks', 
+                                remote_side=[flashcard_deck_id],
+                                backref=db.backref('child_decks', lazy=True),
+                                lazy=True)
+    
+    # Relationship to flashcards
+    flashcards = db.relationship('Flashcards', 
+                               backref='deck',
+                               lazy=True,
+                               cascade='all, delete-orphan')
 
-class Flashcard(db.Model):
+class Flashcards(db.Model):
     __tablename__ = 'flashcards'  # Explicitly name the table
-    id = db.Column(db.Integer, primary_key=True)
+    flashcard_id = db.Column(db.Integer, primary_key=True)
     question = db.Column(db.Text, nullable=False)
     correct_answer = db.Column(db.Text, nullable=False)
     incorrect_answers = db.Column(JSON, nullable=False)  # Use PostgreSQL JSON type
-    topic_id = db.Column(db.Integer, db.ForeignKey('topics.id'), nullable=False)
-    deck_id = db.Column(db.Integer, db.ForeignKey('decks.id'), nullable=False)
+    flashcard_deck_id = db.Column(db.Integer, db.ForeignKey('flashcard_decks.flashcard_deck_id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_reviewed = db.Column(db.DateTime)
     correct_count = db.Column(db.Integer, default=0)

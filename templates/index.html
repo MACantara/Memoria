@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Flashcard Topics{% endblock %}
+{% block title %}Flashcard Decks{% endblock %}
 
 {% block styles %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
@@ -33,41 +33,44 @@
     </div>
 </div>
 
-<div id="topics">
-    <h2 class="h3 mb-4">Your Topics</h2>
-    {% if topics %}
+<div id="decks">
+    <h2 class="h3 mb-4">Your Decks</h2>
+    {% if decks %}
         <div class="row g-4">
-            {% for topic in topics %}
+            {% for deck in decks %}
             <div class="col-md-6 col-lg-4">
                 <div class="card h-100 shadow-sm">
                     <div class="card-body position-relative">
                         <div class="dropdown position-absolute top-0 end-0 mt-2 me-2">
-                            <button class="btn btn-link text-secondary p-0" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <button class="btn btn-link text-secondary p-0" type="button" data-bs-toggle="dropdown">
                                 <i class="bi bi-three-dots-vertical"></i>
                             </button>
                             <ul class="dropdown-menu dropdown-menu-start">
                                 <li>
-                                    <button class="dropdown-item" onclick="showRenameTopicModal({{ topic.id }}, '{{ topic.name }}')">
-                                        <i class="bi bi-pencil me-2"></i>Rename Topic
+                                    <button class="dropdown-item" onclick="showRenameDeckModal({{ deck.flashcard_deck_id }}, '{{ deck.name }}', '{{ deck.description }}')">
+                                        <i class="bi bi-pencil me-2"></i>Rename
                                     </button>
                                 </li>
                                 <li>
-                                    <button class="dropdown-item text-danger" onclick="deleteTopic({{ topic.id }})">
-                                        <i class="bi bi-trash me-2"></i>Delete Topic
+                                    <button class="dropdown-item text-danger" onclick="deleteDeck({{ deck.flashcard_deck_id }})">
+                                        <i class="bi bi-trash me-2"></i>Delete
                                     </button>
                                 </li>
                             </ul>
                         </div>
-                        <h3 class="card-title h5">{{ topic.name }}</h3>
+                        <h3 class="card-title h5">{{ deck.name }}</h3>
                         <p class="card-text text-muted small">
-                            <i class="bi bi-calendar3"></i> Created: {{ topic.created_at.strftime('%Y-%m-%d') }}
+                            <i class="bi bi-calendar3"></i> Created: {{ deck.created_at.strftime('%Y-%m-%d') }}
                         </p>
                         <p class="card-text">
-                            <i class="bi bi-layers"></i> Cards: {{ topic.flashcards|length }}
+                            <i class="bi bi-layers"></i> Cards: {{ deck.flashcards|length }}
+                            {% if deck.child_decks %}
+                            <br><i class="bi bi-folder2"></i> Sub-decks: {{ deck.child_decks|length }}
+                            {% endif %}
                         </p>
-                        <a href="{{ url_for('get_topic_flashcards', topic_id=topic.id) }}" 
+                        <a href="{{ url_for('get_deck_flashcards', deck_id=deck.flashcard_deck_id) }}" 
                            class="btn btn-primary w-100">
-                           <i class="bi bi-collection me-2"></i>View Topic
+                           <i class="bi bi-collection me-2"></i>View Deck
                         </a>
                     </div>
                 </div>
@@ -75,8 +78,8 @@
             {% endfor %}
         </div>
     {% else %}
-        <div class="alert alert-info" role="alert">
-            <i class="bi bi-info-circle me-2"></i>No topics yet. Generate some flashcards!
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle me-2"></i>No decks yet. Create your first flashcard deck!
         </div>
     {% endif %}
 </div>
