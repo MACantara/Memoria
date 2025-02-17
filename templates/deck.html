@@ -48,9 +48,15 @@
                 </p>
                 <div class="d-flex gap-2">
                     <a href="{{ url_for('get_deck_flashcards', deck_id=subdeck.flashcard_deck_id) }}" 
-                       class="btn btn-primary flex-grow-1">
+                       class="btn btn-primary">
+                       <i class="bi bi-folder2"></i> View
+                    </a>
+                    {% if subdeck.flashcards|length > 0 %}
+                    <a href="{{ url_for('study_deck', deck_id=subdeck.flashcard_deck_id) }}" 
+                       class="btn btn-success">
                        <i class="bi bi-play-fill"></i> Study
                     </a>
+                    {% endif %}
                     <button class="btn btn-outline-primary add-cards-btn" data-deck-id="{{ subdeck.flashcard_deck_id }}">
                         <i class="bi bi-plus-lg"></i> Add Cards
                     </button>
