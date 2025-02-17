@@ -8,7 +8,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 
 from app import app, db
-from models import FlashcardDecks, Flashcard
+from models import FlashcardDecks, Flashcards
 
 def serialize_datetime(obj):
     if isinstance(obj, datetime):
