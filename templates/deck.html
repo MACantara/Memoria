@@ -46,12 +46,17 @@
                 <p class="card-text text-success fw-bold">
                     <i class="bi bi-layers"></i> {{ subdeck.flashcards|length }} cards
                 </p>
-                <div class="d-flex gap-2">
+                <div class="d-grid gap-2 d-md-flex">
                     <a href="{{ url_for('get_deck_flashcards', deck_id=subdeck.flashcard_deck_id) }}" 
-                       class="btn btn-primary flex-grow-1">
+                       class="btn btn-primary w-100">
+                       <i class="bi bi-folder2"></i> View
+                    </a>
+                    <a href="{{ url_for('study_deck', deck_id=subdeck.flashcard_deck_id) }}" 
+                       class="btn btn-success w-100 {% if subdeck.flashcards|length == 0 %}no-cards{% endif %}"
+                       data-deck-id="{{ subdeck.flashcard_deck_id }}">
                        <i class="bi bi-play-fill"></i> Study
                     </a>
-                    <button class="btn btn-outline-primary add-cards-btn" data-deck-id="{{ subdeck.flashcard_deck_id }}">
+                    <button class="btn btn-outline-primary w-100 add-cards-btn" data-deck-id="{{ subdeck.flashcard_deck_id }}">
                         <i class="bi bi-plus-lg"></i> Add Cards
                     </button>
                 </div>
@@ -149,6 +154,27 @@
                         <button type="submit" class="btn btn-primary">Save</button>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add No Cards Modal -->
+<div class="modal fade" id="noCardsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">No Flashcards Available</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>This deck doesn't have any flashcards yet. Would you like to generate some?</p>
+                <div class="d-flex gap-2 mt-3">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="generateFromNoCards">
+                        <i class="bi bi-plus-lg"></i> Generate Cards
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -279,6 +305,23 @@
             normalState.classList.remove('d-none');
             loadingState.classList.add('d-none');
         }
+    });
+
+    const noCardsModal = new bootstrap.Modal(document.getElementById('noCardsModal'));
+    let currentDeckId = null;
+    
+    document.querySelectorAll('.no-cards').forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            currentDeckId = link.dataset.deckId;
+            noCardsModal.show();
+        });
+    });
+    
+    document.getElementById('generateFromNoCards').addEventListener('click', () => {
+        noCardsModal.hide();
+        document.getElementById('generateDeckId').value = currentDeckId;
+        generateModal.show();
     });
 </script>
 {% endblock %}
