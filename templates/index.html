@@ -123,20 +123,24 @@
     </div>
 </div>
 
-<!-- Add Rename Topic Modal -->
-<div class="modal fade" id="renameTopicModal" tabindex="-1">
+<!-- Replace the "Add Rename Topic Modal" with this Rename Deck Modal -->
+<div class="modal fade" id="renameDeckModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Rename Topic</h5>
+                <h5 class="modal-title">Rename Deck</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <form id="renameTopicForm">
-                    <input type="hidden" id="topicId" name="topicId">
+                <form id="renameDeckForm">
+                    <input type="hidden" id="deckId" name="deckId">
                     <div class="mb-3">
-                        <label for="newTopicName" class="form-label">Topic Name:</label>
-                        <input type="text" class="form-control" id="newTopicName" required>
+                        <label for="newDeckName" class="form-label">Deck Name:</label>
+                        <input type="text" class="form-control" id="newDeckName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="newDeckDescription" class="form-label">Description:</label>
+                        <textarea class="form-control" id="newDeckDescription" rows="3"></textarea>
                     </div>
                     <div class="d-flex justify-content-end gap-2">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
