@@ -1,6 +1,7 @@
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 from sqlalchemy.dialects.postgresql import JSON  # Add PostgreSQL-specific JSON type
+from sqlalchemy.sql import func
 
 db = SQLAlchemy()
 
@@ -26,6 +27,28 @@ class FlashcardDecks(db.Model):
                                backref='deck',
                                lazy=True,
                                cascade='all, delete-orphan')
+    
+    def count_all_flashcards(self):
+        # Recursive CTE to count all flashcards in the deck and its sub-decks
+        cte = db.session.query(
+            FlashcardDecks.flashcard_deck_id.label('id')
+        ).filter(
+            FlashcardDecks.flashcard_deck_id == self.flashcard_deck_id
+        ).cte(name='cte', recursive=True)
+
+        cte = cte.union_all(
+            db.session.query(
+                FlashcardDecks.flashcard_deck_id.label('id')
+            ).filter(
+                FlashcardDecks.parent_deck_id == cte.c.id
+            )
+        )
+
+        count = db.session.query(func.count(Flashcards.flashcard_id)).filter(
+            Flashcards.flashcard_deck_id.in_(db.session.query(cte.c.id))
+        ).scalar()
+
+        return count
 
 class Flashcards(db.Model):
     __tablename__ = 'flashcards'  # Explicitly name the table
