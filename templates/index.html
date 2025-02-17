@@ -63,7 +63,7 @@
                             <i class="bi bi-calendar3"></i> Created: {{ deck.created_at.strftime('%Y-%m-%d') }}
                         </p>
                         <p class="card-text">
-                            <i class="bi bi-layers"></i> Cards: {{ deck.flashcards|length }}
+                            <i class="bi bi-layers"></i> Cards: {{ deck.count_all_flashcards() }}
                             {% if deck.child_decks %}
                             <br><i class="bi bi-folder2"></i> Sub-decks: {{ deck.child_decks|length }}
                             {% endif %}
