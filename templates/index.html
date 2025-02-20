@@ -144,8 +144,17 @@
                     </div>
                     <div class="d-flex justify-content-end gap-2">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary">Save</button>
+                        <button type="submit" class="btn btn-primary">
+                            <span class="normal-state">
+                                <i class="bi bi-check"></i> Save
+                            </span>
+                            <span class="loading-state d-none">
+                                <span class="spinner-border spinner-border-sm me-2"></span>
+                                Saving...
+                            </span>
+                        </button>
                     </div>
+                    <div id="renameStatus" class="mt-3"></div>
                 </form>
             </div>
         </div>
@@ -220,16 +229,48 @@
         document.getElementById('deckId').value = deckId;
         document.getElementById('newDeckName').value = currentName;
         document.getElementById('newDeckDescription').value = currentDescription;
+        document.getElementById('renameStatus').innerHTML = '';
         modal.show();
     };
     
     document.getElementById('renameDeckForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const deckId = document.getElementById('deckId').value;
-        const newName = document.getElementById('newDeckName').value;
-        const newDescription = document.getElementById('newDeckDescription').value;
-        await renameDeck(deckId, newName, newDescription);
-        location.reload();
+        const form = e.target;
+        const submitButton = form.querySelector('button[type="submit"]');
+        const normalState = submitButton.querySelector('.normal-state');
+        const loadingState = submitButton.querySelector('.loading-state');
+        const statusDiv = document.getElementById('renameStatus');
+
+        submitButton.disabled = true;
+        normalState.classList.add('d-none');
+        loadingState.classList.remove('d-none');
+
+        try {
+            const deckId = document.getElementById('deckId').value;
+            const newName = document.getElementById('newDeckName').value;
+            const newDescription = document.getElementById('newDeckDescription').value;
+            const result = await renameDeck(deckId, newName, newDescription);
+            
+            if (result.success) {
+                statusDiv.innerHTML = `
+                    <div class="alert alert-success">
+                        <i class="bi bi-check-circle"></i> Deck renamed successfully!
+                    </div>
+                `;
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                throw new Error(result.error || 'Failed to rename deck');
+            }
+        } catch (error) {
+            statusDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle"></i> ${error.message}
+                </div>
+            `;
+            submitButton.disabled = false;
+            normalState.classList.remove('d-none');
+            loadingState.classList.add('d-none');
+        }
     });
 
     const emptyDeckModal = new bootstrap.Modal(document.getElementById('createEmptyDeckModal'));
