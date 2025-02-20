@@ -90,13 +90,15 @@ export async function renameDeck(deckId, newName, newDescription) {
             })
         });
         
-        if (response.ok) {
-            location.reload();
-        } else {
-            throw new Error('Failed to rename deck');
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to rename deck');
         }
+        
+        return { success: true, message: data.message };
     } catch (error) {
         console.error('Error renaming deck:', error);
-        alert('Failed to rename deck. Please try again.');
+        return { success: false, error: error.message };
     }
 }
