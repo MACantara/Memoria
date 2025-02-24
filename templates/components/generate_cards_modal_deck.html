@@ -6,8 +6,8 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <form id="generateForm">
-                    <input type="hidden" name="deck_id" id="generateDeckId">
+                <form id="generateForm" method="POST" action="{{ url_for('flashcard.generate') }}">
+                    <input type="hidden" name="parent_deck_id" id="generateParentDeckId">
                     <div class="mb-3">
                         <label for="topic" class="form-label">Enter a topic:</label>
                         <input type="text" class="form-control" id="topic" name="topic" 
