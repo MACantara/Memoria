@@ -38,9 +38,12 @@ export function initializeModals() {
     if (modals.generateModal) {
         document.querySelectorAll('.add-cards-btn').forEach(button => {
             button.addEventListener('click', () => {
-                document.getElementById('generateForm').reset();
-                document.getElementById('generateDeckId').value = button.dataset.deckId;
-                document.getElementById('generateParentDeckId').value = button.dataset.deckId;
+                const form = document.getElementById('generateForm');
+                form.reset();
+                const parentDeckIdInput = document.getElementById('generateParentDeckId');
+                if (parentDeckIdInput) {
+                    parentDeckIdInput.value = button.dataset.deckId;
+                }
                 modals.generateModal.show();
             });
         });
@@ -62,8 +65,12 @@ export function initializeModals() {
     if (generateFromNoCards && modals.noCardsModal && modals.generateModal) {
         generateFromNoCards.addEventListener('click', () => {
             modals.noCardsModal.hide();
-            document.getElementById('generateForm').reset();
-            document.getElementById('generateParentDeckId').value = currentDeckId;
+            const form = document.getElementById('generateForm');
+            form.reset();
+            const parentDeckIdInput = document.getElementById('generateParentDeckId');
+            if (parentDeckIdInput) {
+                parentDeckIdInput.value = currentDeckId;
+            }
             modals.generateModal.show();
         });
     }
