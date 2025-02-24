@@ -7,7 +7,7 @@ export function shuffleArray(array) {
 }
 
 export async function updateProgress(flashcardId, isCorrect) {
-    await fetch('/update_progress', {
+    await fetch('/flashcard/update_progress', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
