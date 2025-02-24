@@ -1,3 +1,5 @@
+import { renameDeck } from '../utils.js';
+
 export function initializeDeckOperations() {
     let deckToDelete = null;
     const deleteModal = new bootstrap.Modal(document.getElementById('deleteDeckModal'));
