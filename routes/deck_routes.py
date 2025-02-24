@@ -6,15 +6,14 @@ deck_bp = Blueprint('deck', __name__)
 
 @deck_bp.route("/<int:deck_id>")
 def get_deck_flashcards(deck_id):
+    """View deck structure and its contents"""
     deck = FlashcardDecks.query.get_or_404(deck_id)
-    if deck.parent_deck_id is None:
-        return render_template("deck.html", deck=deck)
-    else:
-        flashcards = Flashcards.query.filter_by(flashcard_deck_id=deck_id).all()
-        return render_template("flashcards.html", deck=deck, flashcards=flashcards)
+    flashcards = Flashcards.query.filter_by(flashcard_deck_id=deck_id).all()
+    return render_template("deck.html", deck=deck, flashcards=flashcards)
 
 @deck_bp.route("/<int:deck_id>/study")
 def study_deck(deck_id):
+    """Study flashcards in a deck"""
     deck = FlashcardDecks.query.get_or_404(deck_id)
     flashcards = Flashcards.query.join(FlashcardDecks).filter(
         db.or_(

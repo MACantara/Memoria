@@ -1,0 +1,42 @@
+<div class="flashcards-list">
+    {% if flashcards %}
+        {% for flashcard in flashcards %}
+        <div class="card mb-3">
+            <div class="card-body">
+                <h5 class="card-title">{{ flashcard.question }}</h5>
+                <div class="mt-3">
+                    <div class="correct-answer mb-2">
+                        <span class="badge bg-success me-2">Correct Answer</span>
+                        {{ flashcard.correct_answer }}
+                    </div>
+                    <div class="incorrect-answers">
+                        <span class="badge bg-danger me-2">Incorrect Answers</span>
+                        <ul class="list-unstyled mt-1 ms-3">
+                            {% for answer in flashcard.incorrect_answers|fromjson %}
+                            <li>{{ answer }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+                <div class="card-footer bg-transparent mt-3 p-0">
+                    <div class="row text-muted small">
+                        <div class="col-4">
+                            <i class="bi bi-check-circle"></i> Correct: {{ flashcard.correct_count }}
+                        </div>
+                        <div class="col-4">
+                            <i class="bi bi-x-circle"></i> Incorrect: {{ flashcard.incorrect_count }}
+                        </div>
+                        <div class="col-4">
+                            <i class="bi bi-clock"></i> Last: {{ flashcard.last_reviewed.strftime('%Y-%m-%d') if flashcard.last_reviewed else 'Never' }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle me-2"></i>No flashcards found in this deck.
+        </div>
+    {% endif %}
+</div>
