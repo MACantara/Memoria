@@ -9,9 +9,15 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div class="d-flex align-items-center gap-3">
+        {% if deck.parent_deck_id %}
+        <a href="{{ url_for('deck.get_deck_flashcards', deck_id=deck.parent_deck_id) }}" class="btn btn-outline-primary">
+            <i class="bi bi-arrow-left"></i> Back to Parent Deck
+        </a>
+        {% else %}
         <a href="{{ url_for('main.index') }}" class="btn btn-outline-primary">
             <i class="bi bi-arrow-left"></i> Back to Decks
         </a>
+        {% endif %}
         <h1 class="h2 mb-0">{{ deck.name }}</h1>
     </div>
     <button id="createDeckBtn" class="btn btn-primary">
