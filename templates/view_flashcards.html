@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}View {{ deck.name }} - Flashcards{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/flashcards.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex align-items-center gap-3">
+        <a href="{{ url_for('deck.get_deck_flashcards', deck_id=deck.parent_deck_id or deck.flashcard_deck_id) }}" 
+           class="btn btn-outline-primary">
+            <i class="bi bi-arrow-left"></i> Back to Deck
+        </a>
+        <h1 class="h2 mb-0">{{ deck.name }}</h1>
+    </div>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-primary add-cards-btn" data-deck-id="{{ deck.flashcard_deck_id }}">
+            <i class="bi bi-plus-lg"></i> Add Cards
+        </button>
+        <a href="{{ url_for('deck.study_deck', deck_id=deck.flashcard_deck_id) }}" 
+           class="btn btn-success">
+            <i class="bi bi-play-fill"></i> Study
+        </a>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="text-muted">
+                Total Cards: {{ flashcards|length }}
+            </div>
+            {% if flashcards %}
+            <div class="btn-group">
+                <button class="btn btn-outline-secondary" id="expandAll">
+                    <i class="bi bi-chevron-expand"></i> Expand All
+                </button>
+                <button class="btn btn-outline-secondary" id="collapseAll">
+                    <i class="bi bi-chevron-contract"></i> Collapse All
+                </button>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% include 'components/flashcard_list.html' %}
+
+<!-- Generate Cards Modal -->
+{% include 'components/generate_cards_modal_deck.html' %}
+
+{% endblock %}
+
+{% block scripts %}
+<script type="module">
+    import { initializeModals } from "{{ url_for('static', filename='modules/deck/modal-handlers.js') }}";
+    import { initializeFormHandlers } from "{{ url_for('static', filename='modules/deck/form-handlers.js') }}";
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const { generateModal } = initializeModals();
+        initializeFormHandlers({ generateModal });
+    });
+</script>
+{% endblock %}
