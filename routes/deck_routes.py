@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify, redirect, url_for, render_template
 from models import db, FlashcardDecks, Flashcards
 from datetime import datetime
+from sqlalchemy.sql import func  # Add this import
 
 deck_bp = Blueprint('deck', __name__)
 
@@ -56,16 +57,31 @@ def rename_deck(deck_id):
 def delete_deck(deck_id):
     deck = FlashcardDecks.query.get_or_404(deck_id)
     try:
-        # Count items to be deleted for logging
-        child_decks = FlashcardDecks.query.filter(
+        # Create recursive CTE to find all sub-decks
+        cte = db.session.query(
+            FlashcardDecks.flashcard_deck_id.label('id')
+        ).filter(
             FlashcardDecks.parent_deck_id == deck_id
-        ).count()
+        ).cte(name='sub_decks', recursive=True)
+
+        cte = cte.union_all(
+            db.session.query(
+                FlashcardDecks.flashcard_deck_id.label('id')
+            ).filter(
+                FlashcardDecks.parent_deck_id == cte.c.id
+            )
+        )
+
+        # Get all deck IDs including the parent
+        all_deck_ids = [deck_id]  # Include the parent deck ID
+        all_deck_ids.extend([row[0] for row in db.session.query(cte.c.id).all()])
         
-        flashcards = Flashcards.query.filter(
-            Flashcards.flashcard_deck_id.in_([
-                deck_id,
-                *[d.flashcard_deck_id for d in deck.child_decks]
-            ])
+        # Count sub-decks (excluding parent)
+        sub_decks_count = len(all_deck_ids) - 1
+        
+        # Count flashcards from all levels
+        flashcards_count = Flashcards.query.filter(
+            Flashcards.flashcard_deck_id.in_(all_deck_ids)
         ).count()
 
         # Delete the deck (cascade will handle children)
@@ -74,10 +90,12 @@ def delete_deck(deck_id):
 
         return jsonify({
             "success": True, 
-            "message": f"Deck deleted successfully along with {child_decks} sub-decks and {flashcards} flashcards"
+            "message": f"Deck deleted successfully along with {sub_decks_count} sub-deck{'s' if sub_decks_count != 1 else ''} "
+                      f"and {flashcards_count} flashcard{'s' if flashcards_count != 1 else ''}"
         })
     except Exception as e:
         db.session.rollback()
+        print(f"Error deleting deck: {str(e)}")  # Add logging
         return jsonify({"success": False, "error": str(e)}), 500
 
 @deck_bp.route("/create_empty", methods=["POST"])
