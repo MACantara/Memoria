@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, redirect, url_for
+from flask import Blueprint, request, jsonify, redirect, url_for, render_template
 from models import db, FlashcardDecks, Flashcards
 from datetime import datetime
 from google import genai
@@ -115,6 +115,15 @@ def update_progress():
     flashcard.last_reviewed = datetime.utcnow()
     db.session.commit()
     return jsonify({"success": True})
+
+@flashcard_bp.route("/deck/<int:deck_id>/view")
+def view_flashcards(deck_id):
+    """View all flashcards in a deck"""
+    deck = FlashcardDecks.query.get_or_404(deck_id)
+    flashcards = Flashcards.query.filter_by(flashcard_deck_id=deck_id)\
+        .order_by(Flashcards.created_at.desc()).all()
+    
+    return render_template("view_flashcards.html", deck=deck, flashcards=flashcards)
 
 def parse_flashcards(text):
     flashcards = []
