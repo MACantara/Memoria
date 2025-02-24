@@ -9,11 +9,28 @@
         font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
         font-size: 0.875em;
         color: #d63384;
-        background-color: #f8f9fa;
         border-radius: 0.2rem;
     }
-    .answer-text code {
+    
+    pre code {
+        display: block;
+        padding: 1rem;
+        overflow-x: auto;
+        white-space: pre;
+        background-color: #f8f9fa;
+        border: 1px solid #e9ecef;
+        color: #212529;
+    }
+    
+    code:not(pre code) {
+        padding: 0.2em 0.4em;
+        background-color: #f8f9fa;
         white-space: nowrap;
+    }
+
+    .answer-text ul {
+        margin-bottom: 0;
+        padding-left: 1.5rem;
     }
 </style>
 {% endblock %}
