@@ -1,4 +1,4 @@
-import { shuffleArray, updateProgress } from './utils.js';
+import { shuffleArray, updateProgress } from '../utils.js';
 import { UIManager } from './UIManager.js';
 
 export class FlashcardManager {
