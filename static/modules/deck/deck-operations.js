@@ -77,15 +77,17 @@ async function handleDelete(deckToDelete) {
             method: 'DELETE'
         });
         
+        const data = await response.json();
+        
         if (response.ok) {
             statusDiv.innerHTML = `
                 <div class="alert alert-success">
-                    <i class="bi bi-check-circle"></i> Deck deleted successfully!
+                    <i class="bi bi-check-circle"></i> ${data.message}
                 </div>
             `;
-            setTimeout(() => location.reload(), 1000);
+            setTimeout(() => location.reload(), 2000);
         } else {
-            throw new Error('Failed to delete sub-deck');
+            throw new Error(data.error || 'Failed to delete deck');
         }
     } catch (error) {
         statusDiv.innerHTML = `

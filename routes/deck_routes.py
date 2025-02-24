@@ -57,9 +57,26 @@ def rename_deck(deck_id):
 def delete_deck(deck_id):
     deck = FlashcardDecks.query.get_or_404(deck_id)
     try:
+        # Count items to be deleted for logging
+        child_decks = FlashcardDecks.query.filter(
+            FlashcardDecks.parent_deck_id == deck_id
+        ).count()
+        
+        flashcards = Flashcards.query.filter(
+            Flashcards.flashcard_deck_id.in_([
+                deck_id,
+                *[d.flashcard_deck_id for d in deck.child_decks]
+            ])
+        ).count()
+
+        # Delete the deck (cascade will handle children)
         db.session.delete(deck)
         db.session.commit()
-        return jsonify({"success": True, "message": "Deck deleted successfully"})
+
+        return jsonify({
+            "success": True, 
+            "message": f"Deck deleted successfully along with {child_decks} sub-decks and {flashcards} flashcards"
+        })
     except Exception as e:
         db.session.rollback()
         return jsonify({"success": False, "error": str(e)}), 500

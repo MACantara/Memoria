@@ -13,7 +13,9 @@ class FlashcardDecks(db.Model):
     
     parent_deck = db.relationship('FlashcardDecks', 
                                 remote_side=[flashcard_deck_id],
-                                backref=db.backref('child_decks', lazy=True),
+                                backref=db.backref('child_decks', 
+                                                  lazy=True,
+                                                  cascade='all, delete-orphan'),
                                 lazy=True)
     
     flashcards = db.relationship('Flashcards', 
