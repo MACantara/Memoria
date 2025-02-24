@@ -82,17 +82,24 @@ export function initializeFormHandlers(modals = {}) {
                     body: formData
                 });
                 
-                const data = await response.json();
                 if (response.ok) {
-                    statusDiv.innerHTML = `
-                        <div class="alert alert-success">
-                            <i class="bi bi-check-circle"></i> Flashcards generated successfully!
-                        </div>
-                    `;
-                    setTimeout(() => {
-                        generateModal?.hide();
-                        window.location.href = data.redirect_url || location.reload();
-                    }, 1000);
+                    // Check if response is JSON
+                    const contentType = response.headers.get('content-type');
+                    if (contentType && contentType.includes('application/json')) {
+                        const data = await response.json();
+                        statusDiv.innerHTML = `
+                            <div class="alert alert-success">
+                                <i class="bi bi-check-circle"></i> Flashcards generated successfully!
+                            </div>
+                        `;
+                        setTimeout(() => {
+                            generateModal?.hide();
+                            window.location.href = data.redirect_url || location.reload();
+                        }, 1000);
+                    } else {
+                        // Handle HTML response (direct page load)
+                        window.location.href = response.url;
+                    }
                 } else {
                     throw new Error('Failed to generate cards');
                 }
