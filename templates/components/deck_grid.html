@@ -41,6 +41,12 @@
                            class="btn btn-primary w-100">
                            <i class="bi bi-folder2"></i> View{{ ' Deck' if not is_subdeck }}
                         </a>
+                        {% if is_subdeck %}
+                        <a href="{{ url_for('flashcard.view_flashcards', deck_id=deck.flashcard_deck_id) }}"
+                           class="btn btn-outline-primary w-100">
+                           <i class="bi bi-card-text"></i> View Cards
+                        </a>
+                        {% endif %}
                         <a href="{{ url_for('deck.study_deck', deck_id=deck.flashcard_deck_id) }}" 
                            class="btn btn-success w-100 {% if deck.count_all_flashcards() == 0 %}no-cards{% endif %}"
                            data-deck-id="{{ deck.flashcard_deck_id }}">
