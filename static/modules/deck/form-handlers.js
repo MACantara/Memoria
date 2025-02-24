@@ -76,7 +76,7 @@ export function initializeFormHandlers(modals = {}) {
             `;
 
             try {
-                const action = form.getAttribute('action') || '/generate_for_deck';
+                const action = form.getAttribute('action') || '/generate-flashcards';
                 const response = await fetch(action, {
                     method: 'POST',
                     body: formData
