@@ -48,6 +48,60 @@ export class UIManager {
         `;
     }
 
+    escapeHtml(text) {
+        // First, preserve real line breaks
+        text = text.replace(/\n/g, '<br>');
+        
+        // Store code blocks and replacements
+        const codeBlocks = [];
+        let blockId = 0;
+        
+        // Replace code blocks with placeholders before HTML escaping
+        text = text.replace(/```(\w*)\n([\s\S]*?)```|`([^`]+)`/g, (match, lang, block, inline) => {
+            const id = `CODE_BLOCK_${blockId++}`;
+            if (block) {
+                // Multi-line code block
+                codeBlocks.push({
+                    id,
+                    content: block.trim(),
+                    language: lang || 'code',
+                    isInline: false
+                });
+            } else {
+                // Inline code
+                codeBlocks.push({
+                    id,
+                    content: inline,
+                    language: 'code',
+                    isInline: true
+                });
+            }
+            return id;
+        });
+        
+        // Escape HTML characters
+        const div = document.createElement('div');
+        div.textContent = text;
+        text = div.innerHTML;
+        
+        // Process markdown syntax (bold, italic, lists)
+        text = text
+            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*(.+?)\*/g, '<em>$1</em>')
+            .replace(/^- (.+)$/gm, '<li>$1</li>')
+            .replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>');
+        
+        // Restore code blocks with proper formatting
+        codeBlocks.forEach(block => {
+            const codeHtml = block.isInline 
+                ? `<code class="p-1 bg-light rounded">${block.content}</code>`
+                : `<pre><code class="language-${block.language} p-2 bg-light rounded d-block">${block.content}</code></pre>`;
+            text = text.replace(block.id, codeHtml);
+        });
+        
+        return text;
+    }
+
     renderAnswerOptions(flashcard, allAnswers) {
         const answersForm = flashcard.querySelector('.answer-form');
         answersForm.innerHTML = allAnswers.map((answer, index) => `
@@ -62,7 +116,7 @@ export class UIManager {
                            style="cursor: pointer">
                         <div class="d-flex align-items-center">
                             <span class="badge bg-light text-dark me-2">${index + 1}</span>
-                            <span class="answer-text">${answer}</span>
+                            <span class="answer-text">${this.escapeHtml(answer)}</span>
                         </div>
                     </label>
                 </div>
