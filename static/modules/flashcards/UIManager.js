@@ -1,4 +1,13 @@
 export class UIManager {
+    constructor() {
+        this.md = window.markdownit({
+            html: false,
+            breaks: true,
+            linkify: true,
+            typographer: true
+        });
+    }
+
     showCard(index, flashcardsArray, score) {
         flashcardsArray.forEach(card => {
             card.style.display = 'none';
@@ -10,6 +19,13 @@ export class UIManager {
             currentCard.style.display = 'block';
             currentCard.classList.add('active');
             this.updateCardCounter(index, flashcardsArray.length, score);
+            
+            // Parse question markdown
+            const questionElem = currentCard.querySelector('.card-title');
+            if (questionElem) {
+                const rawQuestion = questionElem.dataset.question;
+                questionElem.innerHTML = this.parseContent(rawQuestion);
+            }
         }
     }
 
@@ -48,25 +64,46 @@ export class UIManager {
         `;
     }
 
+    parseContent(text) {
+        if (!text) return '';
+        // Clean the text and parse markdown
+        const cleanText = text.trim()
+            .replace(/\\n/g, '\n')  // Handle escaped newlines
+            .replace(/\\"/g, '"');  // Handle escaped quotes
+        return this.md.render(cleanText);
+    }
+
     renderAnswerOptions(flashcard, allAnswers) {
         const answersForm = flashcard.querySelector('.answer-form');
         answersForm.innerHTML = allAnswers.map((answer, index) => `
-            <label class="form-check answer-option p-3 mb-3 rounded border user-select-none w-100" 
-                   role="button" 
-                   style="cursor: pointer"
-                   for="${flashcard.dataset.id}-${index}">
-                <div class="d-flex align-items-center">
+            <div class="mb-3">
+                <div class="answer-option form-check p-3 rounded border user-select-none">
                     <input class="form-check-input" type="radio" 
                            id="${flashcard.dataset.id}-${index}" 
                            name="flashcard-${flashcard.dataset.id}" 
                            value="${answer.replace(/"/g, '&quot;')}">
-                    <div class="ms-2">
-                        <span class="badge bg-light text-dark me-2">${index + 1}</span>
-                        ${answer}
-                    </div>
+                    <label class="form-check-label w-100" 
+                           for="${flashcard.dataset.id}-${index}"
+                           style="cursor: pointer">
+                        <div class="d-flex align-items-center">
+                            <span class="badge bg-light text-dark me-2">${index + 1}</span>
+                            <div class="answer-text">${this.parseContent(answer)}</div>
+                        </div>
+                    </label>
                 </div>
-            </label>
+            </div>
         `).join('');
+
+        // Add click handler to the entire option div for better UX
+        answersForm.querySelectorAll('.answer-option').forEach(option => {
+            option.addEventListener('click', () => {
+                const radio = option.querySelector('input[type="radio"]');
+                if (!radio.checked) {
+                    radio.checked = true;
+                    radio.dispatchEvent(new Event('click', { bubbles: true }));
+                }
+            });
+        });
     }
 
     showAnswerFeedback(flashcard, isCorrect) {
