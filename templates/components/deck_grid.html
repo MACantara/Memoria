@@ -31,9 +31,16 @@
                     <p class="mb-1">
                         <i class="bi bi-layers"></i> {{ deck.count_all_flashcards() if not is_subdeck else deck.flashcards|length }} Cards
                     </p>
-                    <p class="mb-0 {% if deck.child_decks|length > 0 %}text-primary{% else %}text-muted{% endif %}">
-                        <i class="bi bi-folder2"></i> {{ deck.child_decks|length }} Sub-decks
+                    {% if deck.count_all_sub_decks() > 0 %}
+                    <p class="mb-0 text-primary">
+                        <i class="bi bi-folder2"></i> 
+                        {{ deck.count_all_sub_decks() }} Sub-deck{{ 's' if deck.count_all_sub_decks() != 1 }}
                     </p>
+                    {% else %}
+                    <p class="mb-0 text-muted">
+                        <i class="bi bi-folder2"></i> No Sub-decks
+                    </p>
+                    {% endif %}
                 </div>
                 <div class="d-grid gap-2">
                     <div class="d-flex gap-2">
