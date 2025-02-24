@@ -57,7 +57,7 @@
 
 {% block scripts %}
 <script type="module">
-    import { FlashcardManager } from '{{ url_for("static", filename="modules/FlashcardManager.js") }}';
+    import { FlashcardManager } from '{{ url_for("static", filename="modules/flashcards/FlashcardManager.js") }}';
     
     const manager = new FlashcardManager();
     manager.initialize();
