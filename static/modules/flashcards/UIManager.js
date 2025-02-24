@@ -51,22 +51,34 @@ export class UIManager {
     renderAnswerOptions(flashcard, allAnswers) {
         const answersForm = flashcard.querySelector('.answer-form');
         answersForm.innerHTML = allAnswers.map((answer, index) => `
-            <label class="form-check answer-option p-3 mb-3 rounded border user-select-none w-100" 
-                   role="button" 
-                   style="cursor: pointer"
-                   for="${flashcard.dataset.id}-${index}">
-                <div class="d-flex align-items-center">
+            <div class="mb-3">
+                <div class="answer-option form-check p-3 rounded border user-select-none">
                     <input class="form-check-input" type="radio" 
                            id="${flashcard.dataset.id}-${index}" 
                            name="flashcard-${flashcard.dataset.id}" 
                            value="${answer.replace(/"/g, '&quot;')}">
-                    <div class="ms-2">
-                        <span class="badge bg-light text-dark me-2">${index + 1}</span>
-                        ${answer}
-                    </div>
+                    <label class="form-check-label w-100" 
+                           for="${flashcard.dataset.id}-${index}"
+                           style="cursor: pointer">
+                        <div class="d-flex align-items-center">
+                            <span class="badge bg-light text-dark me-2">${index + 1}</span>
+                            <span class="answer-text">${answer}</span>
+                        </div>
+                    </label>
                 </div>
-            </label>
+            </div>
         `).join('');
+
+        // Add click handler to the entire option div for better UX
+        answersForm.querySelectorAll('.answer-option').forEach(option => {
+            option.addEventListener('click', () => {
+                const radio = option.querySelector('input[type="radio"]');
+                if (!radio.checked) {
+                    radio.checked = true;
+                    radio.dispatchEvent(new Event('click', { bubbles: true }));
+                }
+            });
+        });
     }
 
     showAnswerFeedback(flashcard, isCorrect) {
