@@ -85,7 +85,7 @@ async function handleDelete(deckToDelete) {
                     <i class="bi bi-check-circle"></i> ${data.message}
                 </div>
             `;
-            setTimeout(() => location.reload(), 2000);  // Increased timeout to show deletion details
+            setTimeout(() => location.reload(), 2000);
         } else {
             throw new Error(data.error || 'Failed to delete deck');
         }
