@@ -80,7 +80,7 @@ async function handleDelete(deckToDelete) {
         if (response.ok) {
             statusDiv.innerHTML = `
                 <div class="alert alert-success">
-                    <i class="bi bi-check-circle"></i> Sub-deck deleted successfully!
+                    <i class="bi bi-check-circle"></i> Deck deleted successfully!
                 </div>
             `;
             setTimeout(() => location.reload(), 1000);
