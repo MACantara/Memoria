@@ -4,6 +4,18 @@
 
 {% block styles %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/flashcards.css') }}">
+<style>
+    code {
+        font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        font-size: 0.875em;
+        color: #d63384;
+        background-color: #f8f9fa;
+        border-radius: 0.2rem;
+    }
+    .answer-text code {
+        white-space: nowrap;
+    }
+</style>
 {% endblock %}
 
 {% block content %}
