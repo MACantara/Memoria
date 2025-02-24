@@ -45,3 +45,22 @@ class FlashcardDecks(db.Model):
         ).scalar()
 
         return count
+
+    def count_all_sub_decks(self):
+        """Count all sub-decks recursively using CTE"""
+        cte = db.session.query(
+            FlashcardDecks.flashcard_deck_id.label('id')
+        ).filter(
+            FlashcardDecks.parent_deck_id == self.flashcard_deck_id
+        ).cte(name='sub_decks', recursive=True)
+
+        cte = cte.union_all(
+            db.session.query(
+                FlashcardDecks.flashcard_deck_id.label('id')
+            ).filter(
+                FlashcardDecks.parent_deck_id == cte.c.id
+            )
+        )
+
+        count = db.session.query(func.count(cte.c.id)).scalar()
+        return count
