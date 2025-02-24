@@ -19,7 +19,7 @@
     </button>
 </div>
 
-{% with decks=deck.child_decks, show_created_at=false, is_subdeck=true %}
+{% with decks=deck.child_decks, show_created_at=true, is_subdeck=true %}
 {% include 'components/deck_grid.html' %}
 {% endwith %}
 
