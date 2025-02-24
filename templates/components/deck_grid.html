@@ -32,7 +32,7 @@
                         <i class="bi bi-layers"></i> {{ deck.count_all_flashcards() if not is_subdeck else deck.flashcards|length }} Cards
                     </p>
                     {% if deck.count_all_sub_decks() > 0 %}
-                    <p class="mb-0 text-primary">
+                    <p class="mb-0">
                         <i class="bi bi-folder2"></i> 
                         {{ deck.count_all_sub_decks() }} Sub-deck{{ 's' if deck.count_all_sub_decks() != 1 }}
                     </p>
