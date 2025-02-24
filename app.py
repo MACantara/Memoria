@@ -26,7 +26,7 @@ def index():
         .order_by(FlashcardDecks.created_at.desc()).all()
     return render_template("index.html", decks=decks)
 
-@app.route("/generate", methods=["POST"])
+@app.route("/generate-flashcards", methods=["POST"])
 def generate():
     deck_name = request.form["topic"]
     batch_size = 100
