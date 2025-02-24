@@ -1,20 +1,13 @@
 from flask import Flask
-from dotenv import load_dotenv
-import os
 from models import db
+from config import Config
 from routes.main_routes import main_bp
 from routes.deck_routes import deck_bp
 from routes.flashcard_routes import flashcard_bp
 
-load_dotenv()
-
-def create_app():
+def create_app(config_class=Config):
     app = Flask(__name__)
-    
-    # Configure database
-    db_url = os.getenv('POSTGRES_URL_NON_POOLING', '').replace('postgres://', 'postgresql://')
-    app.config['SQLALCHEMY_DATABASE_URI'] = db_url
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    app.config.from_object(config_class)
     
     # Initialize database
     db.init_app(app)
@@ -33,12 +26,9 @@ with app.app_context():
     db.create_all()
 
 if __name__ == "__main__":
-    # Development configuration
-    app.debug = True
-    
     try:
         print("Starting development server...")
-        print("Access the application at: http://localhost:5000")
-        app.run(host='0.0.0.0', port=5000)
+        print(f"Access the application at: http://{Config.HOST}:{Config.PORT}")
+        app.run(host=Config.HOST, port=Config.PORT)
     except Exception as e:
         print(f"Error starting development server: {e}")
