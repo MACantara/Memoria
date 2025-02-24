@@ -72,7 +72,9 @@
          data-incorrect="{{ flashcard.incorrect_answers }}"
          style="display: none;">
         <div class="card-body">
-            <h2 class="card-title h4">{{ flashcard.question }}</h2>
+            <div class="card-title h4" data-question="{{ flashcard.question }}">
+                {{ flashcard.question }}
+            </div>
             <form class="answer-form mt-4">
                 <!-- Answer options will be dynamically inserted here -->
             </form>

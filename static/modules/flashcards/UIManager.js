@@ -4,9 +4,7 @@ export class UIManager {
             html: false,
             breaks: true,
             linkify: true,
-            highlight: function (str, lang) {
-                return `<code class="language-${lang}">${str}</code>`;
-            }
+            typographer: true
         });
     }
 
@@ -21,6 +19,13 @@ export class UIManager {
             currentCard.style.display = 'block';
             currentCard.classList.add('active');
             this.updateCardCounter(index, flashcardsArray.length, score);
+            
+            // Parse question markdown
+            const questionElem = currentCard.querySelector('.card-title');
+            if (questionElem) {
+                const rawQuestion = questionElem.dataset.question;
+                questionElem.innerHTML = this.parseContent(rawQuestion);
+            }
         }
     }
 
@@ -61,9 +66,11 @@ export class UIManager {
 
     parseContent(text) {
         if (!text) return '';
-        // Handle inline code blocks that use backticks
-        text = text.replace(/`([^`]+)`/g, '```$1```');
-        return this.md.render(text);
+        // Clean the text and parse markdown
+        const cleanText = text.trim()
+            .replace(/\\n/g, '\n')  // Handle escaped newlines
+            .replace(/\\"/g, '"');  // Handle escaped quotes
+        return this.md.render(cleanText);
     }
 
     renderAnswerOptions(flashcard, allAnswers) {
