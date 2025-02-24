@@ -28,7 +28,7 @@
                 {% endif %}
                 <p class="card-text">{{ deck.description if deck.description }}</p>
                 <div class="card-text mb-3">
-                    <p class="mb-1 {% if is_subdeck %}text-success fw-bold{% endif %}">
+                    <p class="mb-1">
                         <i class="bi bi-layers"></i> {{ deck.count_all_flashcards() if not is_subdeck else deck.flashcards|length }} cards
                     </p>
                     {% if deck.child_decks %}
