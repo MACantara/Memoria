@@ -40,6 +40,7 @@ export function initializeModals() {
             button.addEventListener('click', () => {
                 document.getElementById('generateForm').reset();
                 document.getElementById('generateDeckId').value = button.dataset.deckId;
+                document.getElementById('generateParentDeckId').value = button.dataset.deckId;
                 modals.generateModal.show();
             });
         });
@@ -61,7 +62,8 @@ export function initializeModals() {
     if (generateFromNoCards && modals.noCardsModal && modals.generateModal) {
         generateFromNoCards.addEventListener('click', () => {
             modals.noCardsModal.hide();
-            document.getElementById('generateDeckId').value = currentDeckId;
+            document.getElementById('generateForm').reset();
+            document.getElementById('generateParentDeckId').value = currentDeckId;
             modals.generateModal.show();
         });
     }
