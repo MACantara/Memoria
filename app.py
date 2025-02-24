@@ -1,4 +1,5 @@
 from flask import Flask
+import json
 from models import db
 from config import Config
 from routes.main_routes import main_bp
@@ -11,6 +12,10 @@ def create_app(config_class=Config):
     
     # Initialize database
     db.init_app(app)
+    
+    @app.template_filter('fromjson')
+    def fromjson_filter(value):
+        return json.loads(value)
     
     # Register blueprints
     app.register_blueprint(main_bp)
