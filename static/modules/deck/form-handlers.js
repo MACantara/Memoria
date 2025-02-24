@@ -4,35 +4,60 @@ export function initializeFormHandlers(modals = {}) {
     // Create deck form handler
     document.getElementById('createDeckForm')?.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const formData = new FormData(e.target);
-        const submitButton = e.target.querySelector('button[type="submit"]');
+        const form = e.target;
+        const submitButton = form.querySelector('button[type="submit"]');
+        const normalState = submitButton.querySelector('.normal-state');
+        const loadingState = submitButton.querySelector('.loading-state');
+        const statusDiv = document.getElementById('createDeckStatus');
+
         submitButton.disabled = true;
+        normalState.classList.add('d-none');
+        loadingState.classList.remove('d-none');
 
         try {
             const response = await fetch('/deck/create', {
                 method: 'POST',
-                body: formData
+                body: new FormData(form)
             });
             
             if (response.ok) {
-                deckModal?.hide();
-                location.reload();
+                statusDiv.innerHTML = `
+                    <div class="alert alert-success">
+                        <i class="bi bi-check-circle"></i> Sub-deck created successfully!
+                    </div>
+                `;
+                setTimeout(() => {
+                    deckModal?.hide();
+                    location.reload();
+                }, 1000);
             } else {
-                throw new Error('Failed to create deck');
+                throw new Error('Failed to create sub-deck');
             }
         } catch (error) {
             console.error('Error creating deck:', error);
-            alert('Failed to create deck. Please try again.');
-        } finally {
+            statusDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle"></i> Failed to create sub-deck. Please try again.
+                </div>
+            `;
             submitButton.disabled = false;
+            normalState.classList.remove('d-none');
+            loadingState.classList.add('d-none');
         }
     });
 
     // Empty deck form handler
     document.getElementById('createEmptyDeckForm')?.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const name = document.getElementById('emptyDeckName').value;
-        const description = document.getElementById('emptyDeckDescription').value;
+        const form = e.target;
+        const submitButton = form.querySelector('button[type="submit"]');
+        const normalState = submitButton.querySelector('.normal-state');
+        const loadingState = submitButton.querySelector('.loading-state');
+        const statusDiv = document.getElementById('createEmptyDeckStatus');
+
+        submitButton.disabled = true;
+        normalState.classList.add('d-none');
+        loadingState.classList.remove('d-none');
         
         try {
             const response = await fetch('/deck/create_empty', {
@@ -40,18 +65,35 @@ export function initializeFormHandlers(modals = {}) {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ name, description })
+                body: JSON.stringify({
+                    name: document.getElementById('emptyDeckName').value,
+                    description: document.getElementById('emptyDeckDescription').value
+                })
             });
             
             if (response.ok) {
-                emptyDeckModal?.hide();
-                location.reload();
+                statusDiv.innerHTML = `
+                    <div class="alert alert-success">
+                        <i class="bi bi-check-circle"></i> Deck created successfully!
+                    </div>
+                `;
+                setTimeout(() => {
+                    emptyDeckModal?.hide();
+                    location.reload();
+                }, 1000);
             } else {
                 throw new Error('Failed to create deck');
             }
         } catch (error) {
             console.error('Error creating deck:', error);
-            alert('Failed to create deck. Please try again.');
+            statusDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle"></i> Failed to create deck. Please try again.
+                </div>
+            `;
+            submitButton.disabled = false;
+            normalState.classList.remove('d-none');
+            loadingState.classList.add('d-none');
         }
     });
 
