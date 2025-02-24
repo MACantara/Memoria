@@ -35,25 +35,31 @@ def generate():
     client = genai.Client(api_key=api_key)
     # Move prompt template to a separate config or template file
     prompt_template = f"""You are an expert educator creating flashcards about {deck.name}.
-    Generate comprehensive, accurate, and engaging flashcards following these guidelines:
+    Generate comprehensive, accurate, and engaging flashcards following these strict guidelines:
 
     1. Each flashcard must have:
        - A clear, concise question that tests understanding
        - One definitively correct answer
        - Three plausible but incorrect answers
-       - All answers should be roughly the same length and style
+       - CRITICAL: All answers (correct and incorrect) MUST:
+         * Be similar in length (within 10-15 characters of each other)
+         * Use the same level of detail and complexity
+         * Follow the same grammatical structure
+         * Be equally specific/general
     
-    2. Question types should include:
+    2. Question types must be evenly distributed:
        - Factual recall (25% of cards)
        - Concept application (25% of cards)
        - Problem-solving (25% of cards)
        - Relationships between concepts (25% of cards)
     
-    3. Ensure:
+    3. Ensure quality control:
        - No duplicate questions or answers
        - All content is factually accurate
        - Clear, unambiguous wording
        - Progressive difficulty (easy -> medium -> hard)
+       - Avoid answers that are obviously wrong
+       - Don't make the correct answer stand out by length or detail
     
     4. Format each flashcard exactly as:
     question: [question text]
@@ -65,7 +71,8 @@ def generate():
     1. Breaking down the topic into key subtopics
     2. Creating equal numbers of cards for each subtopic
     3. Varying question types within each subtopic
-    4. Including both fundamental and advanced concepts"""
+    4. Including both fundamental and advanced concepts
+    5. Maintaining consistent answer length and style throughout"""
 
     try:
         response = client.models.generate_content(
