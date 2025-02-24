@@ -19,7 +19,7 @@ export function initializeDeckOperations() {
     };
 
     document.getElementById('renameDeckForm').addEventListener('submit', handleRenameSubmit);
-    document.getElementById('confirmDeleteBtn').addEventListener('click', handleDelete.bind(null, deckToDelete));
+    document.getElementById('confirmDeleteBtn').addEventListener('click', () => handleDelete(deckToDelete));
 }
 
 async function handleRenameSubmit(e) {
