@@ -11,7 +11,7 @@
 
 <div class="card mb-4">
     <div class="card-body">
-        <form id="generateForm" method="POST" action="{{ url_for('generate') }}">
+        <form id="generateForm" method="POST" action="{{ url_for('flashcard.generate') }}">
             <div class="mb-3">
                 <label for="topic" class="form-label">Enter a topic:</label>
                 <div class="input-group">
@@ -74,11 +74,11 @@
                             {% endif %}
                         </p>
                         <div class="d-flex gap-2">
-                            <a href="{{ url_for('get_deck_flashcards', deck_id=deck.flashcard_deck_id) }}" 
+                            <a href="{{ url_for('deck.get_deck_flashcards', deck_id=deck.flashcard_deck_id) }}" 
                                class="btn btn-primary w-100">
                                <i class="bi bi-folder2"></i> View Deck
                             </a>
-                            <a href="{{ url_for('study_deck', deck_id=deck.flashcard_deck_id) }}" 
+                            <a href="{{ url_for('deck.study_deck', deck_id=deck.flashcard_deck_id) }}" 
                                class="btn btn-success w-100 {% if deck.count_all_flashcards() == 0 %}no-cards{% endif %}">
                                <i class="bi bi-play-fill"></i> Study
                             </a>
@@ -191,7 +191,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <form id="generateForm" method="POST" action="{{ url_for('generate') }}">
+                <form id="generateForm" method="POST" action="{{ url_for('flashcard.generate') }}">
                     <input type="hidden" name="deck_id" id="generateDeckId">
                     <div class="mb-3">
                         <label for="topic" class="form-label">Enter a topic:</label>
