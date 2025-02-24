@@ -11,20 +11,30 @@ api_key = os.getenv("GOOGLE_GEMINI_API_KEY")
 
 @flashcard_bp.route("/generate-flashcards", methods=["POST"])
 def generate():
-    deck_name = request.form["topic"]
+    topic = request.form["topic"]
+    parent_deck_id = request.form.get("parent_deck_id")
     batch_size = 100
     
-    deck = FlashcardDecks(
-        name=deck_name,
-        description=f"Generated {datetime.utcnow().strftime('%Y-%m-%d %H:%M')}",
-        parent_deck_id=None
-    )
+    if parent_deck_id:
+        parent_deck = FlashcardDecks.query.get_or_404(parent_deck_id)
+        deck = FlashcardDecks(
+            name=topic if topic else f"Generated cards for {parent_deck.name}",
+            description=f"Generated {datetime.utcnow().strftime('%Y-%m-%d %H:%M')}",
+            parent_deck_id=parent_deck_id
+        )
+    else:
+        deck = FlashcardDecks(
+            name=topic,
+            description=f"Generated {datetime.utcnow().strftime('%Y-%m-%d %H:%M')}",
+            parent_deck_id=None
+        )
+    
     db.session.add(deck)
     db.session.commit()
 
     client = genai.Client(api_key=api_key)
     # Move prompt template to a separate config or template file
-    prompt_template = f"""You are an expert educator creating flashcards about {deck_name}.
+    prompt_template = f"""You are an expert educator creating flashcards about {deck.name}.
     Generate comprehensive, accurate, and engaging flashcards following these guidelines:
 
     1. Each flashcard must have:
