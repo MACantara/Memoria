@@ -31,11 +31,9 @@
                     <p class="mb-1">
                         <i class="bi bi-layers"></i> {{ deck.count_all_flashcards() if not is_subdeck else deck.flashcards|length }} Cards
                     </p>
-                    {% if deck.child_decks or is_subdeck %}
                     <p class="mb-0 {% if deck.child_decks|length > 0 %}text-primary{% else %}text-muted{% endif %}">
                         <i class="bi bi-folder2"></i> {{ deck.child_decks|length }} Sub-decks
                     </p>
-                    {% endif %}
                 </div>
                 <div class="d-grid gap-2">
                     <div class="d-flex gap-2">
