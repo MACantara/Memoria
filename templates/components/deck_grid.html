@@ -2,7 +2,7 @@
     {% for deck in decks %}
     <div class="col-md-6 col-lg-4">
         <div class="card h-100 shadow-sm">
-            <div class="card-body position-relative">
+            <div class="card-body position-relative d-flex flex-column">
                 <!-- Dropdown Menu for Actions -->
                 <div class="dropdown position-absolute top-0 end-0 mt-2 me-2">
                     <button class="btn btn-link text-secondary p-0" type="button" data-bs-toggle="dropdown">
@@ -26,44 +26,53 @@
                         </li>
                     </ul>
                 </div>
-                <h3 class="card-title h5">{{ deck.name }}</h3>
-                {% if show_created_at %}
-                <p class="card-text text-muted small">
-                    <i class="bi bi-calendar3"></i> Created: {{ deck.created_at.strftime('%Y-%m-%d') }}
-                </p>
-                {% endif %}
-                <p class="card-text">{{ deck.description if deck.description }}</p>
-                <div class="card-text mb-3">
-                    <p class="mb-1">
-                        <i class="bi bi-layers"></i> {{ deck.count_all_flashcards() if not is_subdeck else deck.flashcards|length }} Cards
-                    </p>
-                    {% if deck.count_all_sub_decks() > 0 %}
-                    <p class="mb-0">
-                        <i class="bi bi-folder2"></i> 
-                        {{ deck.count_all_sub_decks() }} Sub-deck{{ 's' if deck.count_all_sub_decks() != 1 }}
-                    </p>
-                    {% else %}
-                    <p class="mb-0 text-muted">
-                        <i class="bi bi-folder2"></i> No Sub-decks
+                
+                <!-- Card Content - This section will grow/shrink -->
+                <div class="flex-grow-1 d-flex flex-column">
+                    <h3 class="card-title h5">{{ deck.name }}</h3>
+                    
+                    {% if show_created_at %}
+                    <p class="card-text text-muted small">
+                        <i class="bi bi-calendar3"></i> Created: {{ deck.created_at.strftime('%Y-%m-%d') }}
                     </p>
                     {% endif %}
+                    
+                    <p class="card-text">{{ deck.description if deck.description }}</p>
+                    
+                    <div class="card-text mt-auto mb-3">
+                        <p class="mb-1">
+                            <i class="bi bi-layers"></i> {{ deck.count_all_flashcards() if not is_subdeck else deck.flashcards|length }} Cards
+                        </p>
+                        {% if deck.count_all_sub_decks() > 0 %}
+                        <p class="mb-0">
+                            <i class="bi bi-folder2"></i> 
+                            {{ deck.count_all_sub_decks() }} Sub-deck{{ 's' if deck.count_all_sub_decks() != 1 }}
+                        </p>
+                        {% else %}
+                        <p class="mb-0 text-muted">
+                            <i class="bi bi-folder2"></i> No Sub-decks
+                        </p>
+                        {% endif %}
+                    </div>
                 </div>
-                <div class="d-grid gap-2">
+                
+                <!-- Button Section - Always at the bottom -->
+                <div class="d-grid gap-2 mt-3">
                     <div class="d-flex gap-2">
                         <a href="{{ url_for('deck.get_deck_flashcards', deck_id=deck.flashcard_deck_id) }}" 
-                           class="btn btn-primary w-100">
-                           <i class="bi bi-folder2"></i> View Deck
+                           class="btn btn-primary w-100 d-flex align-items-center justify-content-center">
+                           <i class="bi bi-folder2 me-1"></i> View Deck
                         </a>
                         <a href="{{ url_for('deck.study_deck', deck_id=deck.flashcard_deck_id) }}" 
-                           class="btn btn-success w-100 {% if deck.count_all_flashcards() == 0 %}no-cards{% endif %}"
+                           class="btn btn-success w-100 {% if deck.count_all_flashcards() == 0 %}no-cards{% endif %} d-flex align-items-center justify-content-center"
                            data-deck-id="{{ deck.flashcard_deck_id }}"
                            data-bs-toggle="tooltip" 
                            title="Study all flashcards in this deck and its sub-decks">
-                           <i class="bi bi-play-fill"></i> Study All
+                           <i class="bi bi-play-fill me-1"></i> Study All
                         </a>
                     </div>
-                    <button class="btn btn-outline-primary w-100 add-cards-btn" data-deck-id="{{ deck.flashcard_deck_id }}">
-                        <i class="bi bi-plus-lg"></i> Add Cards
+                    <button class="btn btn-outline-primary w-100 add-cards-btn d-flex align-items-center justify-content-center" data-deck-id="{{ deck.flashcard_deck_id }}">
+                        <i class="bi bi-plus-lg me-1"></i> Add Cards
                     </button>
                 </div>
             </div>
