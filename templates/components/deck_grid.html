@@ -3,6 +3,7 @@
     <div class="col-md-6 col-lg-4">
         <div class="card h-100 shadow-sm">
             <div class="card-body position-relative">
+                <!-- Dropdown Menu for Actions -->
                 <div class="dropdown position-absolute top-0 end-0 mt-2 me-2">
                     <button class="btn btn-link text-secondary p-0" type="button" data-bs-toggle="dropdown">
                         <i class="bi bi-three-dots-vertical"></i>
@@ -11,6 +12,11 @@
                         <li>
                             <button class="dropdown-item" onclick="showRenameDeckModal({{ deck.flashcard_deck_id }}, '{{ deck.name }}', '{{ deck.description }}')">
                                 <i class="bi bi-pencil me-2"></i>Rename{{ ' Deck' if not is_subdeck }}
+                            </button>
+                        </li>
+                        <li>
+                            <button class="dropdown-item" onclick="showMoveDeckModal({{ deck.flashcard_deck_id }}, '{{ deck.name }}')">
+                                <i class="bi bi-arrows-move me-2"></i>Move{{ ' Deck' if not is_subdeck }}
                             </button>
                         </li>
                         <li>
