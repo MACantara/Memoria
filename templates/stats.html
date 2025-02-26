@@ -4,6 +4,7 @@
 
 {% block styles %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/stats.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -124,10 +125,24 @@ document.addEventListener('DOMContentLoaded', function() {
             stateCounts.mastered || 0,
             stateCounts.forgotten || 0
         ];
+
+        // Use theme-appropriate colors
+        const isDarkMode = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+        const backgroundColor = [
+            '#6c757d',  // New (gray)
+            '#ffc107',  // Learning (yellow)
+            '#28a745',  // Mastered (green)
+            '#dc3545'   // Forgotten (red)
+        ];
+        
+        // Apply different text color based on theme
+        const textColor = isDarkMode ? '#e0e0e0' : '#212529';
         
         // If we already have a chart, update it instead of recreating
         if (stateChart) {
             stateChart.data.datasets[0].data = data;
+            stateChart.options.plugins.tooltip.bodyColor = textColor;
+            stateChart.options.plugins.tooltip.titleColor = textColor;
             stateChart.update();
         } else {
             // Create a new chart
@@ -137,12 +152,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     labels: ['New', 'Learning', 'Mastered', 'Forgotten'],
                     datasets: [{
                         data: data,
-                        backgroundColor: [
-                            '#6c757d',  // New (gray)
-                            '#ffc107',  // Learning (yellow)
-                            '#28a745',  // Mastered (green)
-                            '#dc3545'   // Forgotten (red)
-                        ],
+                        backgroundColor: backgroundColor,
                         borderWidth: 1
                     }]
                 },
@@ -154,6 +164,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     },
                     plugins: {
                         tooltip: {
+                            bodyColor: textColor,
+                            titleColor: textColor,
                             callbacks: {
                                 label: function(context) {
                                     let label = context.label || '';
@@ -172,7 +184,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Handle empty data case
         if (data.every(val => val === 0)) {
             ctx.font = '16px Arial';
-            ctx.fillStyle = '#666';
+            ctx.fillStyle = isDarkMode ? '#e0e0e0' : '#666';
             ctx.textAlign = 'center';
             ctx.fillText('No card data available', 
                          ctx.canvas.width / 2, ctx.canvas.height / 2);
@@ -186,6 +198,11 @@ document.addEventListener('DOMContentLoaded', function() {
         
         console.log("Upcoming reviews data:", upcomingReviews); // Debug info
         
+        // Use theme-appropriate colors
+        const isDarkMode = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+        const textColor = isDarkMode ? '#e0e0e0' : '#212529';
+        const gridColor = isDarkMode ? '#444' : '#ddd';
+        
         if (!upcomingReviews || upcomingReviews.length === 0) {
             // No data case - draw empty chart with message
             if (upcomingChart) {
@@ -193,7 +210,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             ctx.font = '16px Arial';
-            ctx.fillStyle = '#666';
+            ctx.fillStyle = isDarkMode ? '#e0e0e0' : '#666';
             ctx.textAlign = 'center';
             ctx.fillText('No upcoming reviews for the next 7 days', 
                          ctx.canvas.width / 2, ctx.canvas.height / 2);
@@ -235,8 +252,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 datasets: [{
                     label: '# of Cards Due',
                     data: data,
-                    backgroundColor: '#0d6efd',
-                    borderColor: '#0b5ed7',
+                    backgroundColor: isDarkMode ? 'rgba(13, 110, 253, 0.8)' : '#0d6efd',
+                    borderColor: isDarkMode ? 'rgba(13, 110, 253, 1)' : '#0b5ed7',
                     borderWidth: 1
                 }]
             },
@@ -247,12 +264,44 @@ document.addEventListener('DOMContentLoaded', function() {
                     y: {
                         beginAtZero: true,
                         ticks: {
-                            precision: 0
+                            precision: 0,
+                            color: textColor
+                        },
+                        grid: {
+                            color: gridColor
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            color: textColor
+                        },
+                        grid: {
+                            color: gridColor
+                        }
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        bodyColor: textColor,
+                        titleColor: textColor
+                    },
+                    legend: {
+                        labels: {
+                            color: textColor
                         }
                     }
                 }
             }
         });
+
+        // Handle empty data case
+        if (!upcomingReviews || upcomingReviews.length === 0) {
+            ctx.font = '16px Arial';
+            ctx.fillStyle = isDarkMode ? '#e0e0e0' : '#666';
+            ctx.textAlign = 'center';
+            ctx.fillText('No upcoming reviews for the next 7 days', 
+                        ctx.canvas.width / 2, ctx.canvas.height / 2);
+        }
     }
     
     // Load stats on page load
@@ -260,6 +309,20 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Refresh stats every 30 seconds
     setInterval(loadStats, 30000);
+
+    // Listen for theme changes to update charts
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            if (mutation.attributeName === 'data-bs-theme') {
+                loadStats(); // Reload stats to redraw charts with appropriate colors
+            }
+        });
+    });
+
+    observer.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['data-bs-theme']
+    });
 });
 </script>
 {% endblock %}
