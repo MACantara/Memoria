@@ -7,34 +7,21 @@ def get_current_time():
     """Get current time with UTC timezone (required by FSRS)"""
     return datetime.now(timezone.utc)
 
+# Create a custom state constant for our "New" state
+NEW_STATE = 0  # Custom state to represent unreviewed cards
+
 # Initialize scheduler with optimized parameters
 scheduler = Scheduler(
-    parameters = (
-            0.40255,
-            1.18385,
-            3.173,
-            15.69105,
-            7.1949,
-            0.5345,
-            1.4604,
-            0.0046,
-            1.54575,
-            0.1192,
-            1.01925,
-            1.9395,
-            0.11,
-            0.29605,
-            2.2698,
-            0.2315,
-            2.9898,
-            0.51655,
-            0.6621,
-        ),
-    desired_retention = 0.9,
-    learning_steps = (timedelta(minutes=1), timedelta(minutes=10)),
-    relearning_steps = (timedelta(minutes=10),),
+    parameters=(
+        0.40255, 1.18385, 3.173, 15.69105, 7.1949, 0.5345, 1.4604, 0.0046, 
+        1.54575, 0.1192, 1.01925, 1.9395, 0.11, 0.29605, 2.2698, 
+        0.2315, 2.9898, 0.51655, 0.6621,
+    ),
+    desired_retention=0.9,
+    learning_steps=(timedelta(minutes=1), timedelta(minutes=10)),
+    relearning_steps=(timedelta(minutes=10),),
     maximum_interval=timedelta(days=365),
-    enable_fuzzing = True
+    enable_fuzzing=True
 )
 
 def get_scheduler():
@@ -53,14 +40,22 @@ def process_review(flashcard, is_correct):
         # Get current card state
         fsrs_card = flashcard.get_fsrs_card()
         now = get_current_time()
+        
+        # If this is a first review of a card in our custom "New" state,
+        # change to state 1 (Learning) to work with FSRS algorithm
+        if flashcard.state == NEW_STATE:
+            print(f"Converting card from New state (0) to Learning state (1)")
+            fsrs_card.state = State(1)  # Convert to Learning state
+        
+        # Determine rating based on correctness
         rating = Rating.Good if is_correct else Rating.Again
         
-        print(f"FSRS: Processing review with rating {rating}")
+        print(f"FSRS: Processing review with rating {rating}, current state: {fsrs_card.state}")
         
-        # Let FSRS handle everything
+        # Process with FSRS
         next_card, review_log = scheduler.review_card(fsrs_card, rating, now)
         
-        # Update flashcard with new state from FSRS
+        # Update flashcard with new state
         flashcard.fsrs_state = next_card.to_dict()
         flashcard.due_date = next_card.due
         flashcard.state = int(next_card.state)
