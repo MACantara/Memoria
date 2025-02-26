@@ -1,0 +1,43 @@
+<div class="modal fade" id="moveDeckModal" tabindex="-1" aria-labelledby="moveDeckModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="moveDeckModalLabel">Move Deck</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Select a new location for <strong id="deckToMoveName"></strong>:</p>
+                
+                <div class="mb-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="destinationDeck" id="rootDeck" value="">
+                        <label class="form-check-label" for="rootDeck">
+                            <i class="bi bi-house"></i> Root Level (No Parent)
+                        </label>
+                    </div>
+                    
+                    <hr>
+                    <div id="deckTreeContainer" class="mt-3">
+                        <div class="d-flex justify-content-center">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="moveStatus"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirmMoveBtn">
+                    <span class="normal-state">Move Deck</span>
+                    <span class="loading-state d-none">
+                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                        Moving...
+                    </span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
