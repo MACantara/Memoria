@@ -28,7 +28,7 @@
         </div>
     </div>
     <div class="col-md-3">
-        <div class="stats-card card h-100 shadow-sm bg-warning text-dark">
+        <div class="stats-card card h-100 shadow-sm bg-warning">
             <div class="card-body">
                 <h5 class="card-title"><i class="bi bi-clock"></i> Due Today</h5>
                 <p class="display-4" id="due-count">-</p>
@@ -57,7 +57,7 @@
 <div class="row mt-4">
     <div class="col-md-6">
         <div class="card shadow-sm">
-            <div class="card-header bg-light">
+            <div class="card-header">
                 <h5 class="mb-0">Card Status Distribution</h5>
             </div>
             <div class="card-body">
@@ -69,7 +69,7 @@
     </div>
     <div class="col-md-6">
         <div class="card shadow-sm">
-            <div class="card-header bg-light">
+            <div class="card-header">
                 <h5 class="mb-0">Upcoming Reviews</h5>
             </div>
             <div class="card-body">
@@ -125,24 +125,61 @@ document.addEventListener('DOMContentLoaded', function() {
             stateCounts.mastered || 0,
             stateCounts.forgotten || 0
         ];
-
+        
         // Use theme-appropriate colors
         const isDarkMode = document.documentElement.getAttribute('data-bs-theme') === 'dark';
         const backgroundColor = [
-            '#6c757d',  // New (gray)
-            '#ffc107',  // Learning (yellow)
-            '#28a745',  // Mastered (green)
-            '#dc3545'   // Forgotten (red)
+            isDarkMode ? '#6c757d' : '#6c757d',  // New (gray)
+            isDarkMode ? '#e6b400' : '#ffc107',  // Learning (yellow)
+            isDarkMode ? '#198754' : '#28a745',  // Mastered (green)
+            isDarkMode ? '#bb2d3b' : '#dc3545'   // Forgotten (red)
         ];
         
-        // Apply different text color based on theme
+        // Adjust text/border colors based on theme
         const textColor = isDarkMode ? '#e0e0e0' : '#212529';
+        const borderColor = isDarkMode ? '#2d2d2d' : '#ffffff';
         
-        // If we already have a chart, update it instead of recreating
+        const chartOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: {
+                duration: 1000 // Smoother animation for updates
+            },
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        color: textColor,
+                        padding: 15,
+                        font: {
+                            size: 12
+                        }
+                    }
+                },
+                tooltip: {
+                    backgroundColor: isDarkMode ? '#212121' : '#ffffff',
+                    borderColor: isDarkMode ? '#3d3d3d' : '#e0e0e0',
+                    borderWidth: 1,
+                    bodyColor: textColor,
+                    titleColor: textColor,
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.label || '';
+                            let value = context.raw || 0;
+                            let total = data.reduce((a, b) => a + b, 0);
+                            let percentage = Math.round((value / total) * 100);
+                            return `${label}: ${value} (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        };
+        
+        // If we already have a chart, update it
         if (stateChart) {
+            stateChart.data.datasets[0].backgroundColor = backgroundColor;
             stateChart.data.datasets[0].data = data;
-            stateChart.options.plugins.tooltip.bodyColor = textColor;
-            stateChart.options.plugins.tooltip.titleColor = textColor;
+            stateChart.options = chartOptions;
             stateChart.update();
         } else {
             // Create a new chart
@@ -153,36 +190,17 @@ document.addEventListener('DOMContentLoaded', function() {
                     datasets: [{
                         data: data,
                         backgroundColor: backgroundColor,
+                        borderColor: borderColor,
                         borderWidth: 1
                     }]
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: {
-                        duration: 1000 // Smoother animation for updates
-                    },
-                    plugins: {
-                        tooltip: {
-                            bodyColor: textColor,
-                            titleColor: textColor,
-                            callbacks: {
-                                label: function(context) {
-                                    let label = context.label || '';
-                                    let value = context.raw || 0;
-                                    let total = data.reduce((a, b) => a + b, 0);
-                                    let percentage = Math.round((value / total) * 100);
-                                    return `${label}: ${value} (${percentage}%)`;
-                                }
-                            }
-                        }
-                    }
-                }
+                options: chartOptions
             });
         }
         
         // Handle empty data case
         if (data.every(val => val === 0)) {
+            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
             ctx.font = '16px Arial';
             ctx.fillStyle = isDarkMode ? '#e0e0e0' : '#666';
             ctx.textAlign = 'center';
@@ -198,25 +216,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         console.log("Upcoming reviews data:", upcomingReviews); // Debug info
         
-        // Use theme-appropriate colors
-        const isDarkMode = document.documentElement.getAttribute('data-bs-theme') === 'dark';
-        const textColor = isDarkMode ? '#e0e0e0' : '#212529';
-        const gridColor = isDarkMode ? '#444' : '#ddd';
-        
-        if (!upcomingReviews || upcomingReviews.length === 0) {
-            // No data case - draw empty chart with message
-            if (upcomingChart) {
-                upcomingChart.destroy();
-            }
-            
-            ctx.font = '16px Arial';
-            ctx.fillStyle = isDarkMode ? '#e0e0e0' : '#666';
-            ctx.textAlign = 'center';
-            ctx.fillText('No upcoming reviews for the next 7 days', 
-                         ctx.canvas.width / 2, ctx.canvas.height / 2);
-            return;
-        }
-        
+        // Extract labels and data from reviews
         upcomingReviews.forEach(item => {
             try {
                 // Parse the ISO date string
@@ -241,10 +241,72 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         
+        // Use theme-appropriate colors
+        const isDarkMode = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+        
+        // Theme-based colors
+        const textColor = isDarkMode ? '#e0e0e0' : '#212529';
+        const gridColor = isDarkMode ? '#444' : '#ddd';
+        const barColor = isDarkMode ? 'rgba(13, 110, 253, 0.8)' : '#0d6efd';
+        const barBorderColor = isDarkMode ? 'rgba(13, 110, 253, 1)' : '#0b5ed7';
+        
+        // Chart options
+        const chartOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: gridColor
+                    },
+                    ticks: {
+                        precision: 0,
+                        color: textColor
+                    }
+                },
+                x: {
+                    grid: {
+                        color: gridColor
+                    },
+                    ticks: {
+                        color: textColor
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    labels: {
+                        color: textColor
+                    }
+                },
+                tooltip: {
+                    backgroundColor: isDarkMode ? '#212121' : '#ffffff',
+                    borderColor: isDarkMode ? '#3d3d3d' : '#e0e0e0',
+                    borderWidth: 1,
+                    bodyColor: textColor,
+                    titleColor: textColor
+                }
+            }
+        };
+        
+        // If chart exists, destroy it to prevent memory leaks
         if (upcomingChart) {
             upcomingChart.destroy();
         }
         
+        // Handle empty data case
+        if (!upcomingReviews || upcomingReviews.length === 0) {
+            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+            ctx.font = '16px Arial';
+            ctx.fillStyle = isDarkMode ? '#e0e0e0' : '#666';
+            ctx.textAlign = 'center';
+            ctx.fillText('No upcoming reviews for the next 7 days', 
+                        ctx.canvas.width / 2, ctx.canvas.height / 2);
+            return;
+        }
+        
+        // Create new chart
         upcomingChart = new Chart(ctx, {
             type: 'bar',
             data: {
@@ -252,73 +314,31 @@ document.addEventListener('DOMContentLoaded', function() {
                 datasets: [{
                     label: '# of Cards Due',
                     data: data,
-                    backgroundColor: isDarkMode ? 'rgba(13, 110, 253, 0.8)' : '#0d6efd',
-                    borderColor: isDarkMode ? 'rgba(13, 110, 253, 1)' : '#0b5ed7',
+                    backgroundColor: barColor,
+                    borderColor: barBorderColor,
                     borderWidth: 1
                 }]
             },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            precision: 0,
-                            color: textColor
-                        },
-                        grid: {
-                            color: gridColor
-                        }
-                    },
-                    x: {
-                        ticks: {
-                            color: textColor
-                        },
-                        grid: {
-                            color: gridColor
-                        }
-                    }
-                },
-                plugins: {
-                    tooltip: {
-                        bodyColor: textColor,
-                        titleColor: textColor
-                    },
-                    legend: {
-                        labels: {
-                            color: textColor
-                        }
-                    }
-                }
-            }
+            options: chartOptions
         });
-
-        // Handle empty data case
-        if (!upcomingReviews || upcomingReviews.length === 0) {
-            ctx.font = '16px Arial';
-            ctx.fillStyle = isDarkMode ? '#e0e0e0' : '#666';
-            ctx.textAlign = 'center';
-            ctx.fillText('No upcoming reviews for the next 7 days', 
-                        ctx.canvas.width / 2, ctx.canvas.height / 2);
-        }
     }
     
-    // Load stats on page load
+    // Initial load
     loadStats();
     
     // Refresh stats every 30 seconds
     setInterval(loadStats, 30000);
-
+    
     // Listen for theme changes to update charts
     const observer = new MutationObserver((mutations) => {
         mutations.forEach((mutation) => {
             if (mutation.attributeName === 'data-bs-theme') {
-                loadStats(); // Reload stats to redraw charts with appropriate colors
+                // Redraw charts when theme changes
+                loadStats();
             }
         });
     });
-
+    
     observer.observe(document.documentElement, {
         attributes: true,
         attributeFilter: ['data-bs-theme']
