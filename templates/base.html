@@ -34,59 +34,86 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/markdown-it/13.0.1/markdown-it.min.js"></script>    
     <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}"></link>
     {% block styles %}{% endblock %}
-
-    <style>
-
-    </style>
 </head>
 <body>
     <div class="container py-4">
         {% block content %}{% endblock %}
     </div>
     
-    <!-- Theme Toggle Button with three modes -->
-    <button class="theme-toggle border-0" id="themeToggle" aria-label="Toggle theme mode">
-        <i class="bi bi-moon-fill d-none" id="darkIcon"></i>
-        <i class="bi bi-sun-fill d-none" id="lightIcon"></i>
-        <i class="bi bi-circle-half d-none" id="autoIcon"></i>
-    </button>
-    <div class="theme-tooltip" id="themeTooltip">System Preference</div>
+    <!-- Theme Toggle with Popup Menu -->
+    <div class="theme-backdrop" id="themeBackdrop"></div>
+    <div class="theme-toggle-container">
+        <div class="theme-menu" id="themeMenu">
+            <button class="theme-menu-item" data-theme="light">
+                <i class="bi bi-sun-fill theme-icon"></i>
+                Light Mode
+                <i class="bi bi-check-lg check-icon"></i>
+            </button>
+            <button class="theme-menu-item" data-theme="dark">
+                <i class="bi bi-moon-stars-fill theme-icon"></i>
+                Dark Mode
+                <i class="bi bi-check-lg check-icon"></i>
+            </button>
+            <div class="theme-menu-divider"></div>
+            <button class="theme-menu-item" data-theme="auto">
+                <i class="bi bi-circle-half theme-icon"></i>
+                System Preference
+                <i class="bi bi-check-lg check-icon"></i>
+            </button>
+        </div>
+        
+        <button class="theme-toggle-btn" id="themeToggle" aria-label="Change theme">
+            <i class="bi bi-palette"></i>
+        </button>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/markdown-it/13.0.1/markdown-it.min.js"></script>    
     <script>
-        // Enhanced dark mode handling with system preference
+        // Enhanced theme management with popup menu
         document.addEventListener('DOMContentLoaded', function() {
             const themeToggle = document.getElementById('themeToggle');
-            const darkIcon = document.getElementById('darkIcon');
-            const lightIcon = document.getElementById('lightIcon');
-            const autoIcon = document.getElementById('autoIcon');
-            const themeTooltip = document.getElementById('themeTooltip');
+            const themeMenu = document.getElementById('themeMenu');
+            const themeBackdrop = document.getElementById('themeBackdrop');
+            const themeMenuItems = document.querySelectorAll('.theme-menu-item');
             const htmlElement = document.documentElement;
             
             // Media query for detecting system preference changes
             const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)');
             
-            // Update the UI based on current theme
-            updateThemeUI(localStorage.getItem('theme') || 'auto');
+            // Initialize: mark active theme
+            updateActiveThemeInMenu();
             
-            // Toggle theme on button click - cycles through light -> dark -> auto
+            // Show/hide menu on button click
             themeToggle.addEventListener('click', () => {
-                const currentTheme = localStorage.getItem('theme') || 'auto';
-                let newTheme;
-                
-                // Cycle through themes
-                if (currentTheme === 'light') {
-                    newTheme = 'dark';
-                } else if (currentTheme === 'dark') {
-                    newTheme = 'auto';
-                } else {
-                    newTheme = 'light';
-                }
-                
-                // Apply the new theme
-                applyTheme(newTheme);
-                localStorage.setItem('theme', newTheme);
-                updateThemeUI(newTheme);
+                themeMenu.classList.toggle('show');
+                themeBackdrop.classList.toggle('show');
+            });
+            
+            // Hide menu when clicking outside
+            themeBackdrop.addEventListener('click', () => {
+                themeMenu.classList.remove('show');
+                themeBackdrop.classList.remove('show');
+            });
+            
+            // Theme menu item click handler
+            themeMenuItems.forEach(item => {
+                item.addEventListener('click', () => {
+                    const theme = item.getAttribute('data-theme');
+                    
+                    // Apply theme
+                    applyTheme(theme);
+                    
+                    // Save preference
+                    localStorage.setItem('theme', theme);
+                    
+                    // Update UI
+                    updateActiveThemeInMenu();
+                    
+                    // Close menu
+                    themeMenu.classList.remove('show');
+                    themeBackdrop.classList.remove('show');
+                });
             });
             
             // Function to apply theme to document
@@ -102,30 +129,45 @@
                 }
             }
             
-            // Function to update UI components based on theme
-            function updateThemeUI(theme) {
-                // Hide all icons first
-                darkIcon.classList.add('d-none');
-                lightIcon.classList.add('d-none');
-                autoIcon.classList.add('d-none');
+            // Update active theme in menu
+            function updateActiveThemeInMenu() {
+                const currentTheme = localStorage.getItem('theme') || 'auto';
                 
-                // Show the appropriate icon
-                if (theme === 'dark') {
-                    lightIcon.classList.remove('d-none');
-                    themeTooltip.textContent = 'Light Mode';
-                } else if (theme === 'light') {
-                    darkIcon.classList.remove('d-none');
-                    themeTooltip.textContent = 'Dark Mode';
+                themeMenuItems.forEach(item => {
+                    const itemTheme = item.getAttribute('data-theme');
+                    if (itemTheme === currentTheme) {
+                        item.classList.add('active');
+                    } else {
+                        item.classList.remove('active');
+                    }
+                });
+                
+                // Update toggle button icon based on current applied theme
+                updateToggleIcon();
+            }
+            
+            // Update the toggle button icon based on current applied theme
+            function updateToggleIcon() {
+                const currentAppliedTheme = htmlElement.getAttribute('data-bs-theme');
+                const iconElement = themeToggle.querySelector('i');
+                
+                // Remove all icon classes
+                iconElement.className = '';
+                
+                // Add appropriate icon class based on current theme
+                if (currentAppliedTheme === 'dark') {
+                    iconElement.className = 'bi bi-moon-stars-fill';
                 } else {
-                    autoIcon.classList.remove('d-none');
-                    themeTooltip.textContent = 'System Preference';
+                    iconElement.className = 'bi bi-sun-fill';
                 }
             }
             
             // Listen for system preference changes if using auto theme
-            prefersDarkScheme.addEventListener('change', (e) => {
-                if (localStorage.getItem('theme') === 'auto') {
+            prefersDarkScheme.addEventListener('change', () => {
+                const currentTheme = localStorage.getItem('theme') || 'auto';
+                if (currentTheme === 'auto') {
                     applyTheme('auto');
+                    updateToggleIcon();
                 }
             });
         });
