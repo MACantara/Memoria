@@ -125,35 +125,69 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateStateChart(stateCounts) {
         const ctx = document.getElementById('stateChart').getContext('2d');
         
+        // Log the state counts for debugging
+        console.log("State counts:", stateCounts);
+        
+        // Ensure we have numeric values for all states (default to 0)
+        const data = [
+            stateCounts.new || 0, 
+            stateCounts.learning || 0,
+            stateCounts.mastered || 0,
+            stateCounts.forgotten || 0
+        ];
+        
+        // If we already have a chart, update it instead of recreating
         if (stateChart) {
-            stateChart.destroy();
+            stateChart.data.datasets[0].data = data;
+            stateChart.update();
+        } else {
+            // Create a new chart
+            stateChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: ['New', 'Learning', 'Mastered', 'Forgotten'],
+                    datasets: [{
+                        data: data,
+                        backgroundColor: [
+                            '#6c757d',  // New (gray)
+                            '#ffc107',  // Learning (yellow)
+                            '#28a745',  // Mastered (green)
+                            '#dc3545'   // Forgotten (red)
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: {
+                        duration: 1000 // Smoother animation for updates
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.label || '';
+                                    let value = context.raw || 0;
+                                    let total = data.reduce((a, b) => a + b, 0);
+                                    let percentage = Math.round((value / total) * 100);
+                                    return `${label}: ${value} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
         }
         
-        stateChart = new Chart(ctx, {
-            type: 'pie',
-            data: {
-                labels: ['New', 'Learning', 'Mastered', 'Forgotten'],
-                datasets: [{
-                    data: [
-                        stateCounts.new, 
-                        stateCounts.learning,
-                        stateCounts.mastered,
-                        stateCounts.forgotten
-                    ],
-                    backgroundColor: [
-                        '#6c757d',  // New (gray)
-                        '#ffc107',  // Learning (yellow)
-                        '#28a745',  // Mastered (green)
-                        '#dc3545'   // Forgotten (red)
-                    ],
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false
-            }
-        });
+        // Handle empty data case
+        if (data.every(val => val === 0)) {
+            ctx.font = '16px Arial';
+            ctx.fillStyle = '#666';
+            ctx.textAlign = 'center';
+            ctx.fillText('No card data available', 
+                         ctx.canvas.width / 2, ctx.canvas.height / 2);
+        }
     }
     
     function updateUpcomingChart(upcomingReviews) {
@@ -235,8 +269,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Load stats on page load
     loadStats();
     
-    // Refresh stats every 60 seconds
-    setInterval(loadStats, 60000);
+    // Refresh stats every 30 seconds
+    setInterval(loadStats, 30000);
 });
 </script>
 {% endblock %}
