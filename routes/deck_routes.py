@@ -150,3 +150,87 @@ def create_empty_deck():
     except Exception as e:
         db.session.rollback()
         return jsonify({"success": False, "error": str(e)}), 500
+
+@deck_bp.route("/move/<int:deck_id>", methods=["PUT"])
+def move_deck(deck_id):
+    """Move a deck to a new parent deck"""
+    deck = FlashcardDecks.query.get_or_404(deck_id)
+    try:
+        data = request.json
+        new_parent_id = data.get('new_parent_id')
+        
+        # Validate the move
+        if new_parent_id is not None:
+            # Check that new parent exists
+            new_parent = FlashcardDecks.query.get_or_404(new_parent_id)
+            
+            # Check for circular reference (can't move a deck into its own descendants)
+            if is_descendant(new_parent_id, deck_id):
+                return jsonify({"success": False, "error": "Cannot move a deck into its own subdeck"}), 400
+            
+            # Check if target is the same as current parent
+            if deck.parent_deck_id == new_parent_id:
+                return jsonify({"success": False, "error": "Deck is already in that location"}), 400
+        elif deck.parent_deck_id is None:
+            # Already at root level
+            return jsonify({"success": False, "error": "Deck is already at root level"}), 400
+        
+        # Update the parent ID
+        deck.parent_deck_id = new_parent_id
+        db.session.commit()
+        
+        return jsonify({
+            "success": True, 
+            "message": "Deck moved successfully"
+        })
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error moving deck: {str(e)}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@deck_bp.route("/api/decks/tree")
+def get_deck_tree():
+    """Get the complete deck hierarchy as a tree structure"""
+    # Get top-level decks
+    root_decks = FlashcardDecks.query.filter_by(parent_deck_id=None).all()
+    
+    # Build tree recursively
+    result = []
+    for deck in root_decks:
+        result.append(build_deck_tree(deck))
+    
+    return jsonify(result)
+
+def build_deck_tree(deck):
+    """Helper function to build a deck tree structure recursively"""
+    deck_dict = {
+        'flashcard_deck_id': deck.flashcard_deck_id,
+        'name': deck.name,
+        'description': deck.description,
+        'child_decks': []
+    }
+    
+    for child in deck.child_decks:
+        deck_dict['child_decks'].append(build_deck_tree(child))
+    
+    return deck_dict
+
+def is_descendant(potential_descendant_id, ancestor_id):
+    """Check if a deck is a descendant of another deck"""
+    if potential_descendant_id == ancestor_id:
+        return True
+        
+    deck = FlashcardDecks.query.get(potential_descendant_id)
+    if not deck:
+        return False
+    
+    # If this deck has no parent, it can't be a descendant
+    if deck.parent_deck_id is None:
+        return False
+        
+    # Check if the parent is the ancestor we're looking for
+    if deck.parent_deck_id == ancestor_id:
+        return True
+        
+    # Recursively check the parent
+    return is_descendant(deck.parent_deck_id, ancestor_id)
