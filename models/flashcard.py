@@ -41,21 +41,26 @@ class Flashcards(db.Model):
     state = db.Column(db.Integer, default=0)  # 0=New, 1=Learning, 2=Review, 3=Relearning
     
     def init_fsrs_state(self):
-        """Initialize FSRS state for new flashcard"""
+        """Initialize FSRS state for new flashcard with custom 'New' state (0)"""
         try:
             from services.fsrs_scheduler import Card, get_current_time
             
-            # Let FSRS handle default values
+            # Create a new card (will be in state 1 by default)
             card = Card()
             
-            # Only explicitly set the due date
+            # Override the state with our custom 'New' state (0)
+            # We'll manually track this state and change to FSRS states during review
+            card_dict = card.to_dict()
+            card_dict['state'] = 0  # Our custom state for "New" cards
+            
+            # Set due date to now (immediately available)
             now = get_current_time()
             card.due = now
             
-            # Save state
-            self.fsrs_state = card.to_dict()
+            # Save modified state to database
+            self.fsrs_state = card_dict
             self.due_date = now
-            self.state = int(card.state)
+            self.state = 0  # Explicitly use 0 for "New" state
             
             return self
         except Exception as e:
