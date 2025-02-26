@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy.sql import func
+from sqlalchemy.sql import func, text
 from . import db
 
 class FlashcardDecks(db.Model):
@@ -64,3 +64,36 @@ class FlashcardDecks(db.Model):
 
         count = db.session.query(func.count(cte.c.id)).scalar()
         return count
+
+    @staticmethod
+    def update_flashcard_progress(flashcard_id, is_correct):
+        """
+        Atomically update flashcard progress counts using SQL UPDATE
+        """
+        try:
+            if is_correct:
+                db.session.execute(
+                    text("""
+                        UPDATE flashcards 
+                        SET correct_count = correct_count + 1,
+                            last_reviewed = CURRENT_TIMESTAMP 
+                        WHERE flashcard_id = :flashcard_id
+                    """),
+                    {"flashcard_id": flashcard_id}
+                )
+            else:
+                db.session.execute(
+                    text("""
+                        UPDATE flashcards 
+                        SET incorrect_count = incorrect_count + 1,
+                            last_reviewed = CURRENT_TIMESTAMP 
+                        WHERE flashcard_id = :flashcard_id
+                    """),
+                    {"flashcard_id": flashcard_id}
+                )
+            db.session.commit()
+            return True
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error updating flashcard progress: {e}")
+            return False
