@@ -5,7 +5,7 @@
     --bs-secondary-color: #adb5bd;
 }
 
-/* Theme toggle button */
+/* Theme toggle button updated for three modes */
 .theme-toggle {
     position: fixed;
     bottom: 20px;
@@ -20,15 +20,37 @@
     justify-content: center;
     cursor: pointer;
     z-index: 1050;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
     transition: all 0.2s ease;
 }
 
 .theme-toggle:hover {
     transform: scale(1.05);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 }
 
 .theme-toggle i {
     font-size: 1.25rem;
+}
+
+/* Mini tooltip for theme toggle */
+.theme-tooltip {
+    position: fixed;
+    bottom: 70px;
+    right: 20px;
+    padding: 5px 10px;
+    background-color: rgba(0, 0, 0, 0.7);
+    color: white;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    pointer-events: none;
+    z-index: 1050;
+    text-align: center;
+    width: 120px;
+}
+
+.theme-toggle:hover + .theme-tooltip {
+    opacity: 1;
 }
