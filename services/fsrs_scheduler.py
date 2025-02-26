@@ -192,22 +192,37 @@ def get_stats(deck_id=None):
         func.avg(Flashcards.retrievability)
     ).filter(Flashcards.retrievability > 0).scalar() or 0
     
-    # Get upcoming reviews
+    # Get upcoming reviews - include already due cards too
     upcoming = {}
+    
+    # First add today's due cards
+    today = now.date()
+    today_count = query.filter(
+        Flashcards.due_date <= now
+    ).count()
+    
+    if today_count > 0:
+        upcoming[today] = today_count
+    
+    # Then add upcoming cards for the next week
     next_week = now + timedelta(days=7)
-    upcoming_reviews = query.filter(
+    future_reviews = query.filter(
         Flashcards.due_date > now,
         Flashcards.due_date <= next_week
     ).all()
     
-    for card in upcoming_reviews:
+    for card in future_reviews:
+        # Extract just the date part
         due_date = card.due_date.date()
         upcoming[due_date] = upcoming.get(due_date, 0) + 1
     
+    # Format for JSON response
     formatted_upcoming = [
         {'date': date.isoformat(), 'count': count}
         for date, count in sorted(upcoming.items())
     ]
+    
+    print(f"Upcoming reviews: {formatted_upcoming}")  # Debug info
     
     return {
         'total_cards': query.count(),
