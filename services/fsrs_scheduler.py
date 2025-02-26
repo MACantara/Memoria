@@ -175,13 +175,26 @@ def get_stats(deck_id=None):
         
         query = query.filter(Flashcards.flashcard_deck_id.in_(db.session.query(cte.c.id)))
     
-    # Count cards by state
+    # Count cards by state - be more explicit with filtering conditions
     state_counts = {
         'new': query.filter(Flashcards.state == 0).count(),
         'learning': query.filter(Flashcards.state == 1).count(),
         'mastered': query.filter(Flashcards.state == 2).count(),
         'forgotten': query.filter(Flashcards.state == 3).count()
     }
+    
+    # Add a check for cards with uninitialized state
+    uninitialized_count = query.filter(Flashcards.state.is_(None)).count()
+    if uninitialized_count > 0:
+        print(f"Warning: Found {uninitialized_count} cards with NULL state")
+        # Add these to new cards
+        state_counts['new'] += uninitialized_count
+    
+    # Verify the totals add up correctly
+    total = sum(state_counts.values())
+    total_cards = query.count()
+    if total != total_cards:
+        print(f"Warning: State counts ({total}) don't match total cards ({total_cards})")
     
     # Count due cards - use timezone-aware datetime
     now = get_current_time()
