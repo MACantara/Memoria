@@ -1,9 +1,11 @@
 from flask import Blueprint, request, jsonify, redirect, url_for, render_template
 from models import db, FlashcardDecks, Flashcards
-from datetime import datetime
+from datetime import datetime, timezone
 from google import genai
 import json
 import os
+from services.fsrs_scheduler import process_review, get_stats
+import traceback
 
 flashcard_bp = Blueprint('flashcard', __name__)
 
@@ -116,25 +118,68 @@ def update_progress():
         flashcard_id = data['flashcard_id']
         is_correct = data['is_correct']
         
-        # Use atomic update method
-        success = FlashcardDecks.update_flashcard_progress(
-            flashcard_id=flashcard_id,
-            is_correct=is_correct
-        )
+        # Get the flashcard
+        flashcard = Flashcards.query.get_or_404(flashcard_id)
+        print(f"Processing flashcard {flashcard_id}, is_correct: {is_correct}")
         
-        if success:
-            # Get updated counts after update
-            flashcard = Flashcards.query.get(flashcard_id)
-            return jsonify({
-                "success": True,
-                "correct_count": flashcard.correct_count,
-                "incorrect_count": flashcard.incorrect_count,
-                "last_reviewed": flashcard.last_reviewed.strftime('%Y-%m-%d %H:%M') if flashcard.last_reviewed else None,
-                "is_correct": is_correct
-            })
-        return jsonify({"success": False, "error": "Failed to update progress"}), 500
+        # First update the basic stats to ensure we have some progress
+        if is_correct:
+            flashcard.correct_count += 1
+        else:
+            flashcard.incorrect_count += 1
+        
+        # Use timezone-aware datetime
+        from services.fsrs_scheduler import get_current_time
+        flashcard.last_reviewed = get_current_time()
+        
+        # Try to update FSRS stats if possible
+        try:
+            # If flashcard has no FSRS state yet, initialize it
+            if not flashcard.fsrs_state:
+                try:
+                    flashcard.init_fsrs_state()
+                    print("FSRS state initialized")
+                except Exception as e:
+                    print(f"Error initializing FSRS state: {e}")
+                    # Continue with basic tracking
+            
+            # Process the review with FSRS if possible
+            try:
+                from services.fsrs_scheduler import process_review
+                next_due, retrievability = process_review(flashcard, is_correct)
+                print(f"FSRS updated: next_due={next_due.isoformat()}, retrievability={retrievability}")
+            except Exception as e:
+                print(f"Error in FSRS processing: {e}")
+                print(traceback.format_exc())
+                # Continue with basic tracking
+                db.session.add(flashcard)
+                db.session.commit()
+        except Exception as e:
+            # Fallback to basic updates if FSRS fails completely
+            print(f"Using fallback progress update: {e}")
+            db.session.add(flashcard)
+            db.session.commit()
+        
+        # Format dates using isoformat for consistent output
+        last_reviewed_str = flashcard.last_reviewed.isoformat() if flashcard.last_reviewed else None
+        next_due_str = flashcard.due_date.isoformat() if flashcard.due_date else None
+        
+        # Return progress update with whatever data we have
+        return jsonify({
+            "success": True,
+            "correct_count": flashcard.correct_count,
+            "incorrect_count": flashcard.incorrect_count,
+            "last_reviewed": last_reviewed_str,
+            "is_correct": is_correct,
+            "next_due": next_due_str,
+            "retrievability": getattr(flashcard, 'retrievability', 0.0),
+            "state": flashcard.get_state_name() if hasattr(flashcard, 'get_state_name') else "unknown"
+        })
+            
     except Exception as e:
         print(f"Error in update_progress: {e}")
+        print(traceback.format_exc())  # Print full stack trace
+        db.session.rollback()
         return jsonify({"success": False, "error": str(e)}), 500
 
 @flashcard_bp.route("/deck/<int:deck_id>/view")
@@ -145,6 +190,13 @@ def view_flashcards(deck_id):
         .order_by(Flashcards.created_at.desc()).all()
     
     return render_template("view_flashcards.html", deck=deck, flashcards=flashcards)
+
+@flashcard_bp.route("/deck/<int:deck_id>/stats")
+def deck_stats(deck_id):
+    """Get spaced repetition stats for a deck"""
+    deck = FlashcardDecks.query.get_or_404(deck_id)
+    stats = get_stats(deck_id)
+    return jsonify(stats)
 
 def parse_flashcards(text):
     flashcards = []
