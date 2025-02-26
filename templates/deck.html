@@ -21,6 +21,13 @@
         <h1 class="h2 mb-0">{{ deck.name }}</h1>
     </div>
     <div class="d-flex gap-2">
+        <a href="{{ url_for('deck.study_deck', deck_id=deck.flashcard_deck_id) }}" 
+           class="btn btn-success {% if deck.count_all_flashcards() == 0 %}no-cards{% endif %}"
+           data-deck-id="{{ deck.flashcard_deck_id }}"
+           data-bs-toggle="tooltip" 
+           title="Study all flashcards in this deck and its sub-decks">
+           <i class="bi bi-play-fill"></i> Study Now
+        </a>
         <a href="{{ url_for('flashcard.view_deck_stats', deck_id=deck.flashcard_deck_id) }}" class="btn btn-outline-success">
             <i class="bi bi-graph-up"></i> View Stats
         </a>
