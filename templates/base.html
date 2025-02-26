@@ -46,28 +46,19 @@
             const lightIcon = document.getElementById('lightIcon');
             const htmlElement = document.documentElement;
             
-            // Check for saved theme preference or prefer-color-scheme
-            const savedTheme = localStorage.getItem('theme');
-            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            
-            // Set initial theme
-            if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
-                setTheme('dark');
-            } else {
-                setTheme('light');
-            }
+            // Update the icon based on current theme
+            updateThemeIcon(htmlElement.getAttribute('data-bs-theme'));
             
             // Toggle theme on button click
             themeToggle.addEventListener('click', () => {
                 const currentTheme = htmlElement.getAttribute('data-bs-theme');
                 const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-                setTheme(newTheme);
+                htmlElement.setAttribute('data-bs-theme', newTheme);
+                updateThemeIcon(newTheme);
                 localStorage.setItem('theme', newTheme);
             });
             
-            function setTheme(theme) {
-                htmlElement.setAttribute('data-bs-theme', theme);
-                
+            function updateThemeIcon(theme) {
                 if (theme === 'dark') {
                     darkIcon.classList.add('d-none');
                     lightIcon.classList.remove('d-none');
