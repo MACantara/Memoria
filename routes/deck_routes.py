@@ -46,8 +46,13 @@ def study_deck(deck_id):
         for card in flashcards:
             if not card.fsrs_state:
                 card.init_fsrs_state()
-        
-        db.session.commit()
+    
+    # Initialize FSRS state for new cards - ensure they start as "New"
+    for card in flashcards:
+        if not card.fsrs_state or card.state is None:
+            card.init_fsrs_state()  # This will now explicitly set State.New
+    
+    db.session.commit()
     
     return render_template("flashcards.html", deck=deck, flashcards=flashcards)
 
