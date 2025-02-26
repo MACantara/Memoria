@@ -70,6 +70,8 @@
          data-id="{{ flashcard.flashcard_id }}"
          data-correct="{{ flashcard.correct_answer }}"
          data-incorrect="{{ flashcard.incorrect_answers }}"
+         data-correct-count="{{ flashcard.correct_count }}"
+         data-incorrect-count="{{ flashcard.incorrect_count }}"
          style="display: none;">
         <div class="card-body">
             <div class="card-title h4" data-question="{{ flashcard.question }}">
@@ -81,13 +83,13 @@
             <div class="mt-3 p-2 bg-light rounded small">
                 <div class="row text-muted">
                     <div class="col-4">
-                        <i class="bi bi-check-circle"></i> Correct: {{ flashcard.correct_count }}
+                        <i class="bi bi-check-circle"></i> Correct: <span class="correct-count">{{ flashcard.correct_count }}</span>
                     </div>
                     <div class="col-4">
-                        <i class="bi bi-x-circle"></i> Incorrect: {{ flashcard.incorrect_count }}
+                        <i class="bi bi-x-circle"></i> Incorrect: <span class="incorrect-count">{{ flashcard.incorrect_count }}</span>
                     </div>
                     <div class="col-4">
-                        <i class="bi bi-clock"></i> Last: {{ flashcard.last_reviewed.strftime('%Y-%m-%d %H:%M') if flashcard.last_reviewed else 'Never' }}
+                        <i class="bi bi-clock"></i> Last: <span class="last-reviewed">{{ flashcard.last_reviewed.strftime('%Y-%m-%d %H:%M') if flashcard.last_reviewed else 'Never' }}</span>
                     </div>
                 </div>
             </div>
