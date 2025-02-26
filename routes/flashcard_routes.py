@@ -111,17 +111,31 @@ def generate():
 
 @flashcard_bp.route("/update_progress", methods=["POST"])
 def update_progress():
-    data = request.json
-    flashcard = Flashcards.query.get_or_404(data['flashcard_id'])
-    
-    if data['is_correct']:
-        flashcard.correct_count += 1
-    else:
-        flashcard.incorrect_count += 1
-    
-    flashcard.last_reviewed = datetime.utcnow()
-    db.session.commit()
-    return jsonify({"success": True})
+    try:
+        data = request.json
+        flashcard_id = data['flashcard_id']
+        is_correct = data['is_correct']
+        
+        # Use atomic update method
+        success = FlashcardDecks.update_flashcard_progress(
+            flashcard_id=flashcard_id,
+            is_correct=is_correct
+        )
+        
+        if success:
+            # Get updated counts after update
+            flashcard = Flashcards.query.get(flashcard_id)
+            return jsonify({
+                "success": True,
+                "correct_count": flashcard.correct_count,
+                "incorrect_count": flashcard.incorrect_count,
+                "last_reviewed": flashcard.last_reviewed.strftime('%Y-%m-%d %H:%M') if flashcard.last_reviewed else None,
+                "is_correct": is_correct
+            })
+        return jsonify({"success": False, "error": "Failed to update progress"}), 500
+    except Exception as e:
+        print(f"Error in update_progress: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
 
 @flashcard_bp.route("/deck/<int:deck_id>/view")
 def view_flashcards(deck_id):
