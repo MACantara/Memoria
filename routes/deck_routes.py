@@ -14,14 +14,29 @@ def get_deck_flashcards(deck_id):
 
 @deck_bp.route("/<int:deck_id>/study")
 def study_deck(deck_id):
-    """Study flashcards in a deck"""
+    """Study flashcards in this deck and all nested sub-decks"""
     deck = FlashcardDecks.query.get_or_404(deck_id)
-    flashcards = Flashcards.query.join(FlashcardDecks).filter(
-        db.or_(
-            FlashcardDecks.flashcard_deck_id == deck_id,
-            FlashcardDecks.parent_deck_id == deck_id
+    
+    # Create recursive CTE to find all nested sub-decks
+    cte = db.session.query(
+        FlashcardDecks.flashcard_deck_id.label('id')
+    ).filter(
+        FlashcardDecks.flashcard_deck_id == deck_id
+    ).cte(name='study_decks', recursive=True)
+
+    cte = cte.union_all(
+        db.session.query(
+            FlashcardDecks.flashcard_deck_id.label('id')
+        ).filter(
+            FlashcardDecks.parent_deck_id == cte.c.id
         )
+    )
+    
+    # Get all flashcards from current deck and all nested sub-decks
+    flashcards = Flashcards.query.filter(
+        Flashcards.flashcard_deck_id.in_(db.session.query(cte.c.id))
     ).all()
+    
     return render_template("flashcards.html", deck=deck, flashcards=flashcards)
 
 @deck_bp.route("/create", methods=["POST"])
