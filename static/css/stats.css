@@ -1,0 +1,9 @@
+.stats-card {
+    transition: transform 0.2s;
+}
+.stats-card:hover {
+    transform: translateY(-5px);
+}
+.chart-container {
+    height: 300px;
+}

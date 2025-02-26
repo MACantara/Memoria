@@ -4,17 +4,6 @@
 
 {% block styles %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/stats.css') }}">
-<style>
-    .stats-card {
-        transition: transform 0.2s;
-    }
-    .stats-card:hover {
-        transform: translateY(-5px);
-    }
-    .chart-container {
-        height: 300px;
-    }
-</style>
 {% endblock %}
 
 {% block content %}
