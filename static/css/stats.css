@@ -1,0 +1,74 @@
+.stats-card {
+    transition: transform 0.2s;
+}
+
+.stats-card:hover {
+    transform: translateY(-5px);
+}
+
+.chart-container {
+    height: 300px;
+}
+
+/* Theme-adaptive cards that work in both light and dark mode */
+.stats-card.card {
+    transition: transform 0.2s, box-shadow 0.2s;
+    border: none;
+}
+
+.stats-card.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+}
+
+/* Chart styles */
+.chart-container {
+    height: 300px;
+    position: relative;
+}
+
+/* Theme-specific card styles */
+[data-bs-theme="light"] .stats-card.bg-primary {
+    background: linear-gradient(135deg, #0d6efd, #0b5ed7);
+}
+
+[data-bs-theme="light"] .stats-card.bg-warning {
+    background: linear-gradient(135deg, #ffc107, #ffaa00);
+}
+
+[data-bs-theme="light"] .stats-card.bg-success {
+    background: linear-gradient(135deg, #28a745, #208838);
+}
+
+[data-bs-theme="light"] .stats-card.bg-info {
+    background: linear-gradient(135deg, #17a2b8, #138496);
+}
+
+/* Dark mode card styles - less harsh gradients */
+[data-bs-theme="dark"] .stats-card.bg-primary {
+    background: linear-gradient(135deg, #0d47a1, #063994);
+}
+
+[data-bs-theme="dark"] .stats-card.bg-warning {
+    background: linear-gradient(135deg, #e69500, #cc8400);
+    color: #212529 !important; /* Keep text dark */
+}
+
+[data-bs-theme="dark"] .stats-card.bg-success {
+    background: linear-gradient(135deg, #1b7740, #136030);
+}
+
+[data-bs-theme="dark"] .stats-card.bg-info {
+    background: linear-gradient(135deg, #117a8b, #0c606e);
+}
+
+/* Theme-adaptive card headers */
+[data-bs-theme="light"] .card .card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+}
+
+[data-bs-theme="dark"] .card .card-header {
+    background-color: #2d2d2d;
+    border-bottom: 1px solid #3d3d3d;
+}

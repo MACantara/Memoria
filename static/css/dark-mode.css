@@ -1,0 +1,68 @@
+/* Dark mode adjustments for specific components */
+
+/* Card styling in dark mode */
+[data-bs-theme="dark"] .card {
+    border-color: #2d2d2d;
+}
+
+[data-bs-theme="dark"] .card-header {
+    background-color: #2d2d2d;
+    border-bottom-color: #3d3d3d;
+}
+
+[data-bs-theme="dark"] .card-footer {
+    background-color: #2d2d2d;
+    border-top-color: #3d3d3d;
+}
+
+/* Modal adjustments */
+[data-bs-theme="dark"] .modal-content {
+    background-color: #212121;
+    border-color: #2d2d2d;
+}
+
+/* Input fields */
+[data-bs-theme="dark"] .form-control,
+[data-bs-theme="dark"] .form-select {
+    background-color: #303030;
+    border-color: #404040;
+    color: #e0e0e0;
+}
+
+[data-bs-theme="dark"] .form-control:focus,
+[data-bs-theme="dark"] .form-select:focus {
+    background-color: #303030;
+    color: #ffffff;
+    border-color: #0d6efd;
+}
+
+/* Deck cards hover effect */
+[data-bs-theme="dark"] .deck-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Code blocks in dark mode */
+[data-bs-theme="dark"] code,
+[data-bs-theme="dark"] pre {
+    background-color: #2d2d2d;
+    color: #e83e8c; 
+    border-color: #3d3d3d;
+}
+
+/* Status badges in dark mode */
+[data-bs-theme="dark"] .badge.bg-secondary {
+    background-color: #4d4d4d !important;
+}
+
+/* Tooltips */
+[data-bs-theme="dark"] .tooltip .tooltip-inner {
+    background-color: #121212;
+    color: #ffffff;
+}
+
+/* Animations for theme transition */
+html,
+html * {
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.2s ease;
+}
