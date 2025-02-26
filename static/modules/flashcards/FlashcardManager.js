@@ -34,6 +34,9 @@ export class FlashcardManager {
     }
 
     initializeFlashcard(flashcard) {
+        // Reset any previous answer states first
+        this.resetAnswerFeedback(flashcard);
+        
         const answersForm = flashcard.querySelector('.answer-form');
         const correctAnswer = flashcard.dataset.correct;
         const incorrectAnswers = JSON.parse(flashcard.dataset.incorrect)
@@ -49,6 +52,28 @@ export class FlashcardManager {
         // Update to use Bootstrap form-check-input class
         answersForm.querySelectorAll('.form-check-input').forEach(radio => {
             radio.addEventListener('click', () => this.handleAnswer(radio.value, flashcard));
+        });
+    }
+
+    // Add new helper function to reset visual feedback
+    resetAnswerFeedback(flashcard) {
+        // Remove any previous feedback alerts
+        const existingFeedback = flashcard.querySelector('.alert');
+        if (existingFeedback) {
+            existingFeedback.remove();
+        }
+        
+        // Reset all answer options to default state
+        flashcard.querySelectorAll('.answer-option').forEach(option => {
+            option.classList.remove(
+                'border-success', 'bg-success-subtle', 
+                'border-danger', 'bg-danger-subtle'
+            );
+        });
+        
+        // Uncheck all radio buttons
+        flashcard.querySelectorAll('input[type="radio"]').forEach(radio => {
+            radio.checked = false;
         });
     }
 
@@ -140,9 +165,10 @@ export class FlashcardManager {
         }
         
         this.container.insertBefore(flashcard, this.flashcardsArray[insertIndex]);
-        flashcard.querySelectorAll('input[type="radio"]').forEach(radio => {
-            radio.checked = false;
-        });
+        
+        // Reset the card's visual state when moving it
+        this.resetAnswerFeedback(flashcard);
+        
         this.flashcardsArray = Array.from(document.querySelectorAll('.flashcard'));
     }
 
@@ -158,6 +184,15 @@ export class FlashcardManager {
         // If we found a card to show, show it
         if (nextIndex !== -1) {
             this.currentCardIndex = nextIndex;
+            
+            // Make sure the card is properly reset before showing
+            const nextCard = this.flashcardsArray[this.currentCardIndex];
+            
+            // Only reinitialize if it's been attempted before
+            if (nextCard.dataset.attempted === 'true') {
+                this.initializeFlashcard(nextCard);
+            }
+            
             this.ui.showCard(this.currentCardIndex, this.flashcardsArray, this.score);
         } else {
             this.ui.showCompletion(this.score, this.flashcardsArray.length);
