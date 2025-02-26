@@ -20,9 +20,14 @@
         {% endif %}
         <h1 class="h2 mb-0">{{ deck.name }}</h1>
     </div>
-    <button id="createDeckBtn" class="btn btn-primary">
-        <i class="bi bi-plus-lg"></i> Create New Sub-deck
-    </button>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('flashcard.view_deck_stats', deck_id=deck.flashcard_deck_id) }}" class="btn btn-outline-success">
+            <i class="bi bi-graph-up"></i> View Stats
+        </a>
+        <button id="createDeckBtn" class="btn btn-primary">
+            <i class="bi bi-plus-lg"></i> Create New Sub-deck
+        </button>
+    </div>
 </div>
 
 {% if deck.child_decks %}

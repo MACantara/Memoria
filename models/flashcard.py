@@ -1,6 +1,23 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.dialects.postgresql import JSON
+from sqlalchemy.types import TypeDecorator
 from . import db
+import json
+import traceback
+
+class JSONEncodedDict(TypeDecorator):
+    """Represents a JSON-encoded dictionary as a text column."""
+    impl = db.Text
+    
+    def process_bind_param(self, value, dialect):
+        if value is not None:
+            value = json.dumps(value)
+        return value
+
+    def process_result_value(self, value, dialect):
+        if value is not None:
+            value = json.loads(value)
+        return value
 
 class Flashcards(db.Model):
     __tablename__ = 'flashcards'
@@ -14,3 +31,101 @@ class Flashcards(db.Model):
     last_reviewed = db.Column(db.DateTime)
     correct_count = db.Column(db.Integer, default=0)
     incorrect_count = db.Column(db.Integer, default=0)
+    
+    # FSRS specific fields
+    fsrs_state = db.Column(JSONEncodedDict, default=dict)
+    due_date = db.Column(db.DateTime)
+    difficulty = db.Column(db.Float, default=0.0)
+    stability = db.Column(db.Float, default=0.0)
+    retrievability = db.Column(db.Float, default=0.0)
+    state = db.Column(db.Integer, default=0)  # 0=New, 1=Learning, 2=Review, 3=Relearning
+    
+    def init_fsrs_state(self):
+        """Initialize FSRS state for new flashcard with custom 'New' state (0)"""
+        try:
+            from services.fsrs_scheduler import Card, get_current_time
+            
+            # Create a new card (will be in state 1 by default)
+            card = Card()
+            
+            # Override the state with our custom 'New' state (0)
+            # We'll manually track this state and change to FSRS states during review
+            card_dict = card.to_dict()
+            card_dict['state'] = 0  # Our custom state for "New" cards
+            
+            # Set due date to now (immediately available)
+            now = get_current_time()
+            card.due = now
+            
+            # Save modified state to database
+            self.fsrs_state = card_dict
+            self.due_date = now
+            self.state = 0  # Explicitly use 0 for "New" state
+            
+            return self
+        except Exception as e:
+            print(f"Error initializing FSRS state: {e}")
+            print(traceback.format_exc())
+            
+            # Minimal fallback
+            self.fsrs_state = {}
+            self.due_date = datetime.now(timezone.utc)
+            self.state = 0
+            
+            return self
+        
+    def get_fsrs_card(self):
+        """Convert to FSRS Card object"""
+        try:
+            from services.fsrs_scheduler import Card
+            
+            if not self.fsrs_state:
+                print("No FSRS state, creating a new card")
+                card = Card()
+                self.fsrs_state = card.to_dict()
+            else:
+                print(f"Loading card from state: {self.fsrs_state}")
+                card = Card.from_dict(self.fsrs_state)
+                
+            return card
+        except Exception as e:
+            print(f"Error getting FSRS card: {e}")
+            print(traceback.format_exc())
+            
+            # Simple fallback
+            from services.fsrs_scheduler import Card
+            return Card()
+        
+    def get_state_name(self):
+        """Get user-friendly state name"""
+        state_names = {
+            0: "new",
+            1: "learning",
+            2: "mastered",  # Review/Graduated
+            3: "forgotten"   # Relearning/Lapsed
+        }
+        return state_names.get(self.state, "new")
+    
+    @staticmethod
+    def fix_missing_states():
+        """One-time utility to ensure all flashcards have valid states"""
+        from models import db
+        
+        # Find cards with missing states or FSRS data
+        cards_needing_init = Flashcards.query.filter(
+            (Flashcards.state.is_(None)) | 
+            (Flashcards.due_date.is_(None)) |
+            (Flashcards.fsrs_state == {})
+        ).all()
+        
+        print(f"Found {len(cards_needing_init)} cards needing FSRS initialization")
+        
+        for card in cards_needing_init:
+            # Initialize with correct state
+            card.init_fsrs_state()
+        
+        if cards_needing_init:
+            db.session.commit()
+            print("Fixed card states successfully")
+        
+        return len(cards_needing_init)

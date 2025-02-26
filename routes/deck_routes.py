@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify, redirect, url_for, render_templat
 from models import db, FlashcardDecks, Flashcards
 from datetime import datetime
 from sqlalchemy.sql import func  # Add this import
+from services.fsrs_scheduler import get_due_cards
 
 deck_bp = Blueprint('deck', __name__)
 
@@ -14,28 +15,44 @@ def get_deck_flashcards(deck_id):
 
 @deck_bp.route("/<int:deck_id>/study")
 def study_deck(deck_id):
-    """Study flashcards in this deck and all nested sub-decks"""
+    """Study flashcards in this deck and all nested sub-decks using FSRS scheduling"""
     deck = FlashcardDecks.query.get_or_404(deck_id)
     
-    # Create recursive CTE to find all nested sub-decks
-    cte = db.session.query(
-        FlashcardDecks.flashcard_deck_id.label('id')
-    ).filter(
-        FlashcardDecks.flashcard_deck_id == deck_id
-    ).cte(name='study_decks', recursive=True)
-
-    cte = cte.union_all(
-        db.session.query(
+    # Prioritize due cards using FSRS scheduling
+    flashcards = get_due_cards(deck_id)
+    
+    # If no due cards, get 10 random cards from deck for initial learning
+    if not flashcards:
+        cte = db.session.query(
             FlashcardDecks.flashcard_deck_id.label('id')
         ).filter(
-            FlashcardDecks.parent_deck_id == cte.c.id
+            FlashcardDecks.flashcard_deck_id == deck_id
+        ).cte(name='study_decks', recursive=True)
+
+        cte = cte.union_all(
+            db.session.query(
+                FlashcardDecks.flashcard_deck_id.label('id')
+            ).filter(
+                FlashcardDecks.parent_deck_id == cte.c.id
+            )
         )
-    )
+        
+        # Get cards that haven't been studied yet or are due later
+        flashcards = Flashcards.query.filter(
+            Flashcards.flashcard_deck_id.in_(db.session.query(cte.c.id))
+        ).order_by(db.func.random()).limit(10).all()
+        
+        # Initialize FSRS state for new cards
+        for card in flashcards:
+            if not card.fsrs_state:
+                card.init_fsrs_state()
     
-    # Get all flashcards from current deck and all nested sub-decks
-    flashcards = Flashcards.query.filter(
-        Flashcards.flashcard_deck_id.in_(db.session.query(cte.c.id))
-    ).all()
+    # Initialize FSRS state for new cards - ensure they start as "New"
+    for card in flashcards:
+        if not card.fsrs_state or card.state is None:
+            card.init_fsrs_state()  # This will now explicitly set State.New
+    
+    db.session.commit()
     
     return render_template("flashcards.html", deck=deck, flashcards=flashcards)
 
