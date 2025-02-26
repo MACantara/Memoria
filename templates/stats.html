@@ -104,6 +104,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const response = await fetch(`/flashcard/deck/${deckId}/stats`);
             const stats = await response.json();
             
+            console.log("Stats data:", stats); // Debug info
+            
             // Update summary cards
             document.getElementById('total-cards').textContent = stats.total_cards;
             document.getElementById('due-count').textContent = stats.due_count;
@@ -159,15 +161,44 @@ document.addEventListener('DOMContentLoaded', function() {
         const labels = [];
         const data = [];
         
+        console.log("Upcoming reviews data:", upcomingReviews); // Debug info
+        
+        if (!upcomingReviews || upcomingReviews.length === 0) {
+            // No data case - draw empty chart with message
+            if (upcomingChart) {
+                upcomingChart.destroy();
+            }
+            
+            ctx.font = '16px Arial';
+            ctx.fillStyle = '#666';
+            ctx.textAlign = 'center';
+            ctx.fillText('No upcoming reviews for the next 7 days', 
+                         ctx.canvas.width / 2, ctx.canvas.height / 2);
+            return;
+        }
+        
         upcomingReviews.forEach(item => {
-            // Format date as "Mon DD"
-            const date = new Date(item.date);
-            const formatted = date.toLocaleDateString('en-US', {
-                weekday: 'short',
-                day: 'numeric'
-            });
-            labels.push(formatted);
-            data.push(item.count);
+            try {
+                // Parse the ISO date string
+                const date = new Date(item.date);
+                
+                // Check if date is valid
+                if (isNaN(date.getTime())) {
+                    console.error("Invalid date:", item.date);
+                    return;
+                }
+                
+                // Format as "Mon DD"
+                const formatted = date.toLocaleDateString('en-US', {
+                    weekday: 'short',
+                    day: 'numeric'
+                });
+                
+                labels.push(formatted);
+                data.push(item.count);
+            } catch (e) {
+                console.error("Error processing review date:", e);
+            }
         });
         
         if (upcomingChart) {
