@@ -16,6 +16,9 @@ export class UIManager {
 
         const currentCard = flashcardsArray[index];
         if (currentCard) {
+            // Clear any previous feedback before showing card
+            this.clearFeedback(currentCard);
+            
             currentCard.style.display = 'block';
             currentCard.classList.add('active');
             this.updateCardCounter(index, flashcardsArray.length, score);
@@ -26,6 +29,14 @@ export class UIManager {
                 const rawQuestion = questionElem.dataset.question;
                 questionElem.innerHTML = this.parseContent(rawQuestion);
             }
+        }
+    }
+    
+    // Add new helper function
+    clearFeedback(flashcard) {
+        const existingFeedback = flashcard.querySelector('.alert');
+        if (existingFeedback) {
+            existingFeedback.remove();
         }
     }
 
@@ -107,17 +118,15 @@ export class UIManager {
     }
 
     showAnswerFeedback(flashcard, isCorrect) {
+        // Clear any previous feedback first
+        this.clearFeedback(flashcard);
+        
         const feedback = document.createElement('div');
         feedback.classList.add('alert', isCorrect ? 'alert-success' : 'alert-danger', 'mt-3');
         
         feedback.innerHTML = isCorrect ? 
             '<i class="bi bi-check-circle-fill"></i> Correct!' : 
             '<i class="bi bi-x-circle-fill"></i> Incorrect - Moving to next question';
-        
-        const existingFeedback = flashcard.querySelector('.alert');
-        if (existingFeedback) {
-            existingFeedback.remove();
-        }
         
         flashcard.querySelector('.answer-form').appendChild(feedback);
     }
