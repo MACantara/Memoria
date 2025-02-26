@@ -50,8 +50,10 @@
                         </a>
                         <a href="{{ url_for('deck.study_deck', deck_id=deck.flashcard_deck_id) }}" 
                            class="btn btn-success w-100 {% if deck.count_all_flashcards() == 0 %}no-cards{% endif %}"
-                           data-deck-id="{{ deck.flashcard_deck_id }}">
-                           <i class="bi bi-play-fill"></i> Study
+                           data-deck-id="{{ deck.flashcard_deck_id }}"
+                           data-bs-toggle="tooltip" 
+                           title="Study all flashcards in this deck and its sub-decks">
+                           <i class="bi bi-play-fill"></i> Study All
                         </a>
                     </div>
                     <button class="btn btn-outline-primary w-100 add-cards-btn" data-deck-id="{{ deck.flashcard_deck_id }}">

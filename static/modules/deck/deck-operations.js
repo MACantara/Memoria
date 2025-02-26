@@ -4,6 +4,12 @@ export function initializeDeckOperations() {
     let deckToDelete = null;
     const deleteModal = new bootstrap.Modal(document.getElementById('deleteDeckModal'));
     
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
     window.deleteDeck = async (deckId) => {
         deckToDelete = deckId;
         deleteModal.show();
