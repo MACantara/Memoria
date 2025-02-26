@@ -8,12 +8,26 @@ export class FlashcardManager {
         this.score = 0;
         this.flashcardsArray = [];
         this.ui = new UIManager();
+        this.completedCards = new Set();
     }
 
     initialize() {
         if (!this.container) return;
         this.flashcardsArray = Array.from(document.querySelectorAll('.flashcard'));
         this.flashcardsArray.forEach(card => this.initializeFlashcard(card));
+        
+        // Initialize completed cards from server data
+        this.flashcardsArray.forEach(card => {
+            // If card has more correct answers than incorrect, consider it completed
+            if (parseInt(card.dataset.correctCount || 0) > parseInt(card.dataset.incorrectCount || 0)) {
+                this.completedCards.add(card.dataset.id);
+                this.score++;
+            }
+        });
+        
+        // Update the initial score
+        this.ui.updateScore(this.score);
+        
         if (this.flashcardsArray.length > 0) {
             this.ui.showCard(0, this.flashcardsArray, this.score);
         }
@@ -44,7 +58,28 @@ export class FlashcardManager {
 
     async handleAnswer(selectedAnswer, flashcard) {
         const isCorrect = selectedAnswer === flashcard.dataset.correct;
-        await updateProgress(flashcard.dataset.id, isCorrect);
+        
+        try {
+            // Update server-side progress first
+            const result = await updateProgress(flashcard.dataset.id, isCorrect);
+            
+            if (result.success) {
+                // Update card with latest server counts
+                flashcard.dataset.correctCount = result.correct_count;
+                flashcard.dataset.incorrectCount = result.incorrect_count;
+                
+                // Update the displayed counts in the UI
+                const correctCountEl = flashcard.querySelector('.correct-count');
+                const incorrectCountEl = flashcard.querySelector('.incorrect-count');
+                if (correctCountEl) correctCountEl.textContent = result.correct_count;
+                if (incorrectCountEl) incorrectCountEl.textContent = result.incorrect_count;
+                
+                // Recalculate completed cards based on server data
+                this.recalculateScore();
+            }
+        } catch (error) {
+            console.error("Failed to update progress:", error);
+        }
         
         // Add visual feedback using Bootstrap classes
         flashcard.querySelectorAll('.answer-option').forEach(option => {
@@ -60,11 +95,9 @@ export class FlashcardManager {
 
         setTimeout(() => {
             if (isCorrect) {
-                this.score++;
                 flashcard.dataset.completed = 'true';
-                this.ui.updateScore(this.score);
                 
-                if (this.score === this.flashcardsArray.length) {
+                if (this.completedCards.size === this.flashcardsArray.length) {
                     this.ui.showCompletion(this.score, this.flashcardsArray.length);
                     return;
                 }
@@ -73,6 +106,24 @@ export class FlashcardManager {
             }
             this.findNextCardToShow();
         }, 1500);
+    }
+    
+    recalculateScore() {
+        // Clear the set and recalculate based on latest server data
+        this.completedCards.clear();
+        this.score = 0;
+        
+        this.flashcardsArray.forEach(card => {
+            const correctCount = parseInt(card.dataset.correctCount || 0);
+            const incorrectCount = parseInt(card.dataset.incorrectCount || 0);
+            
+            if (correctCount > incorrectCount && correctCount > 0) {
+                this.completedCards.add(card.dataset.id);
+                this.score++;
+            }
+        });
+        
+        this.ui.updateScore(this.score);
     }
 
     moveCardToEnd(flashcard) {

@@ -7,16 +7,27 @@ export function shuffleArray(array) {
 }
 
 export async function updateProgress(flashcardId, isCorrect) {
-    await fetch('/flashcard/update_progress', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            flashcard_id: flashcardId,
-            is_correct: isCorrect
-        })
-    });
+    try {
+        const response = await fetch('/flashcard/update_progress', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                flashcard_id: flashcardId,
+                is_correct: isCorrect
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to update progress');
+        }
+        
+        return await response.json();
+    } catch (error) {
+        console.error('Error updating progress:', error);
+        throw error;
+    }
 }
 
 export async function deleteTopic(topicId) {
