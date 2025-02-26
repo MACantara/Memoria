@@ -191,6 +191,12 @@ def view_flashcards(deck_id):
     
     return render_template("view_flashcards.html", deck=deck, flashcards=flashcards)
 
+@flashcard_bp.route("/deck/<int:deck_id>/view_stats")
+def view_deck_stats(deck_id):
+    """View spaced repetition stats for a deck"""
+    deck = FlashcardDecks.query.get_or_404(deck_id)
+    return render_template("stats.html", deck=deck)
+
 @flashcard_bp.route("/deck/<int:deck_id>/stats")
 def deck_stats(deck_id):
     """Get spaced repetition stats for a deck"""
