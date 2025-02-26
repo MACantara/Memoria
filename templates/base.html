@@ -8,15 +8,24 @@
     <!-- Prevent theme flickering by setting theme before page renders -->
     <script>
         (function() {
-            // Check for saved theme preference or prefer-color-scheme
+            // Check for saved theme preference
             const savedTheme = localStorage.getItem('theme');
             const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
             
             // Apply theme immediately to prevent flash
-            document.documentElement.setAttribute(
-                'data-bs-theme', 
-                savedTheme === 'light' ? 'light' : (savedTheme === 'dark' || prefersDark ? 'dark' : 'light')
-            );
+            if (savedTheme === 'dark') {
+                document.documentElement.setAttribute('data-bs-theme', 'dark');
+            } else if (savedTheme === 'light') {
+                document.documentElement.setAttribute('data-bs-theme', 'light');
+            } else if (savedTheme === 'auto' || !savedTheme) {
+                // For auto or no preference, follow system preference
+                document.documentElement.setAttribute('data-bs-theme', prefersDark ? 'dark' : 'light');
+                
+                // If no preference is saved yet, default to auto
+                if (!savedTheme) {
+                    localStorage.setItem('theme', 'auto');
+                }
+            }
         })();
     </script>
     
@@ -25,48 +34,100 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/markdown-it/13.0.1/markdown-it.min.js"></script>    
     <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}"></link>
     {% block styles %}{% endblock %}
+
+    <style>
+
+    </style>
 </head>
 <body>
     <div class="container py-4">
         {% block content %}{% endblock %}
     </div>
     
-    <!-- Theme Toggle Button -->
-    <button class="theme-toggle border-0" id="themeToggle" aria-label="Toggle dark mode">
-        <i class="bi bi-moon-fill" id="darkIcon"></i>
+    <!-- Theme Toggle Button with three modes -->
+    <button class="theme-toggle border-0" id="themeToggle" aria-label="Toggle theme mode">
+        <i class="bi bi-moon-fill d-none" id="darkIcon"></i>
         <i class="bi bi-sun-fill d-none" id="lightIcon"></i>
+        <i class="bi bi-circle-half d-none" id="autoIcon"></i>
     </button>
+    <div class="theme-tooltip" id="themeTooltip">System Preference</div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Dark mode handling
+        // Enhanced dark mode handling with system preference
         document.addEventListener('DOMContentLoaded', function() {
             const themeToggle = document.getElementById('themeToggle');
             const darkIcon = document.getElementById('darkIcon');
             const lightIcon = document.getElementById('lightIcon');
+            const autoIcon = document.getElementById('autoIcon');
+            const themeTooltip = document.getElementById('themeTooltip');
             const htmlElement = document.documentElement;
             
-            // Update the icon based on current theme
-            updateThemeIcon(htmlElement.getAttribute('data-bs-theme'));
+            // Media query for detecting system preference changes
+            const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)');
             
-            // Toggle theme on button click
+            // Update the UI based on current theme
+            updateThemeUI(localStorage.getItem('theme') || 'auto');
+            
+            // Toggle theme on button click - cycles through light -> dark -> auto
             themeToggle.addEventListener('click', () => {
-                const currentTheme = htmlElement.getAttribute('data-bs-theme');
-                const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-                htmlElement.setAttribute('data-bs-theme', newTheme);
-                updateThemeIcon(newTheme);
+                const currentTheme = localStorage.getItem('theme') || 'auto';
+                let newTheme;
+                
+                // Cycle through themes
+                if (currentTheme === 'light') {
+                    newTheme = 'dark';
+                } else if (currentTheme === 'dark') {
+                    newTheme = 'auto';
+                } else {
+                    newTheme = 'light';
+                }
+                
+                // Apply the new theme
+                applyTheme(newTheme);
                 localStorage.setItem('theme', newTheme);
+                updateThemeUI(newTheme);
             });
             
-            function updateThemeIcon(theme) {
+            // Function to apply theme to document
+            function applyTheme(theme) {
                 if (theme === 'dark') {
-                    darkIcon.classList.add('d-none');
-                    lightIcon.classList.remove('d-none');
-                } else {
-                    darkIcon.classList.remove('d-none');
-                    lightIcon.classList.add('d-none');
+                    htmlElement.setAttribute('data-bs-theme', 'dark');
+                } else if (theme === 'light') {
+                    htmlElement.setAttribute('data-bs-theme', 'light');
+                } else if (theme === 'auto') {
+                    // For auto theme, follow system preference
+                    htmlElement.setAttribute('data-bs-theme', 
+                        prefersDarkScheme.matches ? 'dark' : 'light');
                 }
             }
+            
+            // Function to update UI components based on theme
+            function updateThemeUI(theme) {
+                // Hide all icons first
+                darkIcon.classList.add('d-none');
+                lightIcon.classList.add('d-none');
+                autoIcon.classList.add('d-none');
+                
+                // Show the appropriate icon
+                if (theme === 'dark') {
+                    lightIcon.classList.remove('d-none');
+                    themeTooltip.textContent = 'Light Mode';
+                } else if (theme === 'light') {
+                    darkIcon.classList.remove('d-none');
+                    themeTooltip.textContent = 'Dark Mode';
+                } else {
+                    autoIcon.classList.remove('d-none');
+                    themeTooltip.textContent = 'System Preference';
+                }
+            }
+            
+            // Listen for system preference changes if using auto theme
+            prefersDarkScheme.addEventListener('change', (e) => {
+                if (localStorage.getItem('theme') === 'auto') {
+                    applyTheme('auto');
+                }
+            });
         });
     </script>
     {% block scripts %}{% endblock %}
