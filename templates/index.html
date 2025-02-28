@@ -37,9 +37,9 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2 class="h3 mb-0">Your Decks</h2>
     <div class="d-flex gap-2">
-        <a href="{{ url_for('import.upload_form') }}" class="btn btn-outline-primary">
+        <button type="button" class="btn btn-outline-primary" onclick="showImportModal()">
             <i class="bi bi-file-earmark-arrow-up"></i> Import Content
-        </a>
+        </button>
         <button id="createEmptyDeckBtn" class="btn btn-outline-primary">
             <i class="bi bi-plus-lg"></i> Create Empty Deck
         </button>
@@ -76,6 +76,9 @@
 <!-- Move Deck Modal -->
 {% include 'components/move_deck_modal.html' %}
 
+<!-- Import Content Modal -->
+{% include 'components/import_content_modal.html' %}
+
 {% endblock %}
 
 {% block scripts %}
@@ -83,11 +86,13 @@
     import { initializeModals } from "{{ url_for('static', filename='modules/deck/modal-handlers.js') }}";
     import { initializeFormHandlers } from "{{ url_for('static', filename='modules/deck/form-handlers.js') }}";
     import { initializeDeckOperations } from "{{ url_for('static', filename='modules/deck/deck-operations.js') }}";
+    import { initializeImportModal } from "{{ url_for('static', filename='modules/deck/import-handlers.js') }}";
 
     document.addEventListener('DOMContentLoaded', () => {
         const modals = initializeModals();
         initializeFormHandlers(modals);
         initializeDeckOperations();
+        initializeImportModal();
     });
 </script>
 {% endblock %}
