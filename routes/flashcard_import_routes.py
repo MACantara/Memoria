@@ -154,27 +154,17 @@ def process_text():
         api_key = os.getenv("GOOGLE_GEMINI_API_KEY")
         client = genai.Client(api_key=api_key)
         
-        # Generate content based on text
-        prompt = f"""Based on this text content, create multiple-choice flashcards in this format:
-
-question: [Question text]
-correct: [Correct answer]
-incorrect: [Wrong answer 1]; [Wrong answer 2]; [Wrong answer 3]
-
-Create at least 5-10 flashcards covering key information from the text.
-Ensure the incorrect answers are plausible but clearly wrong.
-All answers should be similar in length and style.
-
-Text content:
-{text_content}
-"""
+        # Generate content based on text using the existing prompt template
+        batch_size = 100
+        
+        prompt = f"""{generate_prompt_template({text_content}, batch_size)}"""
 
         response = client.models.generate_content(
             model="gemini-2.0-flash-lite",  # For text processing
             contents=prompt
         )
         
-        # Parse the generated flashcards
+        # Parse the generated flashcards using the existing function
         flashcards_data = parse_flashcards(response.text)
         
         # Save to database
