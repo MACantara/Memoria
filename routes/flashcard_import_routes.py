@@ -8,7 +8,7 @@ import tempfile
 import shutil
 from google import genai
 import traceback
-from routes.flashcard_generation_routes import parse_flashcards
+from routes.flashcard_generation_routes import parse_flashcards, generate_prompt_template
 
 import_bp = Blueprint('import', __name__)
 
@@ -67,21 +67,15 @@ def upload_file():
         uploaded_file = client.files.upload(file=file_path)
         
         # Generate content based on file
+        # Use a modified version of the proven prompt
+        file_content_prompt = f"""{generate_prompt_template('the document content', 15).split('Generate exactly')[0]}"""
+        
         response = client.models.generate_content(
-            model="gemini-2.0-flash",  # For file processing
-            contents=[
-                "Based on this document, create multiple-choice flashcards in this format:\n\n"
-                "question: [Question text]\n"
-                "correct: [Correct answer]\n"
-                "incorrect: [Wrong answer 1]; [Wrong answer 2]; [Wrong answer 3]\n\n"
-                "Create at least 10 flashcards covering key information from the document. "
-                "Ensure the incorrect answers are plausible but clearly wrong. "
-                "All answers should be similar in length and style.",
-                uploaded_file
-            ]
+            model="gemini-2.0-flash-lite",  # For file processing
+            contents=[file_content_prompt, uploaded_file]
         )
         
-        # Parse the generated flashcards
+        # Parse the generated flashcards using the existing function
         flashcards_data = parse_flashcards(response.text)
         
         # Save to database
