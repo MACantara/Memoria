@@ -7,6 +7,7 @@ from routes.deck_routes import deck_bp
 from routes.flashcard_routes import flashcard_bp
 from routes.flashcard_generation_routes import generation_bp
 from routes.flashcard_stats_routes import stats_bp
+from routes.flashcard_import_routes import import_bp
 
 def create_app(config_class=Config):
     app = Flask(__name__)
@@ -25,6 +26,7 @@ def create_app(config_class=Config):
     app.register_blueprint(flashcard_bp, url_prefix='/flashcard')
     app.register_blueprint(generation_bp, url_prefix='/generation')
     app.register_blueprint(stats_bp, url_prefix='/stats')
+    app.register_blueprint(import_bp, url_prefix='/import')
     
     return app
 
