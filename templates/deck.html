@@ -29,7 +29,7 @@
            title="Study all flashcards in this deck and its sub-decks">
            <i class="bi bi-play-fill"></i> Study Now
         </a>
-        <a href="{{ url_for('flashcard.view_deck_stats', deck_id=deck.flashcard_deck_id) }}" class="btn btn-outline-success">
+        <a href="{{ url_for('stats.view_deck_stats', deck_id=deck.flashcard_deck_id) }}" class="btn btn-outline-success">
             <i class="bi bi-graph-up"></i> View Stats
         </a>
         <button id="createDeckBtn" class="btn btn-primary">
