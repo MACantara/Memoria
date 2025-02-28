@@ -41,9 +41,16 @@
 {% if deck.child_decks %}
 <section class="mb-5">
     <h2 class="h4 mb-4">Sub-decks</h2>
-    {% with decks=deck.child_decks, show_created_at=true, is_subdeck=true %}
-    {% include 'components/deck_grid.html' %}
-    {% endwith %}
+    <div id="subDecksContainer">
+        {% with decks=deck.child_decks, show_created_at=true, is_subdeck=true %}
+        {% include 'components/deck_grid.html' %}
+        {% endwith %}
+    </div>
+</section>
+{% else %}
+<section class="mb-5 d-none" id="subDecksSection">
+    <h2 class="h4 mb-4">Sub-decks</h2>
+    <div id="subDecksContainer"></div>
 </section>
 {% endif %}
 
@@ -52,15 +59,20 @@
         <div class="d-flex align-items-center">
             <h2 class="h4 mb-0">Flashcards</h2>
             <span class="badge bg-secondary rounded-pill ms-2 align-middle d-flex align-items-center" 
-                  style="height: 22px; margin-top: 2px;">
+                  style="height: 22px; margin-top: 2px;" id="flashcardsCount">
                 {{ flashcards|length }}
             </span>
+            <div id="updateIndicator" class="ms-2 text-success" style="opacity: 0; transition: opacity 0.3s ease-in-out;">
+                <small><i class="bi bi-arrow-repeat"></i> Updated</small>
+            </div>
         </div>
         <button class="btn btn-outline-primary add-cards-btn" data-deck-id="{{ deck.flashcard_deck_id }}">
             <i class="bi bi-plus-lg"></i> Add Cards
         </button>
     </div>
-    {% include 'components/flashcard_list.html' %}
+    <div id="flashcardsContainer">
+        {% include 'components/flashcard_list.html' %}
+    </div>
 </section>
 
 <!-- Create Deck Modal -->
@@ -96,6 +108,77 @@
         const { deckModal, generateModal } = initializeModals();
         initializeFormHandlers(deckModal, generateModal);
         initializeDeckOperations();
+        
+        // Initialize periodic updates
+        initializePeriodicUpdates();
     });
+    
+    function initializePeriodicUpdates() {
+        const deckId = {{ deck.flashcard_deck_id }};
+        const updateInterval = 5000; // Update every 5 seconds
+        let lastFlashcardCount = {{ flashcards|length }};
+        let lastSubdeckCount = {{ deck.child_decks|length }};
+        const updateIndicator = document.getElementById('updateIndicator');
+        
+        // Setup periodic update
+        setInterval(async () => {
+            try {
+                // Fetch current deck data
+                const response = await fetch(`/deck/api/${deckId}/status`);
+                if (!response.ok) return;
+                
+                const data = await response.json();
+                
+                // Update flashcard count if changed
+                if (data.flashcard_count !== lastFlashcardCount) {
+                    document.getElementById('flashcardsCount').textContent = data.flashcard_count;
+                    lastFlashcardCount = data.flashcard_count;
+                    
+                    // If flashcards were added, refresh the flashcard list
+                    if (data.flashcard_count > lastFlashcardCount) {
+                        const flashcardResponse = await fetch(`/deck/${deckId}/flashcards-partial`);
+                        if (flashcardResponse.ok) {
+                            const html = await flashcardResponse.text();
+                            document.getElementById('flashcardsContainer').innerHTML = html;
+                        }
+                    }
+                    
+                    showUpdateIndicator();
+                }
+                
+                // Update subdecks if changed
+                if (data.subdeck_count !== lastSubdeckCount) {
+                    lastSubdeckCount = data.subdeck_count;
+                    
+                    // Fetch updated subdeck HTML
+                    const subdeckResponse = await fetch(`/deck/${deckId}/subdecks-partial`);
+                    if (subdeckResponse.ok) {
+                        const html = await subdeckResponse.text();
+                        
+                        // Show or hide the subdecks section as needed
+                        if (data.subdeck_count > 0) {
+                            document.getElementById('subDecksSection').classList.remove('d-none');
+                            document.getElementById('subDecksContainer').innerHTML = html;
+                        } else {
+                            document.getElementById('subDecksSection').classList.add('d-none');
+                        }
+                        
+                        showUpdateIndicator();
+                    }
+                }
+                
+            } catch (error) {
+                console.error('Error checking for updates:', error);
+            }
+        }, updateInterval);
+        
+        function showUpdateIndicator() {
+            // Show update indicator briefly
+            updateIndicator.style.opacity = '1';
+            setTimeout(() => {
+                updateIndicator.style.opacity = '0';
+            }, 3000);
+        }
+    }
 </script>
 {% endblock %}
