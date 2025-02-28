@@ -2,16 +2,26 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="generateModalLabel">Generate Flashcards</h5>
+                <h5 class="modal-title" id="generateModalLabel">Generate Flashcards with AI</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <form id="generateForm" action="{{ url_for('flashcard.generation.generate') }}" method="post">
+                <!-- Update the form action URL to match the new registered route path -->
+                <form id="generateForm" action="/flashcard/generation/generate-flashcards" method="post">
                     <input type="hidden" id="generateParentDeckId" name="parent_deck_id">
                     <div class="mb-3">
                         <label for="topic" class="form-label">Topic</label>
-                        <input type="text" class="form-control" id="topic" name="topic" placeholder="Enter a topic" required>
-                        <div class="form-text">Enter a topic to generate flashcards for. Be specific for better results.</div>
+                        <input type="text" class="form-control" id="topic" name="topic" required placeholder="Enter a topic or subject">
+                        <div class="form-text">Be specific for better results (e.g., "Ancient Roman History" instead of just "History")</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="batchSize" class="form-label">Number of Cards</label>
+                        <select class="form-select" id="batchSize" name="batch_size">
+                            <option value="10">10 cards</option>
+                            <option value="25">25 cards</option>
+                            <option value="50">50 cards</option>
+                            <option value="100" selected>100 cards</option>
+                        </select>
                     </div>
                     
                     <div id="generateStatus"></div>
@@ -33,13 +43,13 @@
                         </div>
                     </div>
                     
-                    <div class="mt-3 d-flex justify-content-end">
-                        <button type="button" class="btn btn-secondary me-2" data-bs-dismiss="modal">Cancel</button>
+                    <div class="text-end">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
                         <button type="submit" class="btn btn-primary">
-                            <span class="normal-state">Generate Flashcards</span>
+                            <span class="normal-state">Generate Cards</span>
                             <span class="loading-state d-none">
                                 <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                                Generating...
+                                Processing...
                             </span>
                         </button>
                     </div>
