@@ -18,7 +18,7 @@ def generate():
     if request.method == "GET":
         topic = request.args.get("topic")
         parent_deck_id = request.args.get("parent_deck_id")
-        batch_size = int(request.args.get("batch_size", 100))
+        batch_size = 100
         
         if not topic:
             return jsonify({"error": "Topic is required"}), 400
