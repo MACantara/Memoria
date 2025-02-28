@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+
+{% block title %}Generating Flashcards{% endblock %}
+
+{% block styles %}
+<style>
+    .card-preview {
+        max-height: 300px;
+        overflow-y: auto;
+        background-color: var(--bs-tertiary-bg);
+        border-radius: 0.375rem;
+        padding: 1rem;
+        margin-top: 1.5rem;
+    }
+    
+    .preview-card {
+        border-bottom: 1px solid var(--bs-border-color);
+        padding: 0.5rem 0;
+    }
+    
+    .preview-card:last-child {
+        border-bottom: none;
+    }
+    
+    .generation-status {
+        font-size: 1.1rem;
+        min-height: 2rem;
+    }
+    
+    .progress-container {
+        margin: 2rem 0;
+    }
+    
+    #progressBar {
+        height: 1.5rem;
+        transition: width 0.5s ease;
+    }
+    
+    .completion-message {
+        text-align: center;
+        margin-top: 2rem;
+        display: none;
+    }
+    
+    .error-message {
+        color: var(--bs-danger);
+        font-weight: 500;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="d-flex align-items-center gap-3">
+            <a href="{{ url_for('deck.get_deck_flashcards', deck_id=deck_id) }}" class="btn btn-outline-primary" id="backButton">
+                <i class="bi bi-arrow-left"></i> Back to Deck
+            </a>
+            <h1 class="h2 mb-0">Generating Flashcards: {{ deck_name }}</h1>
+        </div>
+    </div>
+    
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <h3 class="h4 mb-4">Generation Progress</h3>
+            
+            <div class="generation-status mb-3" id="statusMessage">
+                <div class="spinner-border spinner-border-sm text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <span class="ms-2">Starting generation process...</span>
+            </div>
+            
+            <div class="progress-container">
+                <div class="progress" role="progressbar" aria-label="Generation Progress" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                    <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0%"></div>
+                </div>
+                <div class="d-flex justify-content-between mt-1">
+                    <small id="progressText">0%</small>
+                    <small id="cardCount">0 cards</small>
+                </div>
+            </div>
+            
+            <div class="card-preview" id="cardPreview">
+                <p class="text-center text-muted">Cards will appear here as they're generated...</p>
+            </div>
+            
+            <div class="completion-message" id="completionMessage">
+                <div class="alert alert-success">
+                    <i class="bi bi-check-circle-fill me-2"></i> 
+                    Flashcards generated successfully!
+                </div>
+                <a href="{{ url_for('deck.get_deck_flashcards', deck_id=deck_id) }}" class="btn btn-primary">
+                    <i class="bi bi-card-list"></i> View Flashcards
+                </a>
+            </div>
+            
+            <div class="completion-message" id="errorMessage">
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    <span id="errorText">An error occurred during generation.</span>
+                </div>
+                <div class="d-flex gap-2 justify-content-center mt-3">
+                    <a href="{{ url_for('deck.get_deck_flashcards', deck_id=deck_id) }}" class="btn btn-outline-primary">
+                        <i class="bi bi-arrow-left"></i> Go to Deck
+                    </a>
+                    <button id="retryButton" class="btn btn-primary">
+                        <i class="bi bi-arrow-clockwise"></i> Try Again
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const jobId = "{{ job_id }}";
+    const statusMessage = document.getElementById('statusMessage');
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    const cardCount = document.getElementById('cardCount');
+    const cardPreview = document.getElementById('cardPreview');
+    const completionMessage = document.getElementById('completionMessage');
+    const errorMessage = document.getElementById('errorMessage');
+    const errorText = document.getElementById('errorText');
+    const backButton = document.getElementById('backButton');
+    const retryButton = document.getElementById('retryButton');
+    
+    let pollInterval;
+    let lastSampleCount = 0;
+    
+    // Start polling for updates
+    pollForUpdates();
+    
+    // Set up polling interval (every 5 seconds)
+    pollInterval = setInterval(pollForUpdates, 5000);
+    
+    // Function to poll for generation progress
+    async function pollForUpdates() {
+        try {
+            const response = await fetch(`/flashcard/generation/generation-progress/${jobId}`);
+            
+            if (!response.ok) {
+                throw new Error('Failed to fetch progress');
+            }
+            
+            const data = await response.json();
+            updateUI(data);
+            
+            // Stop polling if generation is complete or failed
+            if (data.status === 'completed' || data.status === 'failed') {
+                clearInterval(pollInterval);
+            }
+        } catch (error) {
+            console.error('Error polling for updates:', error);
+            statusMessage.innerHTML = `<span class="error-message"><i class="bi bi-exclamation-triangle"></i> Error checking progress: ${error.message}</span>`;
+        }
+    }
+    
+    // Function to update UI based on job status
+    function updateUI(data) {
+        // Update status message
+        statusMessage.innerHTML = `<span>${data.message || 'Processing...'}</span>`;
+        
+        // Update progress bar
+        const progress = data.progress || 0;
+        progressBar.style.width = `${progress}%`;
+        progressBar.setAttribute('aria-valuenow', progress);
+        progressText.textContent = `${progress}%`;
+        
+        // Update card count
+        cardCount.textContent = `${data.completed_cards || 0} cards`;
+        
+        // Update card preview
+        if (data.sample_cards && data.sample_cards.length > lastSampleCount) {
+            // Only update if we have new samples
+            lastSampleCount = data.sample_cards.length;
+            
+            // Clear initial message
+            if (cardPreview.querySelector('p.text-center')) {
+                cardPreview.innerHTML = '';
+            }
+            
+            // Add each sample card
+            data.sample_cards.forEach(card => {
+                const cardElement = document.createElement('div');
+                cardElement.className = 'preview-card';
+                cardElement.innerHTML = `
+                    <div><strong>Q:</strong> ${card.question}</div>
+                    <div><strong>A:</strong> ${card.answer}</div>
+                `;
+                cardPreview.appendChild(cardElement);
+            });
+            
+            // Scroll to bottom to show newest cards
+            cardPreview.scrollTop = cardPreview.scrollHeight;
+        }
+        
+        // Handle completion
+        if (data.status === 'completed') {
+            progressBar.classList.remove('progress-bar-animated');
+            progressBar.classList.remove('progress-bar-striped');
+            completionMessage.style.display = 'block';
+            
+            // Add success highlight to status
+            statusMessage.innerHTML = `<span class="text-success"><i class="bi bi-check-circle"></i> ${data.message}</span>`;
+        }
+        
+        // Handle errors
+        if (data.status === 'failed') {
+            progressBar.classList.remove('progress-bar-animated');
+            progressBar.classList.remove('progress-bar-striped');
+            progressBar.classList.add('bg-danger');
+            errorMessage.style.display = 'block';
+            errorText.textContent = data.message || 'An error occurred during generation.';
+            
+            // Add error highlight to status
+            statusMessage.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle"></i> ${data.message}</span>`;
+        }
+    }
+    
+    // Set up retry button
+    if (retryButton) {
+        retryButton.addEventListener('click', () => {
+            // Navigate back to generate form with pre-filled details
+            window.location.href = backButton.href;
+        });
+    }
+});
+</script>
+{% endblock %}
