@@ -91,7 +91,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     async function loadStats() {
         try {
-            const response = await fetch(`/flashcard/deck/${deckId}/stats`);
+            // Updated URL to use the new stats blueprint
+            const response = await fetch(`/stats/deck/${deckId}/stats`);
             const stats = await response.json();
             
             console.log("Stats data:", stats); // Debug info
@@ -109,6 +110,23 @@ document.addEventListener('DOMContentLoaded', function() {
             
         } catch (error) {
             console.error('Error loading stats:', error);
+        }
+    }
+    
+    // Load retention distribution data for more advanced analytics
+    async function loadRetentionDistribution() {
+        try {
+            const response = await fetch(`/stats/deck/${deckId}/retention`);
+            const retentionData = await response.json();
+            
+            // You can display this data in an additional chart if needed
+            console.log("Retention distribution:", retentionData);
+            
+            // Build retention chart here if desired
+            // updateRetentionChart(retentionData.retention_distribution);
+            
+        } catch (error) {
+            console.error('Error loading retention data:', error);
         }
     }
     
@@ -325,6 +343,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initial load
     loadStats();
+    
+    // Optional: Load advanced retention stats
+    // loadRetentionDistribution();
     
     // Refresh stats every 30 seconds
     setInterval(loadStats, 30000);

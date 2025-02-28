@@ -8,6 +8,7 @@ export function shuffleArray(array) {
 
 export async function updateProgress(flashcardId, isCorrect) {
     try {
+        // Updated URL to match new blueprint structure
         const response = await fetch('/flashcard/update_progress', {
             method: 'POST',
             headers: {

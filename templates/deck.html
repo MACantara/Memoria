@@ -29,7 +29,10 @@
            title="Study all flashcards in this deck and its sub-decks">
            <i class="bi bi-play-fill"></i> Study Now
         </a>
-        <a href="{{ url_for('flashcard.view_deck_stats', deck_id=deck.flashcard_deck_id) }}" class="btn btn-outline-success">
+        <button type="button" class="btn btn-outline-primary" onclick="showImportModal()">
+            <i class="bi bi-file-earmark-arrow-up"></i> Import
+        </button>
+        <a href="{{ url_for('stats.view_deck_stats', deck_id=deck.flashcard_deck_id) }}" class="btn btn-outline-success">
             <i class="bi bi-graph-up"></i> View Stats
         </a>
         <button id="createDeckBtn" class="btn btn-primary">
@@ -81,6 +84,9 @@
 <!-- Delete Confirmation Modal -->
 {% include 'components/delete_deck_modal.html' %}
 
+<!-- Import Content Modal -->
+{% include 'components/import_content_modal.html' %}
+
 {% endblock %}
 
 {% block scripts %}
@@ -88,6 +94,7 @@
     import { initializeModals } from "{{ url_for('static', filename='modules/deck/modal-handlers.js') }}";
     import { initializeFormHandlers } from "{{ url_for('static', filename='modules/deck/form-handlers.js') }}";
     import { initializeDeckOperations } from "{{ url_for('static', filename='modules/deck/deck-operations.js') }}";
+    import { initializeImportModal } from "{{ url_for('static', filename='modules/deck/import-handlers.js') }}";
     import { deleteDeck, renameDeck } from "{{ url_for('static', filename='modules/utils.js') }}";
 
     window.deleteDeck = deleteDeck;
@@ -96,6 +103,7 @@
         const { deckModal, generateModal } = initializeModals();
         initializeFormHandlers(deckModal, generateModal);
         initializeDeckOperations();
+        initializeImportModal();
     });
 </script>
 {% endblock %}

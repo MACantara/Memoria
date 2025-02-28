@@ -234,3 +234,33 @@ def is_descendant(potential_descendant_id, ancestor_id):
         
     # Recursively check the parent
     return is_descendant(deck.parent_deck_id, ancestor_id)
+
+@deck_bp.route("/api/decks")
+def get_decks_api():
+    """Get all decks as a structured JSON for API use"""
+    # Get top-level decks
+    root_decks = FlashcardDecks.query.filter_by(parent_deck_id=None).all()
+    
+    result = []
+    for deck in root_decks:
+        result.append({
+            "id": deck.flashcard_deck_id,
+            "name": deck.name,
+            "children": get_child_decks(deck.flashcard_deck_id)
+        })
+    
+    return jsonify(result)
+
+def get_child_decks(parent_id):
+    """Helper function to recursively get child decks"""
+    child_decks = FlashcardDecks.query.filter_by(parent_deck_id=parent_id).all()
+    result = []
+    
+    for deck in child_decks:
+        result.append({
+            "id": deck.flashcard_deck_id,
+            "name": deck.name,
+            "children": get_child_decks(deck.flashcard_deck_id)
+        })
+    
+    return result
