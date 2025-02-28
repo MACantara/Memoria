@@ -34,13 +34,19 @@
     </div>
 </div>
 
-<div id="decks">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="h3 mb-0">Your Decks</h2>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="h3 mb-0">Your Decks</h2>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('import.upload_form') }}" class="btn btn-outline-primary">
+            <i class="bi bi-file-earmark-arrow-up"></i> Import Content
+        </a>
         <button id="createEmptyDeckBtn" class="btn btn-outline-primary">
             <i class="bi bi-plus-lg"></i> Create Empty Deck
         </button>
     </div>
+</div>
+
+<div id="decks">
     {% if decks %}
         {% with show_created_at=true, is_subdeck=false %}
         {% include 'components/deck_grid.html' %}
