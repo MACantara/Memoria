@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, redirect, url_for, render_template, current_app
+from flask import Blueprint, request, jsonify, redirect, url_for, current_app
 from werkzeug.utils import secure_filename
 from models import db, FlashcardDecks, Flashcards
 from datetime import datetime
@@ -22,11 +22,6 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-@import_bp.route("/upload-form")
-def upload_form():
-    """Display the file upload form"""
-    return render_template("upload_flashcards.html")
 
 @import_bp.route("/upload", methods=["POST"])
 def upload_file():
