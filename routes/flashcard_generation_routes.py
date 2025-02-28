@@ -9,7 +9,8 @@ generation_bp = Blueprint('generation', __name__)
 
 api_key = os.getenv("GOOGLE_GEMINI_API_KEY")
 
-# TODO: Convert the flashcard generation to stream flashcard generation instead of batch generation
+# TODO: Convert the flashcard generation to stream flashcard generation
+# TODO: Implement 2 models for flashcard generation: gemini-2.0-flash-lite for flashcard generation and gemini-2.0-flash for coverage checking
 
 @generation_bp.route("/generate-flashcards", methods=["POST"])
 def generate():
