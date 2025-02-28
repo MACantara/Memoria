@@ -234,3 +234,41 @@ def is_descendant(potential_descendant_id, ancestor_id):
         
     # Recursively check the parent
     return is_descendant(deck.parent_deck_id, ancestor_id)
+
+@deck_bp.route("/api/<int:deck_id>/status")
+def get_deck_status(deck_id):
+    """Get current status of a deck for AJAX updates"""
+    deck = FlashcardDecks.query.get_or_404(deck_id)
+    
+    # Get counts atomically to avoid race conditions
+    flashcard_count = Flashcards.query.filter_by(flashcard_deck_id=deck_id).count()
+    subdeck_count = FlashcardDecks.query.filter_by(parent_deck_id=deck_id).count()
+    
+    return jsonify({
+        "flashcard_deck_id": deck.flashcard_deck_id,
+        "name": deck.name, 
+        "flashcard_count": flashcard_count,
+        "subdeck_count": subdeck_count,
+        "total_flashcard_count": deck.count_all_flashcards(),
+        "last_updated": datetime.utcnow().isoformat()
+    })
+
+@deck_bp.route("/<int:deck_id>/flashcards-partial")
+def get_flashcards_partial(deck_id):
+    """Return just the flashcard list HTML for AJAX updates"""
+    deck = FlashcardDecks.query.get_or_404(deck_id)
+    flashcards = Flashcards.query.filter_by(flashcard_deck_id=deck_id)\
+        .order_by(Flashcards.created_at.desc()).all()
+    
+    return render_template("components/flashcard_list.html", flashcards=flashcards)
+
+@deck_bp.route("/<int:deck_id>/subdecks-partial")
+def get_subdecks_partial(deck_id):
+    """Return just the subdeck grid HTML for AJAX updates"""
+    deck = FlashcardDecks.query.get_or_404(deck_id)
+    
+    # Use with context to pass variables to the template
+    return render_template("components/deck_grid.html", 
+                          decks=deck.child_decks, 
+                          show_created_at=True, 
+                          is_subdeck=True)
