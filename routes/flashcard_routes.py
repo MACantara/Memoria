@@ -88,5 +88,6 @@ def view_flashcards(deck_id):
 from routes.flashcard_generation_routes import generation_bp
 from routes.flashcard_stats_routes import stats_bp
 
-flashcard_bp.register_blueprint(generation_bp)
-flashcard_bp.register_blueprint(stats_bp)
+# Register blueprints with correct URL prefixes
+flashcard_bp.register_blueprint(generation_bp, url_prefix='/generation')
+flashcard_bp.register_blueprint(stats_bp, url_prefix='/stats')
