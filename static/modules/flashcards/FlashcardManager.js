@@ -16,17 +16,18 @@ export class FlashcardManager {
         this.flashcardsArray = Array.from(document.querySelectorAll('.flashcard'));
         this.flashcardsArray.forEach(card => this.initializeFlashcard(card));
         
-        // Initialize completed cards from server data
+        // Initialize completed cards based on FSRS state instead of correct/incorrect counts
         this.flashcardsArray.forEach(card => {
-            // If card has more correct answers than incorrect, consider it completed
-            if (parseInt(card.dataset.correctCount || 0) > parseInt(card.dataset.incorrectCount || 0)) {
+            // A card is considered completed if its state is "mastered" (2)
+            const state = parseInt(card.dataset.state || 0);
+            if (state === 2) {  // 2 = mastered
                 this.completedCards.add(card.dataset.id);
                 this.score++;
             }
         });
         
-        // Update the initial score
-        this.ui.updateScore(this.score);
+        // Update the initial score and progress
+        this.ui.updateScore(this.score, this.flashcardsArray.length);
         
         if (this.flashcardsArray.length > 0) {
             this.ui.showCard(0, this.flashcardsArray, this.score);
@@ -78,7 +79,8 @@ export class FlashcardManager {
     }
 
     isCardUnanswered(flashcard) {
-        return !flashcard.dataset.completed && !flashcard.dataset.attempted;
+        // A card is unanswered if it's in the "new" state (0)
+        return parseInt(flashcard.dataset.state || 0) === 0;
     }
 
     async handleAnswer(selectedAnswer, flashcard) {
@@ -89,17 +91,17 @@ export class FlashcardManager {
             const result = await updateProgress(flashcard.dataset.id, isCorrect);
             
             if (result.success) {
-                // Update card with latest server counts
+                // Update card with latest server data
                 flashcard.dataset.correctCount = result.correct_count;
                 flashcard.dataset.incorrectCount = result.incorrect_count;
+                // Update FSRS specific data
+                flashcard.dataset.state = this.getFsrsStateNumber(result.state);
+                flashcard.dataset.retrievability = result.retrievability || 0;
                 
-                // Update the displayed counts in the UI
-                const correctCountEl = flashcard.querySelector('.correct-count');
-                const incorrectCountEl = flashcard.querySelector('.incorrect-count');
-                if (correctCountEl) correctCountEl.textContent = result.correct_count;
-                if (incorrectCountEl) incorrectCountEl.textContent = result.incorrect_count;
+                // Update the displayed info in the UI
+                this.updateCardStatsUI(flashcard, result);
                 
-                // Recalculate completed cards based on server data
+                // Recalculate score based on updated FSRS states
                 this.recalculateScore();
             }
         } catch (error) {
@@ -119,36 +121,89 @@ export class FlashcardManager {
         this.ui.showAnswerFeedback(flashcard, isCorrect);
 
         setTimeout(() => {
-            if (isCorrect) {
+            // Mark card as completed if it's now mastered
+            const isMastered = parseInt(flashcard.dataset.state) === 2;
+            if (isMastered) {
                 flashcard.dataset.completed = 'true';
                 
                 if (this.completedCards.size === this.flashcardsArray.length) {
                     this.ui.showCompletion(this.score, this.flashcardsArray.length);
                     return;
                 }
-            } else {
+            } else if (!isCorrect) {
                 this.moveCardToEnd(flashcard);
             }
             this.findNextCardToShow();
         }, 1500);
     }
     
+    getFsrsStateNumber(stateName) {
+        const stateMap = {
+            'new': 0,
+            'learning': 1,
+            'mastered': 2,
+            'forgotten': 3,
+            // Default to 0 if unknown
+            'unknown': 0
+        };
+        return stateMap[stateName] || 0;
+    }
+    
+    updateCardStatsUI(flashcard, data) {
+        // Update counters
+        const correctCountEl = flashcard.querySelector('.correct-count');
+        const incorrectCountEl = flashcard.querySelector('.incorrect-count');
+        const lastReviewedEl = flashcard.querySelector('.last-reviewed');
+        const stateEl = flashcard.querySelector('.card-state');
+        
+        if (correctCountEl) correctCountEl.textContent = data.correct_count;
+        if (incorrectCountEl) incorrectCountEl.textContent = data.incorrect_count;
+        
+        // Format date if provided
+        if (lastReviewedEl && data.last_reviewed) {
+            const date = new Date(data.last_reviewed);
+            lastReviewedEl.textContent = date.toLocaleString();
+        }
+        
+        // Update state label if it exists
+        if (stateEl && data.state) {
+            stateEl.textContent = data.state;
+            
+            // Remove all state classes
+            stateEl.classList.remove('bg-secondary', 'bg-warning', 'bg-success', 'bg-danger');
+            
+            // Add appropriate class based on state
+            switch(data.state) {
+                case 'new':
+                    stateEl.classList.add('bg-secondary');
+                    break;
+                case 'learning':
+                    stateEl.classList.add('bg-warning');
+                    break;
+                case 'mastered':
+                    stateEl.classList.add('bg-success');
+                    break;
+                case 'forgotten':
+                    stateEl.classList.add('bg-danger');
+                    break;
+            }
+        }
+    }
+    
     recalculateScore() {
-        // Clear the set and recalculate based on latest server data
+        // Clear the set and recalculate based on current FSRS states
         this.completedCards.clear();
         this.score = 0;
         
         this.flashcardsArray.forEach(card => {
-            const correctCount = parseInt(card.dataset.correctCount || 0);
-            const incorrectCount = parseInt(card.dataset.incorrectCount || 0);
-            
-            if (correctCount > incorrectCount && correctCount > 0) {
+            // State 2 = mastered
+            if (parseInt(card.dataset.state || 0) === 2) {
                 this.completedCards.add(card.dataset.id);
                 this.score++;
             }
         });
         
-        this.ui.updateScore(this.score);
+        this.ui.updateScore(this.score, this.flashcardsArray.length);
     }
 
     moveCardToEnd(flashcard) {
@@ -158,7 +213,7 @@ export class FlashcardManager {
         let insertIndex = this.flashcardsArray.length;
         for (let i = 0; i < this.flashcardsArray.length; i++) {
             if (!this.isCardUnanswered(this.flashcardsArray[i]) && 
-                !this.flashcardsArray[i].dataset.completed) {
+                parseInt(this.flashcardsArray[i].dataset.state || 0) !== 2) {
                 insertIndex = i;
                 break;
             }
@@ -176,9 +231,9 @@ export class FlashcardManager {
         // First try to find an unanswered card
         let nextIndex = this.findNextUnansweredCard();
         
-        // If no unanswered cards, look for incorrect cards
+        // If no unanswered cards, look for cards that aren't mastered
         if (nextIndex === -1) {
-            nextIndex = this.findNextIncorrectCard();
+            nextIndex = this.findNextNonMasteredCard();
         }
         
         // If we found a card to show, show it
@@ -208,9 +263,10 @@ export class FlashcardManager {
         return -1;
     }
 
-    findNextIncorrectCard() {
+    findNextNonMasteredCard() {
         for (let i = 0; i < this.flashcardsArray.length; i++) {
-            if (!this.flashcardsArray[i].dataset.completed) {
+            // Not mastered (state != 2)
+            if (parseInt(this.flashcardsArray[i].dataset.state || 0) !== 2) {
                 return i;
             }
         }

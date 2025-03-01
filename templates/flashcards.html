@@ -33,7 +33,7 @@
         <div class="mt-3">
             <div class="d-flex justify-content-between align-items-center mb-1">
                 <span id="cardNumber" class="text-muted">Card 1 of {{ flashcards|length }}</span>
-                <span class="text-success"><span id="score">0</span>/{{ flashcards|length }} completed</span>
+                <span class="text-success"><span id="score">0</span>/{{ flashcards|length }} mastered</span>
             </div>
             <div class="progress" style="height: 8px;">
                 <div id="progressBar" class="progress-bar bg-success" role="progressbar" 
@@ -52,6 +52,8 @@
          data-incorrect="{{ flashcard.incorrect_answers }}"
          data-correct-count="{{ flashcard.correct_count }}"
          data-incorrect-count="{{ flashcard.incorrect_count }}"
+         data-state="{{ flashcard.state }}"
+         data-retrievability="{{ flashcard.retrievability }}"
          style="display: none;">
         <div class="card-body">
             <div class="card-title h4" data-question="{{ flashcard.question }}">
@@ -62,14 +64,26 @@
             </form>
             <div class="mt-3 p-2 rounded small">
                 <div class="row text-muted">
-                    <div class="col-4">
+                    <div class="col-3">
                         <i class="bi bi-check-circle"></i> Correct: <span class="correct-count">{{ flashcard.correct_count }}</span>
                     </div>
-                    <div class="col-4">
+                    <div class="col-3">
                         <i class="bi bi-x-circle"></i> Incorrect: <span class="incorrect-count">{{ flashcard.incorrect_count }}</span>
                     </div>
-                    <div class="col-4">
-                        <i class="bi bi-clock"></i> Last: <span class="last-reviewed">{{ flashcard.last_reviewed.strftime('%Y-%m-%d %H:%M') if flashcard.last_reviewed else 'Never' }}</span>
+                    <div class="col-3">
+                        <i class="bi bi-clock"></i> Last: <span class="last-reviewed">
+                            {{ flashcard.last_reviewed.strftime('%Y-%m-%d %H:%M') if flashcard.last_reviewed else 'Never' }}
+                        </span>
+                    </div>
+                    <div class="col-3">
+                        <i class="bi bi-stars"></i> State: <span class="badge card-state 
+                        {% if flashcard.get_state_name() == 'new' %}bg-secondary
+                        {% elif flashcard.get_state_name() == 'learning' %}bg-warning
+                        {% elif flashcard.get_state_name() == 'mastered' %}bg-success
+                        {% elif flashcard.get_state_name() == 'forgotten' %}bg-danger
+                        {% endif %}">
+                            {{ flashcard.get_state_name() }}
+                        </span>
                     </div>
                 </div>
             </div>
