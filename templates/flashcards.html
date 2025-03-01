@@ -50,8 +50,6 @@
          data-id="{{ flashcard.flashcard_id }}"
          data-correct="{{ flashcard.correct_answer }}"
          data-incorrect="{{ flashcard.incorrect_answers }}"
-         data-correct-count="{{ flashcard.correct_count }}"
-         data-incorrect-count="{{ flashcard.incorrect_count }}"
          data-state="{{ flashcard.state }}"
          data-retrievability="{{ flashcard.retrievability }}"
          style="display: none;">
@@ -64,19 +62,15 @@
             </form>
             <div class="mt-3 p-2 rounded small">
                 <div class="row text-muted">
-                    <div class="col-3">
-                        <i class="bi bi-check-circle"></i> Correct: <span class="correct-count">{{ flashcard.correct_count }}</span>
-                    </div>
-                    <div class="col-3">
-                        <i class="bi bi-x-circle"></i> Incorrect: <span class="incorrect-count">{{ flashcard.incorrect_count }}</span>
-                    </div>
-                    <div class="col-3">
-                        <i class="bi bi-clock"></i> Last: <span class="last-reviewed">
+                    <div class="col-6">
+                        <i class="bi bi-clock"></i> Last reviewed: 
+                        <span class="last-reviewed">
                             {{ flashcard.last_reviewed.strftime('%Y-%m-%d %H:%M') if flashcard.last_reviewed else 'Never' }}
                         </span>
                     </div>
-                    <div class="col-3">
-                        <i class="bi bi-stars"></i> State: <span class="badge card-state 
+                    <div class="col-6">
+                        <i class="bi bi-stars"></i> State: 
+                        <span class="badge card-state 
                         {% if flashcard.get_state_name() == 'new' %}bg-secondary
                         {% elif flashcard.get_state_name() == 'learning' %}bg-warning
                         {% elif flashcard.get_state_name() == 'mastered' %}bg-success
