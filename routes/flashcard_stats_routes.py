@@ -9,9 +9,6 @@ def view_deck_stats(deck_id):
     """View spaced repetition stats for a deck"""
     deck = FlashcardDecks.query.get_or_404(deck_id)
     
-    # Auto-fix any cards with missing states when viewing stats
-    Flashcards.fix_missing_states()
-    
     return render_template("stats.html", deck=deck)
 
 @stats_bp.route("/deck/<int:deck_id>/stats")
