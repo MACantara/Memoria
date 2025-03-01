@@ -105,7 +105,7 @@ def upload_file():
         
         # Clean up any created deck
         try:
-            if 'deck' in locals():
+            if 'deck' in locals() and deck:
                 db.session.delete(deck)
                 db.session.commit()
         except:
@@ -114,11 +114,12 @@ def upload_file():
         return jsonify({"success": False, "error": str(e)}), 500
         
     finally:
-        # Clean up temporary files
+        # Clean up temporary file
         try:
-            shutil.rmtree(temp_dir)
+            if 'file_path' in locals() and os.path.exists(file_path):
+                os.unlink(file_path)
         except Exception as e:
-            current_app.logger.error(f"Error cleaning up temp files: {str(e)}")
+            current_app.logger.error(f"Error cleaning up temp file: {str(e)}")
 
 @import_bp.route("/process-text", methods=["POST"])
 def process_text():
