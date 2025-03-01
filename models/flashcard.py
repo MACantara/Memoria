@@ -29,8 +29,6 @@ class Flashcards(db.Model):
     flashcard_deck_id = db.Column(db.Integer, db.ForeignKey('flashcard_decks.flashcard_deck_id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_reviewed = db.Column(db.DateTime)
-    correct_count = db.Column(db.Integer, default=0)
-    incorrect_count = db.Column(db.Integer, default=0)
     
     # FSRS specific fields
     fsrs_state = db.Column(JSONEncodedDict, default=dict)
@@ -105,27 +103,3 @@ class Flashcards(db.Model):
             3: "forgotten"   # Relearning/Lapsed
         }
         return state_names.get(self.state, "new")
-    
-    @staticmethod
-    def fix_missing_states():
-        """One-time utility to ensure all flashcards have valid states"""
-        from models import db
-        
-        # Find cards with missing states or FSRS data
-        cards_needing_init = Flashcards.query.filter(
-            (Flashcards.state.is_(None)) | 
-            (Flashcards.due_date.is_(None)) |
-            (Flashcards.fsrs_state == {})
-        ).all()
-        
-        print(f"Found {len(cards_needing_init)} cards needing FSRS initialization")
-        
-        for card in cards_needing_init:
-            # Initialize with correct state
-            card.init_fsrs_state()
-        
-        if cards_needing_init:
-            db.session.commit()
-            print("Fixed card states successfully")
-        
-        return len(cards_needing_init)
