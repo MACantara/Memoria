@@ -194,7 +194,11 @@ def get_stats(deck_id=None):
     
     reviewed_count = reviewed_cards.count()
     
+    # Calculate percentage of cards reviewed
+    review_coverage = (reviewed_count / total_cards * 100) if total_cards > 0 else 0
+    
     # Only calculate average retention if there are actually reviewed cards
+    # and at least 5% of cards have been reviewed
     if reviewed_count > 0:
         avg_retrievability = db.session.query(
             func.avg(Flashcards.retrievability)
@@ -239,11 +243,13 @@ def get_stats(deck_id=None):
     print(f"Upcoming reviews: {formatted_upcoming}")  # Debug info
     
     return {
-        'total_cards': query.count(),
+        'total_cards': total_cards,
         'due_count': due_count,
-        'reviewed_count': reviewed_count,  # Add this to track cards with review history
+        'reviewed_count': reviewed_count,
+        'review_coverage': round(review_coverage, 1),  # Percentage of cards reviewed
         'average_retention': float(avg_retrievability) if avg_retrievability is not None else None,
-        'has_retention_data': reviewed_count > 0,  # Flag to indicate if retention data is available
+        'has_retention_data': reviewed_count > 0,
+        'has_significant_retention_data': reviewed_count >= 5 or (total_cards > 0 and review_coverage >= 5),
         'state_counts': state_counts,
         'upcoming_reviews': formatted_upcoming
     }
