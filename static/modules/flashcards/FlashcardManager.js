@@ -5,10 +5,11 @@ export class FlashcardManager {
     constructor() {
         this.container = document.getElementById('flashcardsContainer');
         this.currentCardIndex = 0;
-        this.score = 0;
+        this.score = 0;  // This will now track cards completed in this session
         this.flashcardsArray = [];
         this.ui = new UIManager();
-        this.completedCards = new Set();
+        this.completedCards = new Set();  // Track cards completed in this session
+        this.totalDueCards = 0;  // Track how many due cards we started with
     }
 
     initialize() {
@@ -16,18 +17,17 @@ export class FlashcardManager {
         this.flashcardsArray = Array.from(document.querySelectorAll('.flashcard'));
         this.flashcardsArray.forEach(card => this.initializeFlashcard(card));
         
-        // Initialize completed cards based on FSRS state
-        this.flashcardsArray.forEach(card => {
-            // A card is considered completed if its state is "mastered" (2)
+        // Count due cards - these are cards that aren't already mastered (state !== 2)
+        this.totalDueCards = this.flashcardsArray.filter(card => {
             const state = parseInt(card.dataset.state || 0);
-            if (state === 2) {  // 2 = mastered
-                this.completedCards.add(card.dataset.id);
-                this.score++;
-            }
-        });
+            return state !== 2;  // Not mastered
+        }).length;
         
-        // Update the initial score and progress
-        this.ui.updateScore(this.score, this.flashcardsArray.length);
+        // Initialize with 0 completed cards
+        this.score = 0;
+        
+        // Update the initial score and progress display
+        this.ui.updateScore(this.score, this.totalDueCards);
         
         if (this.flashcardsArray.length > 0) {
             this.ui.showCard(0, this.flashcardsArray, this.score);
@@ -97,9 +97,6 @@ export class FlashcardManager {
                 
                 // Update the displayed info in the UI
                 this.updateCardStatsUI(flashcard, result);
-                
-                // Recalculate score based on updated FSRS states
-                this.recalculateScore();
             }
         } catch (error) {
             console.error("Failed to update progress:", error);
@@ -117,31 +114,33 @@ export class FlashcardManager {
         
         this.ui.showAnswerFeedback(flashcard, isCorrect);
 
+        // Mark this card as completed in this session (regardless of correctness)
+        if (!this.completedCards.has(flashcard.dataset.id)) {
+            this.completedCards.add(flashcard.dataset.id);
+            this.score++;
+            
+            // Update the progress display
+            this.ui.updateScore(this.score, this.totalDueCards);
+        }
+
         // Mark whether this card has been attempted (for resetting later)
         flashcard.dataset.attempted = 'true';
 
         // Process the card after showing feedback
         setTimeout(() => {
-            // Check for mastery - this affects how we count completed cards
-            const isMastered = parseInt(flashcard.dataset.state) === 2;
-            if (isMastered) {
-                flashcard.dataset.completed = 'true';
-                
-                // Check if all cards are now mastered
-                if (this.completedCards.size === this.flashcardsArray.length) {
-                    this.ui.showCompletion(this.score, this.flashcardsArray.length);
-                    return;
-                }
+            // Check if all due cards have been completed in this session
+            if (this.score >= this.totalDueCards) {
+                this.ui.showCompletion(this.score, this.totalDueCards);
+                return;
             }
             
-            // If answer was incorrect, move the card to the end of the stack
+            // If answer was incorrect, move card to end for review
             if (!isCorrect) {
                 this.moveCardToEnd(flashcard);
-            } 
+            }
             
-            // Always move to the next card after answering, regardless of correctness
+            // Always move to the next card after answering
             this.moveToNextCard();
-            
         }, 1500);
     }
     
@@ -210,19 +209,22 @@ export class FlashcardManager {
     }
 
     moveCardToEnd(flashcard) {
-        // Find the position after all non-mastered cards
+        // Find position after all non-mastered, non-completed cards
         let insertIndex = this.flashcardsArray.length;
         
-        // Start from end and find first mastered card
-        for (let i = this.flashcardsArray.length - 1; i >= 0; i--) {
-            if (parseInt(this.flashcardsArray[i].dataset.state) === 2) {
+        // Try to find a position before mastered cards and after uncompleted cards
+        for (let i = 0; i < this.flashcardsArray.length; i++) {
+            const card = this.flashcardsArray[i];
+            
+            // If we find a mastered card or already completed card, insert before it
+            // This ensures incorrectly answered cards go after fresh cards but before finished ones
+            if (parseInt(card.dataset.state) === 2 || this.completedCards.has(card.dataset.id)) {
                 insertIndex = i;
-            } else {
-                break; // Found the last non-mastered card
+                break;
             }
         }
         
-        // Move the flashcard to after all non-mastered cards but before mastered ones
+        // Move the flashcard to the determined position
         this.container.insertBefore(flashcard, this.flashcardsArray[insertIndex]);
         
         // Update the array to reflect the new DOM order
@@ -230,40 +232,31 @@ export class FlashcardManager {
     }
 
     moveToNextCard() {
-        // Determine the next card to show
-        // First check current index + 1
-        let nextIndex = this.currentCardIndex + 1;
-        
-        // If we're at the end, start looking from the beginning
-        if (nextIndex >= this.flashcardsArray.length) {
-            nextIndex = 0;
-        }
-        
-        // If we're back at the starting index, we've gone through all cards
-        let startIndex = this.currentCardIndex;
-        
-        // Keep looking for a non-mastered card
-        while (nextIndex !== startIndex) {
-            const nextCard = this.flashcardsArray[nextIndex];
-            // A card is available to show if it's not mastered (state != 2)
-            if (parseInt(nextCard.dataset.state || 0) !== 2) {
-                this.currentCardIndex = nextIndex;
+        // First look for cards that haven't been completed in this session
+        for (let i = 0; i < this.flashcardsArray.length; i++) {
+            // Skip current card
+            if (i === this.currentCardIndex) continue;
+            
+            const card = this.flashcardsArray[i];
+            
+            // If card is not mastered and not completed in this session, show it
+            if (!this.completedCards.has(card.dataset.id) && 
+                parseInt(card.dataset.state || 0) !== 2) {
                 
-                // If the card has been attempted, ensure it's properly reset
-                if (nextCard.dataset.attempted === 'true') {
-                    this.initializeFlashcard(nextCard);
+                this.currentCardIndex = i;
+                
+                // Reset card if it's been attempted before
+                if (card.dataset.attempted === 'true') {
+                    this.initializeFlashcard(card);
                 }
                 
                 this.ui.showCard(this.currentCardIndex, this.flashcardsArray, this.score);
-                return; // Found a card to show
+                return;
             }
-            
-            // Try next index
-            nextIndex = (nextIndex + 1) % this.flashcardsArray.length;
         }
         
-        // If we get here, all cards are mastered or we've gone through the whole deck
-        this.ui.showCompletion(this.score, this.flashcardsArray.length);
+        // If all cards are either mastered or completed in this session, show completion
+        this.ui.showCompletion(this.score, this.totalDueCards);
     }
 
     showNextCard() {

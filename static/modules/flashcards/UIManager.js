@@ -41,20 +41,24 @@ export class UIManager {
     }
 
     updateCardCounter(index, total, score) {
+        // Calculate cards left to review in this session
         const remaining = total - score;
+        const remainingText = remaining > 0 ? `(${remaining} remaining)` : '(all reviewed)';
+        
         document.getElementById('cardNumber').textContent = 
-            `Card ${index + 1} of ${total} (${remaining} remaining)`;
+            `Card ${index + 1} of ${total} ${remainingText}`;
     }
 
-    updateScore(score, total) {
-        // Update the score text to show mastery progress
+    updateScore(score, totalDue) {
+        // Update the score text to show session completion rather than mastery
         const scoreElement = document.getElementById('score');
         if (scoreElement) scoreElement.textContent = score;
         
         // Update the progress bar
         const progressBar = document.getElementById('progressBar');
         if (progressBar) {
-            const percentage = total > 0 ? (score / total) * 100 : 0;
+            // Calculate completion percentage for this session
+            const percentage = totalDue > 0 ? (score / totalDue) * 100 : 0;
             progressBar.style.width = `${percentage}%`;
             progressBar.setAttribute('aria-valuenow', percentage);
             
@@ -69,25 +73,25 @@ export class UIManager {
         }
     }
 
-    showCompletion(score, total) {
+    showCompletion(score, totalDue) {
         // Update progress bar to 100% first
-        this.updateScore(score, total);
+        this.updateScore(score, totalDue);
         
         const container = document.getElementById('flashcardsContainer');
         container.innerHTML = `
             <div class="card text-center p-5">
                 <div class="card-body">
                     <h2 class="card-title mb-4">
-                        <i class="bi bi-emoji-smile-fill text-success"></i> Congratulations!
+                        <i class="bi bi-emoji-smile-fill text-success"></i> Session Complete!
                     </h2>
-                    <p class="card-text fs-5">You've mastered all flashcards.</p>
+                    <p class="card-text fs-5">You've completed your flashcard review session.</p>
                     <div class="progress mb-3" style="height: 20px;">
                         <div class="progress-bar bg-success" role="progressbar" 
                             style="width: 100%" aria-valuenow="100" aria-valuemin="0" 
                             aria-valuemax="100">100%</div>
                     </div>
                     <p class="card-text fs-4 text-success fw-bold">
-                        <i class="bi bi-trophy-fill"></i> Mastery Score: ${score}/${total}
+                        <i class="bi bi-trophy-fill"></i> Session Score: ${score}/${totalDue}
                     </p>
                     <div class="d-flex justify-content-center gap-3 mt-4">
                         <a href="${window.location.href}" class="btn btn-primary">
