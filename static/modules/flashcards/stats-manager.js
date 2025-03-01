@@ -42,8 +42,19 @@ export class StatsManager {
             // Update summary cards
             document.getElementById('total-cards').textContent = stats.total_cards;
             document.getElementById('due-count').textContent = stats.due_count;
-            document.getElementById('retention').textContent = 
-                (stats.average_retention * 100).toFixed(0) + '%';
+            
+            // Handle retention data
+            const retentionElement = document.getElementById('retention');
+            if (stats.has_retention_data && stats.average_retention !== null) {
+                // Format as percentage
+                retentionElement.textContent = (stats.average_retention * 100).toFixed(0) + '%';
+                retentionElement.classList.remove('text-muted');
+            } else {
+                // No review history available
+                retentionElement.textContent = 'No data';
+                retentionElement.classList.add('text-muted');
+            }
+            
             document.getElementById('mastered-count').textContent = stats.state_counts.mastered;
             
             // Update charts
