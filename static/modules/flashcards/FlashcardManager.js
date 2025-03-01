@@ -117,20 +117,31 @@ export class FlashcardManager {
         
         this.ui.showAnswerFeedback(flashcard, isCorrect);
 
+        // Mark whether this card has been attempted (for resetting later)
+        flashcard.dataset.attempted = 'true';
+
+        // Process the card after showing feedback
         setTimeout(() => {
-            // Mark card as completed if it's now mastered
+            // Check for mastery - this affects how we count completed cards
             const isMastered = parseInt(flashcard.dataset.state) === 2;
             if (isMastered) {
                 flashcard.dataset.completed = 'true';
                 
+                // Check if all cards are now mastered
                 if (this.completedCards.size === this.flashcardsArray.length) {
                     this.ui.showCompletion(this.score, this.flashcardsArray.length);
                     return;
                 }
-            } else if (!isCorrect) {
-                this.moveCardToEnd(flashcard);
             }
-            this.findNextCardToShow();
+            
+            // If answer was incorrect, move the card to the end of the stack
+            if (!isCorrect) {
+                this.moveCardToEnd(flashcard);
+            } 
+            
+            // Always move to the next card after answering, regardless of correctness
+            this.moveToNextCard();
+            
         }, 1500);
     }
     
@@ -199,70 +210,60 @@ export class FlashcardManager {
     }
 
     moveCardToEnd(flashcard) {
-        flashcard.dataset.attempted = 'true';
-        
-        // Find position after unanswered cards but before completed ones
+        // Find the position after all non-mastered cards
         let insertIndex = this.flashcardsArray.length;
-        for (let i = 0; i < this.flashcardsArray.length; i++) {
-            if (!this.isCardUnanswered(this.flashcardsArray[i]) && 
-                parseInt(this.flashcardsArray[i].dataset.state || 0) !== 2) {
+        
+        // Start from end and find first mastered card
+        for (let i = this.flashcardsArray.length - 1; i >= 0; i--) {
+            if (parseInt(this.flashcardsArray[i].dataset.state) === 2) {
                 insertIndex = i;
-                break;
+            } else {
+                break; // Found the last non-mastered card
             }
         }
         
+        // Move the flashcard to after all non-mastered cards but before mastered ones
         this.container.insertBefore(flashcard, this.flashcardsArray[insertIndex]);
         
-        // Reset the card's visual state when moving it
-        this.resetAnswerFeedback(flashcard);
-        
+        // Update the array to reflect the new DOM order
         this.flashcardsArray = Array.from(document.querySelectorAll('.flashcard'));
     }
 
-    findNextCardToShow() {
-        // First try to find an unanswered card
-        let nextIndex = this.findNextUnansweredCard();
+    moveToNextCard() {
+        // Determine the next card to show
+        // First check current index + 1
+        let nextIndex = this.currentCardIndex + 1;
         
-        // If no unanswered cards, look for cards that aren't mastered
-        if (nextIndex === -1) {
-            nextIndex = this.findNextNonMasteredCard();
+        // If we're at the end, start looking from the beginning
+        if (nextIndex >= this.flashcardsArray.length) {
+            nextIndex = 0;
         }
         
-        // If we found a card to show, show it
-        if (nextIndex !== -1) {
-            this.currentCardIndex = nextIndex;
-            
-            // Make sure the card is properly reset before showing
-            const nextCard = this.flashcardsArray[this.currentCardIndex];
-            
-            // Only reinitialize if it's been attempted before
-            if (nextCard.dataset.attempted === 'true') {
-                this.initializeFlashcard(nextCard);
+        // If we're back at the starting index, we've gone through all cards
+        let startIndex = this.currentCardIndex;
+        
+        // Keep looking for a non-mastered card
+        while (nextIndex !== startIndex) {
+            const nextCard = this.flashcardsArray[nextIndex];
+            // A card is available to show if it's not mastered (state != 2)
+            if (parseInt(nextCard.dataset.state || 0) !== 2) {
+                this.currentCardIndex = nextIndex;
+                
+                // If the card has been attempted, ensure it's properly reset
+                if (nextCard.dataset.attempted === 'true') {
+                    this.initializeFlashcard(nextCard);
+                }
+                
+                this.ui.showCard(this.currentCardIndex, this.flashcardsArray, this.score);
+                return; // Found a card to show
             }
             
-            this.ui.showCard(this.currentCardIndex, this.flashcardsArray, this.score);
-        } else {
-            this.ui.showCompletion(this.score, this.flashcardsArray.length);
+            // Try next index
+            nextIndex = (nextIndex + 1) % this.flashcardsArray.length;
         }
-    }
-
-    findNextUnansweredCard() {
-        for (let i = 0; i < this.flashcardsArray.length; i++) {
-            if (this.isCardUnanswered(this.flashcardsArray[i])) {
-                return i;
-            }
-        }
-        return -1;
-    }
-
-    findNextNonMasteredCard() {
-        for (let i = 0; i < this.flashcardsArray.length; i++) {
-            // Not mastered (state != 2)
-            if (parseInt(this.flashcardsArray[i].dataset.state || 0) !== 2) {
-                return i;
-            }
-        }
-        return -1;
+        
+        // If we get here, all cards are mastered or we've gone through the whole deck
+        this.ui.showCompletion(this.score, this.flashcardsArray.length);
     }
 
     showNextCard() {
