@@ -1,36 +1,10 @@
 export class UIManager {
     constructor() {
-        this.md = window.markdownit({
-            html: false,
-            breaks: true,
-            linkify: true,
-            typographer: true
-        });
-        
-        // Configure markdown-it to handle math expressions better
-        this.configureMathHandling();
-        
         this.totalCards = document.querySelectorAll('.flashcard').length;
         this.progressBar = document.getElementById('progressBar');
         this.scoreElement = document.getElementById('score');
         this.cardNumberElement = document.getElementById('cardNumber');
         this.statusBadge = document.getElementById('statusBadge');
-    }
-    
-    configureMathHandling() {
-        // Add a custom rule to escape asterisks in common math patterns
-        const originalRender = this.md.renderer.rules.text || function(tokens, idx) {
-            return tokens[idx].content;
-        };
-        
-        this.md.renderer.rules.text = (tokens, idx) => {
-            let content = tokens[idx].content;
-            
-            // Process any remaining math patterns that might have escaped pre-processing
-            content = content.replace(/(\d|[a-zA-Z])\*(\d|[a-zA-Z])/g, '$1×$2');
-            
-            return originalRender(tokens, idx, this.md.options, {}, this);
-        };
     }
 
     showCard(index, flashcardsArray, score) {
@@ -48,11 +22,10 @@ export class UIManager {
             currentCard.classList.add('active');
             this.updateCardCounter(index, flashcardsArray.length, score);
             
-            // Parse question markdown
+            // Simply set the raw question text directly
             const questionElem = currentCard.querySelector('.card-title');
             if (questionElem) {
-                const rawQuestion = questionElem.dataset.question;
-                questionElem.innerHTML = this.parseContent(rawQuestion);
+                questionElem.textContent = questionElem.dataset.question;
             }
 
             // Update prominent status badge above the card
@@ -180,31 +153,6 @@ export class UIManager {
         }
     }
 
-    parseContent(text) {
-        if (!text) return '';
-        
-        // Clean the text
-        let cleanText = text.trim()
-            .replace(/\\n/g, '\n')  // Handle escaped newlines
-            .replace(/\\"/g, '"');  // Handle escaped quotes
-        
-        // Only handle single asterisk multiplication
-        cleanText = cleanText.replace(
-            /(\d+|[a-zA-Z])\s*\*\s*(\d+|[a-zA-Z])/g, 
-            function(match, a, b) {
-                return `${a}__MUL__${b}`;
-            }
-        );
-        
-        // Process with markdown-it
-        let renderedContent = this.md.render(cleanText);
-        
-        // Restore multiplication symbols
-        renderedContent = renderedContent.replace(/__MUL__/g, '×');
-        
-        return renderedContent;
-    }
-
     renderAnswerOptions(flashcard, allAnswers) {
         const answersForm = flashcard.querySelector('.answer-form');
         answersForm.innerHTML = allAnswers.map((answer, index) => `
@@ -219,7 +167,7 @@ export class UIManager {
                            style="cursor: pointer">
                         <div class="d-flex align-items-center">
                             <span class="badge bg-light text-dark me-2">${index + 1}</span>
-                            <div class="answer-text">${this.parseContent(answer)}</div>
+                            <div class="answer-text">${answer}</div>
                         </div>
                     </label>
                 </div>

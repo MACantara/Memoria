@@ -42,11 +42,11 @@ export class FlashcardManager {
         const answersForm = flashcard.querySelector('.answer-form');
         const correctAnswer = flashcard.dataset.correct;
         const incorrectAnswers = JSON.parse(flashcard.dataset.incorrect)
-            .map(answer => answer.trim().split('**')[0].trim());
+            .map(answer => answer.trim());
         
+        // Simplify answer preprocessing - no longer remove markdown formatting
         const allAnswers = [correctAnswer, ...incorrectAnswers]
-            .filter(answer => answer && answer.length > 0)
-            .map(answer => answer.replace(/\*\*.*?\*\*/g, '').trim());
+            .filter(answer => answer && answer.length > 0);
         
         shuffleArray(allAnswers);
         this.ui.renderAnswerOptions(flashcard, allAnswers);
