@@ -5,5 +5,3 @@ flask-sqlalchemy
 psycopg2-binary
 vercel
 fsrs
-cloudinary
-requests

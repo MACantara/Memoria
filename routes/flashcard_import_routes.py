@@ -4,25 +4,14 @@ from models import db, FlashcardDecks, Flashcards
 from datetime import datetime
 import os
 import json
-import cloudinary
-import cloudinary.uploader
-import requests
 import traceback
 from google import genai
 from routes.flashcard_generation_routes import parse_flashcards, generate_prompt_template
 
 import_bp = Blueprint('import', __name__)
 
-# Configuration - removed PDF from allowed extensions
+# Configuration - only txt files are allowed
 ALLOWED_EXTENSIONS = {'txt'}
-
-# Configure Cloudinary
-cloudinary.config(
-    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME", "deqqz0oy0"),
-    api_key=os.getenv("CLOUDINARY_API_KEY", "163384347278543"),
-    api_secret=os.getenv("CLOUDINARY_API_SECRET", ""),
-    secure=True
-)
 
 def allowed_file(filename):
     return '.' in filename and \
@@ -49,21 +38,17 @@ def upload_file():
     deck_name = request.form.get('deck_name', 'Imported Content')
     parent_deck_id = request.form.get('parent_deck_id')
     
-    # Create a unique ID for the file in Cloudinary
-    file_id = f"memoria_temp_{datetime.now().strftime('%Y%m%d%H%M%S')}_{secure_filename(file.filename)}"
-    
     try:
-        # Upload file to Cloudinary
-        current_app.logger.info(f"Uploading file to Cloudinary: {file_id}")
-        upload_result = cloudinary.uploader.upload(
-            file,
-            public_id=file_id,
-            resource_type="auto",
-            folder="memoria_temp"
-        )
+        # Read the text content directly from the uploaded file
+        file_text = file.read().decode('utf-8', errors='replace')
+        current_app.logger.info(f"Read {len(file_text)} characters from uploaded file")
         
-        cloudinary_url = upload_result["secure_url"]
-        current_app.logger.info(f"File uploaded to Cloudinary: {cloudinary_url}")
+        # Check if we have enough text to process
+        if len(file_text) < 100:
+            return jsonify({
+                "success": False, 
+                "error": "Not enough text in the file. Please provide a file with more content."
+            }), 400
         
         # Create a deck for the imported content
         deck = FlashcardDecks(
@@ -74,34 +59,11 @@ def upload_file():
         db.session.add(deck)
         db.session.commit()
         
-        # Process text file
-        current_app.logger.info("Processing text file from Cloudinary")
-        # Download text content from Cloudinary
-        response = requests.get(cloudinary_url)
+        batch_size = 100
         
-        if response.status_code != 200:
-            raise Exception(f"Failed to download file from Cloudinary. Status code: {response.status_code}")
-            
-        file_text = response.text
-        
-        # Check if we have enough text to process
-        if len(file_text) < 100:
-            raise ValueError("Not enough text in the file. Please provide a file with more content.")
-            
         # Process the text with Gemini
         api_key = os.getenv("GOOGLE_GEMINI_API_KEY")
         client = genai.Client(api_key=api_key)
-        
-        # Calculate appropriate batch size based on text length
-        text_length = len(file_text)
-        batch_size = min(max(text_length // 500, 5), 30)  # Between 5 and 30 cards
-        current_app.logger.info(f"Using batch size {batch_size} for text of length {text_length}")
-        
-        # Limit text size if needed
-        max_text_length = 25000  # Conservative limit
-        if len(file_text) > max_text_length:
-            current_app.logger.info(f"Truncating text from {len(file_text)} to {max_text_length} characters")
-            file_text = file_text[:max_text_length]
         
         # Generate prompt using existing template
         prompt = generate_prompt_template("the document content", batch_size)
@@ -153,17 +115,6 @@ def upload_file():
             db.session.rollback()
             
         return jsonify({"success": False, "error": str(e)}), 500
-        
-    finally:
-        # Delete the file from Cloudinary
-        if 'upload_result' in locals():
-            try:
-                public_id = upload_result.get('public_id')
-                if public_id:
-                    current_app.logger.info(f"Deleting file from Cloudinary: {public_id}")
-                    cloudinary.uploader.destroy(public_id)
-            except Exception as e:
-                current_app.logger.error(f"Error deleting file from Cloudinary: {str(e)}")
 
 @import_bp.route("/process-text", methods=["POST"])
 def process_text():
