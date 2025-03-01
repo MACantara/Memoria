@@ -133,11 +133,19 @@ def parse_flashcards(text):
             
             question = card_response[question_start:correct_start].replace("correct:", "").strip()
             correct_answer = card_response[correct_start:incorrect_start].replace("incorrect:", "").strip()
-            incorrect_answers = [
-                ans.strip().split('**')[0].strip() # Remove any **text** markers
-                for ans in card_response[incorrect_start:].split(";")
-                if ans.strip()
-            ]
+            
+            # Clean up and parse incorrect answers
+            incorrect_answers = []
+            for ans in card_response[incorrect_start:].split(";"):
+                if ans.strip():
+                    # More thorough cleaning to handle potential markdown formatting
+                    cleaned_ans = ans.strip()
+                    # Handle potential ** formatting (bold text)
+                    if "**" in cleaned_ans:
+                        cleaned_ans = cleaned_ans.split('**')[0].strip()
+                    # Remove any remaining single asterisks  
+                    cleaned_ans = cleaned_ans.replace('*', '').strip()
+                    incorrect_answers.append(cleaned_ans)
 
             # Clean up any remaining markdown or extra text
             question = question.replace('*', '').strip()
