@@ -136,7 +136,7 @@ export class UIManager {
                             <i class="bi bi-arrow-repeat"></i> Study Again
                         </a>
                         <a href="/" class="btn btn-outline-primary">
-                            <i class="bi bi-house-door"></i> Back to Topics
+                            <i class="bi bi-house-door"></i> Back to Decks
                         </a>
                     </div>
                 </div>
