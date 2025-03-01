@@ -20,7 +20,7 @@ scheduler = Scheduler(
     desired_retention=0.9,
     learning_steps=(timedelta(minutes=1), timedelta(minutes=10)),
     relearning_steps=(timedelta(minutes=10),),
-    maximum_interval=timedelta(days=365),
+    maximum_interval=365,
     enable_fuzzing=True
 )
 

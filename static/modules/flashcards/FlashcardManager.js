@@ -10,6 +10,7 @@ export class FlashcardManager {
         this.ui = new UIManager();
         this.completedCards = new Set();  // Track cards completed in this session
         this.totalDueCards = 0;  // Track how many due cards we started with
+        this.statusBadge = document.getElementById('statusBadge');
     }
 
     initialize() {
@@ -189,6 +190,9 @@ export class FlashcardManager {
                     stateEl.classList.add('bg-danger');
                     break;
             }
+            
+            // Update the prominent status badge using the UI manager
+            this.ui.updateStatusBadge(this.getFsrsStateNumber(data.state));
         }
     }
     

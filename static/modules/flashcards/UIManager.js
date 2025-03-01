@@ -7,6 +7,10 @@ export class UIManager {
             typographer: true
         });
         this.totalCards = document.querySelectorAll('.flashcard').length;
+        this.progressBar = document.getElementById('progressBar');
+        this.scoreElement = document.getElementById('score');
+        this.cardNumberElement = document.getElementById('cardNumber');
+        this.statusBadge = document.getElementById('statusBadge');
     }
 
     showCard(index, flashcardsArray, score) {
@@ -30,9 +34,39 @@ export class UIManager {
                 const rawQuestion = questionElem.dataset.question;
                 questionElem.innerHTML = this.parseContent(rawQuestion);
             }
+
+            // Update prominent status badge above the card
+            const state = currentCard.dataset.state || '0';
+            this.updateStatusBadge(parseInt(state));
         }
     }
     
+    updateStatusBadge(stateNum) {
+        if (!this.statusBadge) return;
+        
+        const stateName = this.getStateName(stateNum);
+        this.statusBadge.textContent = stateName.charAt(0).toUpperCase() + stateName.slice(1);
+        
+        // Reset badge classes but keep size and padding classes
+        this.statusBadge.className = 'badge fs-4 p-3';
+        
+        // Add appropriate class based on state
+        switch(stateNum) {
+            case 0:
+                this.statusBadge.classList.add('bg-secondary');
+                break;
+            case 1:
+                this.statusBadge.classList.add('bg-warning', 'text-dark');
+                break;
+            case 2:
+                this.statusBadge.classList.add('bg-success');
+                break;
+            case 3:
+                this.statusBadge.classList.add('bg-danger');
+                break;
+        }
+    }
+
     clearFeedback(flashcard) {
         const existingFeedback = flashcard.querySelector('.alert');
         if (existingFeedback) {
@@ -77,6 +111,10 @@ export class UIManager {
         // Update progress bar to 100% first
         this.updateScore(score, totalDue);
         
+        // Update the status badge to show completion
+        this.statusBadge.textContent = 'Completed';
+        this.statusBadge.className = 'badge fs-5 p-2 bg-success';
+        
         const container = document.getElementById('flashcardsContainer');
         container.innerHTML = `
             <div class="card text-center p-5">
@@ -104,6 +142,12 @@ export class UIManager {
                 </div>
             </div>
         `;
+
+        // Update badge to show completion status
+        if (this.statusBadge) {
+            this.statusBadge.textContent = 'Completed';
+            this.statusBadge.className = 'badge bg-success';
+        }
     }
 
     parseContent(text) {
@@ -160,5 +204,15 @@ export class UIManager {
             '<i class="bi bi-x-circle-fill"></i> Incorrect - Moving to next question';
         
         flashcard.querySelector('.answer-form').appendChild(feedback);
+    }
+
+    getStateName(stateNum) {
+        const stateMap = {
+            0: 'new',
+            1: 'learning',
+            2: 'mastered',
+            3: 'forgotten'
+        };
+        return stateMap[stateNum] || 'new';
     }
 }
