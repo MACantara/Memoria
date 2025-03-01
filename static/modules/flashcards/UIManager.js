@@ -6,11 +6,32 @@ export class UIManager {
             linkify: true,
             typographer: true
         });
+        
+        // Configure markdown-it to handle math expressions better
+        this.configureMathHandling();
+        
         this.totalCards = document.querySelectorAll('.flashcard').length;
         this.progressBar = document.getElementById('progressBar');
         this.scoreElement = document.getElementById('score');
         this.cardNumberElement = document.getElementById('cardNumber');
         this.statusBadge = document.getElementById('statusBadge');
+    }
+    
+    configureMathHandling() {
+        // Add a custom rule to escape asterisks in common math patterns
+        const originalRender = this.md.renderer.rules.text || function(tokens, idx) {
+            return tokens[idx].content;
+        };
+        
+        this.md.renderer.rules.text = (tokens, idx) => {
+            let content = tokens[idx].content;
+            
+            // Pattern for math expressions like "2*3", "x*y", etc.
+            // This regex looks for digit/variable followed by asterisk followed by digit/variable
+            content = content.replace(/(\d|[a-zA-Z])\*(\d|[a-zA-Z])/g, '$1×$2');
+            
+            return originalRender(tokens, idx, this.md.options, {}, this);
+        };
     }
 
     showCard(index, flashcardsArray, score) {
@@ -162,10 +183,17 @@ export class UIManager {
 
     parseContent(text) {
         if (!text) return '';
-        // Clean the text and parse markdown
-        const cleanText = text.trim()
+        
+        // Clean the text and pre-process math expressions
+        let cleanText = text.trim()
             .replace(/\\n/g, '\n')  // Handle escaped newlines
             .replace(/\\"/g, '"');  // Handle escaped quotes
+            
+        // Replace standalone multiplication operators with × symbol
+        // This handles cases like "2 * 3" with spaces
+        cleanText = cleanText.replace(/(\d|\b[a-zA-Z])\s*\*\s*(\d|\b[a-zA-Z])/g, '$1 × $2');
+        
+        // Process with markdown-it
         return this.md.render(cleanText);
     }
 
