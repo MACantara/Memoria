@@ -5,7 +5,6 @@ from datetime import datetime
 import os
 import json
 import tempfile
-import shutil
 from google import genai
 import traceback
 from routes.flashcard_generation_routes import parse_flashcards, generate_prompt_template
@@ -14,10 +13,8 @@ import_bp = Blueprint('import', __name__)
 
 # Configuration
 ALLOWED_EXTENSIONS = {'txt', 'pdf'}
-UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../temp_uploads')
-
-# Create upload folder if it doesn't exist
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+# For serverless environments like Vercel, always use /tmp which is writable
+UPLOAD_FOLDER = '/tmp'
 
 def allowed_file(filename):
     return '.' in filename and \
@@ -39,21 +36,21 @@ def upload_file():
     if not allowed_file(file.filename):
         return jsonify({"success": False, "error": "File type not allowed"}), 400
 
-    # Safely store the file in a temporary location
-    temp_dir = tempfile.mkdtemp(dir=UPLOAD_FOLDER)
-    filename = secure_filename(file.filename)
-    file_path = os.path.join(temp_dir, filename)
-    file.save(file_path)
-    
-    # Get other form data
+    # Get form data
     deck_name = request.form.get('deck_name', 'Imported Content')
     parent_deck_id = request.form.get('parent_deck_id')
     
+    # Use temporary file for safe handling
     try:
+        with tempfile.NamedTemporaryFile(delete=False, dir=UPLOAD_FOLDER, 
+                                         suffix=os.path.splitext(file.filename)[1]) as temp_file:
+            file.save(temp_file.name)
+            file_path = temp_file.name
+            
         # Create a deck for the imported content
         deck = FlashcardDecks(
             name=deck_name,
-            description=f"Imported from {filename} on {datetime.utcnow().strftime('%Y-%m-%d %H:%M')}",
+            description=f"Imported from {secure_filename(file.filename)} on {datetime.utcnow().strftime('%Y-%m-%d %H:%M')}",
             parent_deck_id=parent_deck_id if parent_deck_id else None
         )
         db.session.add(deck)
