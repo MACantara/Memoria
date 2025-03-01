@@ -6,6 +6,7 @@ export class UIManager {
             linkify: true,
             typographer: true
         });
+        this.totalCards = document.querySelectorAll('.flashcard').length;
     }
 
     showCard(index, flashcardsArray, score) {
@@ -32,7 +33,6 @@ export class UIManager {
         }
     }
     
-    // Add new helper function
     clearFeedback(flashcard) {
         const existingFeedback = flashcard.querySelector('.alert');
         if (existingFeedback) {
@@ -47,10 +47,32 @@ export class UIManager {
     }
 
     updateScore(score) {
-        document.getElementById('score').textContent = score;
+        // Update the score text
+        const scoreElement = document.getElementById('score');
+        if (scoreElement) scoreElement.textContent = score;
+        
+        // Update the progress bar
+        const progressBar = document.getElementById('progressBar');
+        if (progressBar) {
+            const percentage = (score / this.totalCards) * 100;
+            progressBar.style.width = `${percentage}%`;
+            progressBar.setAttribute('aria-valuenow', percentage);
+            
+            // Change progress bar color based on completion
+            if (percentage < 30) {
+                progressBar.className = "progress-bar bg-danger";
+            } else if (percentage < 70) {
+                progressBar.className = "progress-bar bg-warning";
+            } else {
+                progressBar.className = "progress-bar bg-success";
+            }
+        }
     }
 
     showCompletion(score, total) {
+        // Update progress bar to 100% first
+        this.updateScore(total);
+        
         const container = document.getElementById('flashcardsContainer');
         container.innerHTML = `
             <div class="card text-center p-5">
@@ -59,6 +81,11 @@ export class UIManager {
                         <i class="bi bi-emoji-smile-fill text-success"></i> Congratulations!
                     </h2>
                     <p class="card-text fs-5">You've successfully completed all flashcards.</p>
+                    <div class="progress mb-3" style="height: 20px;">
+                        <div class="progress-bar bg-success" role="progressbar" 
+                            style="width: 100%" aria-valuenow="100" aria-valuemin="0" 
+                            aria-valuemax="100">100%</div>
+                    </div>
                     <p class="card-text fs-4 text-success fw-bold">
                         <i class="bi bi-trophy-fill"></i> Final Score: ${score}/${total}
                     </p>
