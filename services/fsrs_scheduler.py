@@ -186,10 +186,25 @@ def get_stats(deck_id=None):
     now = get_current_time()
     due_count = query.filter(Flashcards.due_date <= now).count()
     
-    # Calculate average retrievability
-    avg_retrievability = db.session.query(
-        func.avg(Flashcards.retrievability)
-    ).filter(Flashcards.retrievability > 0).scalar() or 0
+    # Calculate average retrievability only for cards that have been reviewed
+    reviewed_cards = query.filter(
+        Flashcards.retrievability > 0,
+        Flashcards.last_reviewed.isnot(None)  # Only include cards that have been reviewed
+    )
+    
+    reviewed_count = reviewed_cards.count()
+    
+    # Only calculate average retention if there are actually reviewed cards
+    if reviewed_count > 0:
+        avg_retrievability = db.session.query(
+            func.avg(Flashcards.retrievability)
+        ).filter(
+            Flashcards.retrievability > 0,
+            Flashcards.last_reviewed.isnot(None)
+        ).scalar() or 0
+    else:
+        # No review history available
+        avg_retrievability = None
     
     # Get upcoming reviews - include already due cards too
     upcoming = {}
@@ -226,7 +241,9 @@ def get_stats(deck_id=None):
     return {
         'total_cards': query.count(),
         'due_count': due_count,
-        'average_retention': float(avg_retrievability),
+        'reviewed_count': reviewed_count,  # Add this to track cards with review history
+        'average_retention': float(avg_retrievability) if avg_retrievability is not None else None,
+        'has_retention_data': reviewed_count > 0,  # Flag to indicate if retention data is available
         'state_counts': state_counts,
         'upcoming_reviews': formatted_upcoming
     }
