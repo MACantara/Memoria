@@ -155,7 +155,7 @@ def process_text():
 
         response = client.models.generate_content(
             model="gemini-2.0-flash-lite",  # For text processing
-            contents=prompt
+            contents=f"{prompt}\n\nContent:\n{text_content}"
         )
         
         # Parse the generated flashcards using the existing function
@@ -188,7 +188,7 @@ def process_text():
         
         # Clean up any created deck
         try:
-            if 'deck' in locals():
+            if 'deck' in locals() and deck:
                 db.session.delete(deck)
                 db.session.commit()
         except:
