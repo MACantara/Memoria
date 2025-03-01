@@ -249,7 +249,7 @@ def get_stats(deck_id=None):
         'review_coverage': round(review_coverage, 1),  # Percentage of cards reviewed
         'average_retention': float(avg_retrievability) if avg_retrievability is not None else None,
         'has_retention_data': reviewed_count > 0,
-        'has_significant_retention_data': reviewed_count >= 5 or (total_cards > 0 and review_coverage >= 5),
+        'has_significant_retention_data': reviewed_count >= 20 or (total_cards > 0 and review_coverage >= 10),
         'state_counts': state_counts,
         'upcoming_reviews': formatted_upcoming
     }
