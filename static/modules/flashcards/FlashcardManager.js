@@ -259,7 +259,12 @@ export class FlashcardManager {
             }
         }
         
-        // If all cards are either mastered or completed in this session, show completion
+        // If we reach here, all cards have been completed in this session
+        // Make sure score reflects completion
+        this.score = this.totalDueCards;
+        this.ui.updateScore(this.score, this.totalDueCards);
+        
+        // Show completion screen
         this.ui.showCompletion(this.score, this.totalDueCards);
     }
 
