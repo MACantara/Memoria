@@ -188,39 +188,18 @@ export class UIManager {
             .replace(/\\n/g, '\n')  // Handle escaped newlines
             .replace(/\\"/g, '"');  // Handle escaped quotes
         
-        // Special handling for mathematical expressions
-        
-        // First, create placeholders for mathematical expressions
-        // Process exponentiation - match patterns like x**2, x ** 2, 2**n, etc.
-        cleanText = cleanText.replace(
-            /(\d+|[a-zA-Z])\s*\*\*\s*(\d+|[a-zA-Z])/g, 
-            function(match, base, exponent) {
-                console.log("Found exponentiation:", match);
-                return `${base}__EXP__${exponent}`;
-            }
-        );
-        
-        // Process multiplication - match patterns like x*y, 2*3, a * b
+        // Only handle single asterisk multiplication
         cleanText = cleanText.replace(
             /(\d+|[a-zA-Z])\s*\*\s*(\d+|[a-zA-Z])/g, 
             function(match, a, b) {
-                console.log("Found multiplication:", match);
                 return `${a}__MUL__${b}`;
             }
         );
         
-        // Now process with markdown-it
+        // Process with markdown-it
         let renderedContent = this.md.render(cleanText);
         
-        // Restore mathematical expressions with proper HTML/unicode
-        renderedContent = renderedContent.replace(
-            /__EXP__/g, 
-            '<sup>'
-        ).replace(
-            /([0-9a-zA-Z])<sup>([0-9a-zA-Z])/g, 
-            '$1<sup>$2</sup>'
-        );
-        
+        // Restore multiplication symbols
         renderedContent = renderedContent.replace(/__MUL__/g, '×');
         
         return renderedContent;

@@ -134,41 +134,15 @@ def parse_flashcards(text):
             question = card_response[question_start:correct_start].replace("correct:", "").strip()
             correct_answer = card_response[correct_start:incorrect_start].replace("incorrect:", "").strip()
             
-            # Clean up and parse incorrect answers
+            # Clean up and parse incorrect answers - without touching ** patterns
             incorrect_answers = []
             for ans in card_response[incorrect_start:].split(";"):
                 if ans.strip():
-                    # More thorough cleaning to handle potential markdown formatting
+                    # Just use the raw answer without special cleaning
                     cleaned_ans = ans.strip()
-                    
-                    # Preserve mathematical expressions with **
-                    # Replace markdown formatting like **bold** with just bold
-                    import re
-                    # Only match ** patterns surrounded by spaces (markdown formatting)
-                    # but preserve patterns like x**2 (mathematical exponentiation)
-                    cleaned_ans = re.sub(r'\s\*\*([^*]+)\*\*\s', r' \1 ', cleaned_ans)
-                    cleaned_ans = re.sub(r'^\*\*([^*]+)\*\*\s', r'\1 ', cleaned_ans)
-                    cleaned_ans = re.sub(r'\s\*\*([^*]+)\*\*$', r' \1', cleaned_ans)
-                    cleaned_ans = re.sub(r'^\*\*([^*]+)\*\*$', r'\1', cleaned_ans)
-                    
-                    # Don't remove * from math expressions like 2*3 or x**2
-                    # This preserves both multiplication and exponentiation
-                    
                     incorrect_answers.append(cleaned_ans)
 
-            # Apply the same cleaning to question and correct answer
-            import re
-            # Clean question text but preserve math expressions
-            question = re.sub(r'\s\*\*([^*]+)\*\*\s', r' \1 ', question)
-            question = re.sub(r'^\*\*([^*]+)\*\*\s', r'\1 ', question)
-            question = re.sub(r'\s\*\*([^*]+)\*\*$', r' \1', question)
-            question = re.sub(r'^\*\*([^*]+)\*\*$', r'\1', question)
-            
-            # Same for correct answer
-            correct_answer = re.sub(r'\s\*\*([^*]+)\*\*\s', r' \1 ', correct_answer)
-            correct_answer = re.sub(r'^\*\*([^*]+)\*\*\s', r'\1 ', correct_answer)
-            correct_answer = re.sub(r'\s\*\*([^*]+)\*\*$', r' \1', correct_answer)
-            correct_answer = re.sub(r'^\*\*([^*]+)\*\*$', r'\1', correct_answer)
+            # No special cleaning for questions or answers - keep as is
             
             if len(incorrect_answers) >= 3:  # Ensure we have enough wrong answers
                 flashcards.append({
