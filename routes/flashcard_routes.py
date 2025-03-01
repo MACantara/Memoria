@@ -26,12 +26,6 @@ def update_progress():
         flashcard = Flashcards.query.get_or_404(flashcard_id)
         print(f"Processing flashcard {flashcard_id}, is_correct: {is_correct}")
         
-        # First update the basic stats to ensure we have some progress
-        if is_correct:
-            flashcard.correct_count += 1
-        else:
-            flashcard.incorrect_count += 1
-        
         # Use timezone-aware datetime
         from services.fsrs_scheduler import get_current_time
         flashcard.last_reviewed = get_current_time()
@@ -45,15 +39,14 @@ def update_progress():
                     print("FSRS state initialized")
                 except Exception as e:
                     print(f"Error initializing FSRS state: {e}")
-                    # Continue with basic tracking
             
-            # Process the review with FSRS if possible
+            # Process the review with FSRS
             next_due, retrievability = process_review(flashcard, is_correct)
             print(f"FSRS updated: next_due={next_due.isoformat()}, retrievability={retrievability}")
         except Exception as e:
             print(f"Error in FSRS processing: {e}")
             print(traceback.format_exc())
-            # Fallback to basic updates if FSRS fails
+            # Save the base update
             db.session.add(flashcard)
             db.session.commit()
         
@@ -64,8 +57,6 @@ def update_progress():
         # Return progress update with whatever data we have
         return jsonify({
             "success": True,
-            "correct_count": flashcard.correct_count,
-            "incorrect_count": flashcard.incorrect_count,
             "last_reviewed": last_reviewed_str,
             "is_correct": is_correct,
             "next_due": next_due_str,
