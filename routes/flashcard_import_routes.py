@@ -7,14 +7,28 @@ import json
 import tempfile
 from google import genai
 import traceback
+import platform
 from routes.flashcard_generation_routes import parse_flashcards, generate_prompt_template
 
 import_bp = Blueprint('import', __name__)
 
 # Configuration
 ALLOWED_EXTENSIONS = {'txt', 'pdf'}
-# For serverless environments like Vercel, always use /tmp which is writable
-UPLOAD_FOLDER = '/tmp'
+
+# Platform-specific temporary directory handling
+if platform.system() == 'Windows':
+    # For Windows, use system temp directory
+    UPLOAD_FOLDER = tempfile.gettempdir()
+else:
+    # For Linux (including serverless), use /tmp
+    UPLOAD_FOLDER = '/tmp'
+
+# Create directory if it doesn't exist (shouldn't be needed for system temp dirs)
+if not os.path.exists(UPLOAD_FOLDER):
+    try:
+        os.makedirs(UPLOAD_FOLDER)
+    except Exception as e:
+        current_app.logger.error(f"Could not create upload folder: {str(e)}")
 
 def allowed_file(filename):
     return '.' in filename and \
@@ -41,12 +55,16 @@ def upload_file():
     parent_deck_id = request.form.get('parent_deck_id')
     
     # Use temporary file for safe handling
+    file_path = None
     try:
-        with tempfile.NamedTemporaryFile(delete=False, dir=UPLOAD_FOLDER, 
-                                         suffix=os.path.splitext(file.filename)[1]) as temp_file:
-            file.save(temp_file.name)
-            file_path = temp_file.name
-            
+        # Create a secure temporary file
+        fd, file_path = tempfile.mkstemp(suffix=os.path.splitext(file.filename)[1], dir=UPLOAD_FOLDER)
+        os.close(fd)  # Close file descriptor immediately
+        
+        # Save the uploaded file to the temporary location
+        file.save(file_path)
+        current_app.logger.info(f"Saved uploaded file to {file_path}")
+        
         # Create a deck for the imported content
         deck = FlashcardDecks(
             name=deck_name,
@@ -63,9 +81,11 @@ def upload_file():
         # Upload file to Gemini
         uploaded_file = client.files.upload(file=file_path)
         
+        batch_size = 100
+        
         # Generate content based on file
         # Use a modified version of the proven prompt
-        file_content_prompt = f"""{generate_prompt_template('the document content', 15).split('Generate exactly')[0]}"""
+        file_content_prompt = f"""{generate_prompt_template('the document content', batch_size).split('Generate exactly')[0]}"""
         
         response = client.models.generate_content(
             model="gemini-2.0-flash-lite",  # For file processing
@@ -88,6 +108,7 @@ def upload_file():
             cards_added += 1
         
         db.session.commit()
+        current_app.logger.info(f"Successfully added {cards_added} flashcards to deck {deck_name}")
         
         # Return success response
         return jsonify({
@@ -112,11 +133,12 @@ def upload_file():
         
     finally:
         # Clean up temporary file
-        try:
-            if 'file_path' in locals() and os.path.exists(file_path):
+        if file_path and os.path.exists(file_path):
+            try:
                 os.unlink(file_path)
-        except Exception as e:
-            current_app.logger.error(f"Error cleaning up temp file: {str(e)}")
+                current_app.logger.info(f"Cleaned up temporary file {file_path}")
+            except Exception as e:
+                current_app.logger.error(f"Error cleaning up temp file: {str(e)}")
 
 @import_bp.route("/process-text", methods=["POST"])
 def process_text():
