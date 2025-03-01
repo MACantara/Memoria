@@ -106,20 +106,6 @@ export function initializeImportModal() {
             // Clear previous results
             uploadResult.innerHTML = '';
             
-            // Validate file size before uploading (client-side check)
-            if (fileInput.files[0]) {
-                const maxSize = 10 * 1024 * 1024; // 10MB
-                if (fileInput.files[0].size > maxSize) {
-                    uploadResult.innerHTML = `
-                        <div class="alert alert-danger">
-                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                            File is too large. Maximum size is 10MB.
-                        </div>
-                    `;
-                    return;
-                }
-            }
-            
             uploadBtn.disabled = true;
             loadingState.classList.remove('d-none');
             normalState.classList.add('d-none');
@@ -127,15 +113,17 @@ export function initializeImportModal() {
             const formData = new FormData(fileUploadForm);
             
             try {
+                uploadResult.innerHTML = `
+                    <div class="alert alert-info">
+                        <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                        Processing your file. This may take a moment for larger documents...
+                    </div>
+                `;
+                
                 const response = await fetch(fileUploadForm.action, {
                     method: 'POST',
                     body: formData
                 });
-                
-                // Check for specific error codes
-                if (response.status === 413) {
-                    throw new Error('File is too large. Maximum size is 10MB.');
-                }
                 
                 if (!response.ok) {
                     const errorText = await response.text();

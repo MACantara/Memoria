@@ -4,32 +4,14 @@ from models import db, FlashcardDecks, Flashcards
 from datetime import datetime
 import os
 import json
-import tempfile
-from google import genai
 import traceback
-import platform
+from google import genai
 from routes.flashcard_generation_routes import parse_flashcards, generate_prompt_template
 
 import_bp = Blueprint('import', __name__)
 
-# Configuration
-ALLOWED_EXTENSIONS = {'txt', 'pdf'}
-MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB in bytes
-
-# Platform-specific temporary directory handling
-if platform.system() == 'Windows':
-    # For Windows, use system temp directory
-    UPLOAD_FOLDER = tempfile.gettempdir()
-else:
-    # For Linux (including serverless), use /tmp
-    UPLOAD_FOLDER = '/tmp'
-
-# Create directory if it doesn't exist (shouldn't be needed for system temp dirs)
-if not os.path.exists(UPLOAD_FOLDER):
-    try:
-        os.makedirs(UPLOAD_FOLDER)
-    except Exception as e:
-        current_app.logger.error(f"Could not create upload folder: {str(e)}")
+# Configuration - only txt files are allowed
+ALLOWED_EXTENSIONS = {'txt'}
 
 def allowed_file(filename):
     return '.' in filename and \
@@ -48,39 +30,25 @@ def upload_file():
     if file.filename == '':
         return jsonify({"success": False, "error": "No selected file"}), 400
         
-    # Check if the file type is allowed
+    # Check if the file type is allowed (only txt now)
     if not allowed_file(file.filename):
-        return jsonify({"success": False, "error": "File type not allowed. Only PDF and TXT files are supported."}), 400
+        return jsonify({"success": False, "error": "File type not allowed. Only TXT files are supported."}), 400
     
-    # Check file size before processing
-    try:
-        # Read the file data and check its size
-        file_data = file.read()
-        if len(file_data) > MAX_FILE_SIZE:
-            return jsonify({
-                "success": False, 
-                "error": f"File is too large. Maximum size is {MAX_FILE_SIZE / (1024 * 1024)}MB."
-            }), 413
-        # Reset file pointer to beginning
-        file.seek(0)
-    except Exception as e:
-        current_app.logger.error(f"Error checking file size: {str(e)}")
-        return jsonify({"success": False, "error": "Error processing file"}), 500
-
     # Get form data
     deck_name = request.form.get('deck_name', 'Imported Content')
     parent_deck_id = request.form.get('parent_deck_id')
     
-    # Use temporary file for safe handling
-    file_path = None
     try:
-        # Create a secure temporary file
-        fd, file_path = tempfile.mkstemp(suffix=os.path.splitext(file.filename)[1], dir=UPLOAD_FOLDER)
-        os.close(fd)  # Close file descriptor immediately
+        # Read the text content directly from the uploaded file
+        file_text = file.read().decode('utf-8', errors='replace')
+        current_app.logger.info(f"Read {len(file_text)} characters from uploaded file")
         
-        # Save the uploaded file to the temporary location
-        file.save(file_path)
-        current_app.logger.info(f"Saved uploaded file to {file_path}")
+        # Check if we have enough text to process
+        if len(file_text) < 100:
+            return jsonify({
+                "success": False, 
+                "error": "Not enough text in the file. Please provide a file with more content."
+            }), 400
         
         # Create a deck for the imported content
         deck = FlashcardDecks(
@@ -91,26 +59,26 @@ def upload_file():
         db.session.add(deck)
         db.session.commit()
         
-        # Use Gemini to process the file and generate flashcards
+        batch_size = 100
+        
+        # Process the text with Gemini
         api_key = os.getenv("GOOGLE_GEMINI_API_KEY")
         client = genai.Client(api_key=api_key)
         
-        # Upload file to Gemini
-        uploaded_file = client.files.upload(file=file_path)
-        
-        batch_size = 100
-        
-        # Generate content based on file
-        # Use a modified version of the proven prompt
-        file_content_prompt = f"""{generate_prompt_template('the document content', batch_size).split('Generate exactly')[0]}"""
+        # Generate prompt using existing template
+        prompt = generate_prompt_template("the document content", batch_size)
         
         response = client.models.generate_content(
-            model="gemini-2.0-flash-lite",  # For file processing
-            contents=[file_content_prompt, uploaded_file]
+            model="gemini-2.0-flash-lite",
+            contents=f"{prompt}\n\nContent:\n{file_text}"
         )
         
-        # Parse the generated flashcards using the existing function
+        # Parse the generated flashcards
         flashcards_data = parse_flashcards(response.text)
+        
+        if not flashcards_data:
+            current_app.logger.warning("No flashcards were generated from the content")
+            raise ValueError("No flashcards could be generated from this content")
         
         # Save to database
         cards_added = 0
@@ -147,15 +115,6 @@ def upload_file():
             db.session.rollback()
             
         return jsonify({"success": False, "error": str(e)}), 500
-        
-    finally:
-        # Clean up temporary file
-        if file_path and os.path.exists(file_path):
-            try:
-                os.unlink(file_path)
-                current_app.logger.info(f"Cleaned up temporary file {file_path}")
-            except Exception as e:
-                current_app.logger.error(f"Error cleaning up temp file: {str(e)}")
 
 @import_bp.route("/process-text", methods=["POST"])
 def process_text():
