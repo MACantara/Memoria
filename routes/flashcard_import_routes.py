@@ -8,6 +8,11 @@ import tempfile
 from google import genai
 import traceback
 import platform
+import PyPDF2
+import io
+import cloudinary
+import cloudinary.uploader
+import requests
 from routes.flashcard_generation_routes import parse_flashcards, generate_prompt_template
 
 import_bp = Blueprint('import', __name__)
@@ -30,9 +35,41 @@ if not os.path.exists(UPLOAD_FOLDER):
     except Exception as e:
         current_app.logger.error(f"Could not create upload folder: {str(e)}")
 
+# Configure Cloudinary
+cloudinary.config(
+    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME", "deqqz0oy0"),
+    api_key=os.getenv("CLOUDINARY_API_KEY", "163384347278543"),
+    api_secret=os.getenv("CLOUDINARY_API_SECRET", ""),
+    secure=True
+)
+
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def extract_text_from_pdf(pdf_data):
+    """Extract text content from a PDF file data"""
+    try:
+        # Create a file-like object from the PDF data
+        pdf_io = io.BytesIO(pdf_data)
+        
+        # Create PDF reader object
+        pdf_reader = PyPDF2.PdfReader(pdf_io)
+        
+        # Get number of pages
+        num_pages = len(pdf_reader.pages)
+        current_app.logger.info(f"PDF has {num_pages} pages")
+        
+        # Extract text from each page
+        text = ""
+        for page_num in range(num_pages):
+            page = pdf_reader.pages[page_num]
+            text += page.extract_text() + "\n\n"
+        
+        return text
+    except Exception as e:
+        current_app.logger.error(f"Error extracting text from PDF: {str(e)}")
+        raise
 
 @import_bp.route("/upload", methods=["POST"])
 def upload_file():
@@ -55,16 +92,21 @@ def upload_file():
     deck_name = request.form.get('deck_name', 'Imported Content')
     parent_deck_id = request.form.get('parent_deck_id')
     
-    # Use temporary file for safe handling
-    file_path = None
+    # Create a unique ID for the file in Cloudinary
+    file_id = f"memoria_temp_{datetime.now().strftime('%Y%m%d%H%M%S')}_{secure_filename(file.filename)}"
+    
     try:
-        # Create a secure temporary file
-        fd, file_path = tempfile.mkstemp(suffix=os.path.splitext(file.filename)[1], dir=UPLOAD_FOLDER)
-        os.close(fd)  # Close file descriptor immediately
+        # Upload file to Cloudinary instead of saving locally
+        current_app.logger.info(f"Uploading file to Cloudinary: {file_id}")
+        upload_result = cloudinary.uploader.upload(
+            file,
+            public_id=file_id,
+            resource_type="auto",  # Let Cloudinary determine the resource type
+            folder="memoria_temp"  # Store in a specific folder for easier management
+        )
         
-        # Save the uploaded file to the temporary location
-        file.save(file_path)
-        current_app.logger.info(f"Saved uploaded file to {file_path}")
+        cloudinary_url = upload_result["secure_url"]
+        current_app.logger.info(f"File uploaded to Cloudinary: {cloudinary_url}")
         
         # Create a deck for the imported content
         deck = FlashcardDecks(
@@ -75,26 +117,59 @@ def upload_file():
         db.session.add(deck)
         db.session.commit()
         
-        # Use Gemini to process the file and generate flashcards
+        # Process based on file type
+        file_extension = os.path.splitext(file.filename)[1].lower()
+        
+        # Extract text from the file
+        file_text = ""
+        
+        if file_extension == '.pdf':
+            current_app.logger.info("Processing PDF file from Cloudinary")
+            # Download file content from Cloudinary
+            response = requests.get(cloudinary_url)
+            
+            if response.status_code == 200:
+                # Extract text from PDF data
+                file_text = extract_text_from_pdf(response.content)
+                current_app.logger.info(f"Extracted {len(file_text)} characters from PDF")
+            else:
+                raise Exception(f"Failed to download file from Cloudinary. Status code: {response.status_code}")
+                
+        elif file_extension == '.txt':
+            current_app.logger.info("Processing TXT file from Cloudinary")
+            # Download text content from Cloudinary
+            response = requests.get(cloudinary_url)
+            
+            if response.status_code == 200:
+                file_text = response.text
+            else:
+                raise Exception(f"Failed to download file from Cloudinary. Status code: {response.status_code}")
+        
+        # Check if we have enough text to process
+        if len(file_text) < 100:
+            raise ValueError("Not enough text could be extracted from the file")
+            
+        # Process the text with Gemini
         api_key = os.getenv("GOOGLE_GEMINI_API_KEY")
         client = genai.Client(api_key=api_key)
         
-        # Upload file to Gemini
-        uploaded_file = client.files.upload(file=file_path)
-        
         batch_size = 100
+        current_app.logger.info(f"Using batch size {batch_size}")
         
-        # Generate content based on file
-        # Use a modified version of the proven prompt
-        file_content_prompt = f"""{generate_prompt_template('the document content', batch_size).split('Generate exactly')[0]}"""
+        # Generate prompt using existing template
+        prompt = generate_prompt_template("the document content", batch_size)
         
         response = client.models.generate_content(
-            model="gemini-2.0-flash-lite",  # For file processing
-            contents=[file_content_prompt, uploaded_file]
+            model="gemini-2.0-flash-lite",
+            contents=f"{prompt}\n\nContent:\n{file_text}"
         )
         
-        # Parse the generated flashcards using the existing function
+        # Parse the generated flashcards
         flashcards_data = parse_flashcards(response.text)
+        
+        if not flashcards_data:
+            current_app.logger.warning("No flashcards were generated from the content")
+            raise ValueError("No flashcards could be generated from this content")
         
         # Save to database
         cards_added = 0
@@ -133,13 +208,15 @@ def upload_file():
         return jsonify({"success": False, "error": str(e)}), 500
         
     finally:
-        # Clean up temporary file
-        if file_path and os.path.exists(file_path):
+        # Delete the file from Cloudinary
+        if 'upload_result' in locals():
             try:
-                os.unlink(file_path)
-                current_app.logger.info(f"Cleaned up temporary file {file_path}")
+                public_id = upload_result.get('public_id')
+                if public_id:
+                    current_app.logger.info(f"Deleting file from Cloudinary: {public_id}")
+                    cloudinary.uploader.destroy(public_id)
             except Exception as e:
-                current_app.logger.error(f"Error cleaning up temp file: {str(e)}")
+                current_app.logger.error(f"Error deleting file from Cloudinary: {str(e)}")
 
 @import_bp.route("/process-text", methods=["POST"])
 def process_text():
