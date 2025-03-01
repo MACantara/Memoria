@@ -6,5 +6,4 @@ psycopg2-binary
 vercel
 fsrs
 cloudinary
-PyPDF2
 requests

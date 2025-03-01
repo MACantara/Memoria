@@ -4,8 +4,6 @@ from models import db, FlashcardDecks, Flashcards
 from datetime import datetime
 import os
 import json
-import io
-import PyPDF2
 import cloudinary
 import cloudinary.uploader
 import requests
@@ -15,8 +13,8 @@ from routes.flashcard_generation_routes import parse_flashcards, generate_prompt
 
 import_bp = Blueprint('import', __name__)
 
-# Configuration
-ALLOWED_EXTENSIONS = {'txt', 'pdf'}
+# Configuration - removed PDF from allowed extensions
+ALLOWED_EXTENSIONS = {'txt'}
 
 # Configure Cloudinary
 cloudinary.config(
@@ -29,30 +27,6 @@ cloudinary.config(
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-def extract_text_from_pdf(pdf_data):
-    """Extract text content from a PDF file data"""
-    try:
-        # Create a file-like object from the PDF data
-        pdf_io = io.BytesIO(pdf_data)
-        
-        # Create PDF reader object
-        pdf_reader = PyPDF2.PdfReader(pdf_io)
-        
-        # Get number of pages
-        num_pages = len(pdf_reader.pages)
-        current_app.logger.info(f"PDF has {num_pages} pages")
-        
-        # Extract text from each page
-        text = ""
-        for page_num in range(num_pages):
-            page = pdf_reader.pages[page_num]
-            text += page.extract_text() + "\n\n"
-        
-        return text
-    except Exception as e:
-        current_app.logger.error(f"Error extracting text from PDF: {str(e)}")
-        raise
 
 @import_bp.route("/upload", methods=["POST"])
 def upload_file():
@@ -67,9 +41,9 @@ def upload_file():
     if file.filename == '':
         return jsonify({"success": False, "error": "No selected file"}), 400
         
-    # Check if the file type is allowed
+    # Check if the file type is allowed (only txt now)
     if not allowed_file(file.filename):
-        return jsonify({"success": False, "error": "File type not allowed. Only PDF and TXT files are supported."}), 400
+        return jsonify({"success": False, "error": "File type not allowed. Only TXT files are supported."}), 400
     
     # Get form data
     deck_name = request.form.get('deck_name', 'Imported Content')
@@ -100,37 +74,19 @@ def upload_file():
         db.session.add(deck)
         db.session.commit()
         
-        # Process based on file type
-        file_extension = os.path.splitext(file.filename)[1].lower()
+        # Process text file
+        current_app.logger.info("Processing text file from Cloudinary")
+        # Download text content from Cloudinary
+        response = requests.get(cloudinary_url)
         
-        # Extract text from the file
-        file_text = ""
-        
-        if file_extension == '.pdf':
-            current_app.logger.info("Processing PDF file from Cloudinary")
-            # Download file content from Cloudinary
-            response = requests.get(cloudinary_url)
+        if response.status_code != 200:
+            raise Exception(f"Failed to download file from Cloudinary. Status code: {response.status_code}")
             
-            if response.status_code == 200:
-                # Extract text from PDF data
-                file_text = extract_text_from_pdf(response.content)
-                current_app.logger.info(f"Extracted {len(file_text)} characters from PDF")
-            else:
-                raise Exception(f"Failed to download file from Cloudinary. Status code: {response.status_code}")
-                
-        elif file_extension == '.txt':
-            current_app.logger.info("Processing TXT file from Cloudinary")
-            # Download text content from Cloudinary
-            response = requests.get(cloudinary_url)
-            
-            if response.status_code == 200:
-                file_text = response.text
-            else:
-                raise Exception(f"Failed to download file from Cloudinary. Status code: {response.status_code}")
+        file_text = response.text
         
         # Check if we have enough text to process
         if len(file_text) < 100:
-            raise ValueError("Not enough text could be extracted from the file")
+            raise ValueError("Not enough text in the file. Please provide a file with more content.")
             
         # Process the text with Gemini
         api_key = os.getenv("GOOGLE_GEMINI_API_KEY")
