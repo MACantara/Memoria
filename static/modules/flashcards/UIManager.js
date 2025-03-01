@@ -46,19 +46,19 @@ export class UIManager {
             `Card ${index + 1} of ${total} (${remaining} remaining)`;
     }
 
-    updateScore(score) {
-        // Update the score text
+    updateScore(score, total) {
+        // Update the score text to show mastery progress
         const scoreElement = document.getElementById('score');
         if (scoreElement) scoreElement.textContent = score;
         
         // Update the progress bar
         const progressBar = document.getElementById('progressBar');
         if (progressBar) {
-            const percentage = (score / this.totalCards) * 100;
+            const percentage = total > 0 ? (score / total) * 100 : 0;
             progressBar.style.width = `${percentage}%`;
             progressBar.setAttribute('aria-valuenow', percentage);
             
-            // Change progress bar color based on completion
+            // Change progress bar color based on completion percentage
             if (percentage < 30) {
                 progressBar.className = "progress-bar bg-danger";
             } else if (percentage < 70) {
@@ -71,7 +71,7 @@ export class UIManager {
 
     showCompletion(score, total) {
         // Update progress bar to 100% first
-        this.updateScore(total);
+        this.updateScore(score, total);
         
         const container = document.getElementById('flashcardsContainer');
         container.innerHTML = `
@@ -80,14 +80,14 @@ export class UIManager {
                     <h2 class="card-title mb-4">
                         <i class="bi bi-emoji-smile-fill text-success"></i> Congratulations!
                     </h2>
-                    <p class="card-text fs-5">You've successfully completed all flashcards.</p>
+                    <p class="card-text fs-5">You've mastered all flashcards.</p>
                     <div class="progress mb-3" style="height: 20px;">
                         <div class="progress-bar bg-success" role="progressbar" 
                             style="width: 100%" aria-valuenow="100" aria-valuemin="0" 
                             aria-valuemax="100">100%</div>
                     </div>
                     <p class="card-text fs-4 text-success fw-bold">
-                        <i class="bi bi-trophy-fill"></i> Final Score: ${score}/${total}
+                        <i class="bi bi-trophy-fill"></i> Mastery Score: ${score}/${total}
                     </p>
                     <div class="d-flex justify-content-center gap-3 mt-4">
                         <a href="${window.location.href}" class="btn btn-primary">
