@@ -188,38 +188,46 @@ export class UIManager {
             .replace(/\\n/g, '\n')  // Handle escaped newlines
             .replace(/\\"/g, '"');  // Handle escaped quotes
             
-        // STEP 1: Protect mathematical expressions before markdown parsing
+        // Check if we need to handle math expressions
+        const hasMathExpressions = cleanText.includes('*');
         
-        // FIRST protect exponentiation using a unique placeholder
-        // Pattern: number/variable + ** + number/variable
-        cleanText = cleanText.replace(
-            /(\d+|\b[a-zA-Z])\s*\*\*\s*(\d+|\b[a-zA-Z])/g, 
-            (match, base, exponent) => `${base}<EXPONENT>${exponent}</EXPONENT>`
-        );
+        if (hasMathExpressions) {
+            // STEP 1: Protect mathematical expressions before markdown parsing
+            
+            // FIRST protect exponentiation using a unique placeholder
+            // Pattern: number/variable + ** + number/variable
+            cleanText = cleanText.replace(
+                /(\d+|\b[a-zA-Z])\s*\*\*\s*(\d+|\b[a-zA-Z])/g, 
+                (match, base, exponent) => `${base}<EXPONENT>${exponent}</EXPONENT>`
+            );
+            
+            // THEN protect multiplication with a different placeholder
+            // Pattern: number/variable + * + number/variable
+            cleanText = cleanText.replace(
+                /(\d+|\b[a-zA-Z])\s*\*\s*(\d+|\b[a-zA-Z])/g, 
+                (match, a, b) => `${a}<MULTIPLY>${b}</MULTIPLY>`
+            );
+        }
         
-        // THEN protect multiplication with a different placeholder
-        // Pattern: number/variable + * + number/variable
-        cleanText = cleanText.replace(
-            /(\d+|\b[a-zA-Z])\s*\*\s*(\d+|\b[a-zA-Z])/g, 
-            (match, a, b) => `${a}<MULTIPLY>${b}</MULTIPLY>`
-        );
-        
-        // Process with markdown-it (this handles **bold** formatting)
+        // Process with markdown-it
         let renderedContent = this.md.render(cleanText);
         
-        // STEP 2: Restore mathematical expressions after markdown parsing
-        
-        // Convert exponentiation placeholders to proper HTML
-        renderedContent = renderedContent.replace(
-            /<EXPONENT>(\d+|\w+)<\/EXPONENT>/g, 
-            (match, exponent) => `<sup>${exponent}</sup>`
-        );
-        
-        // Convert multiplication placeholders to × symbol
-        renderedContent = renderedContent.replace(
-            /<MULTIPLY>(\d+|\w+)<\/MULTIPLY>/g, 
-            (match, factor) => `×${factor}`
-        );
+        // Only restore math expressions if we protected any
+        if (hasMathExpressions) {
+            // STEP 2: Restore mathematical expressions after markdown parsing
+            
+            // Convert exponentiation placeholders to proper HTML
+            renderedContent = renderedContent.replace(
+                /<EXPONENT>(\d+|\w+)<\/EXPONENT>/g, 
+                (match, exponent) => `<sup>${exponent}</sup>`
+            );
+            
+            // Convert multiplication placeholders to × symbol
+            renderedContent = renderedContent.replace(
+                /<MULTIPLY>(\d+|\w+)<\/MULTIPLY>/g, 
+                (match, factor) => `×${factor}`
+            );
+        }
         
         return renderedContent;
     }
