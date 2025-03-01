@@ -4,6 +4,7 @@ from datetime import datetime
 from google import genai
 import json
 import os
+from services.fsrs_scheduler import get_current_time  # Import this
 
 generation_bp = Blueprint('generation', __name__)
 
@@ -52,11 +53,15 @@ def generate():
                 flashcard_deck_id=deck.flashcard_deck_id,
                 question=card['question']
             ).first():
+                # Set current time as due_date for immediate review
+                current_time = get_current_time()
                 flashcard = Flashcards(
                     question=card['question'],
                     correct_answer=card['correct_answer'],
                     incorrect_answers=json.dumps(card['incorrect_answers']),
-                    flashcard_deck_id=deck.flashcard_deck_id
+                    flashcard_deck_id=deck.flashcard_deck_id,
+                    due_date=current_time,  # Set due date to current time
+                    state=0  # Explicitly set to NEW_STATE
                 )
                 db.session.add(flashcard)
                 cards_added += 1
