@@ -23,17 +23,26 @@ def deck_retention(deck_id):
     """Get retention analytics for a deck"""
     deck = FlashcardDecks.query.get_or_404(deck_id)
     
-    # Query for cards with retrievability values
+    # Query for cards with retrievability values AND review history
     cards_with_retention = Flashcards.query.filter_by(flashcard_deck_id=deck_id)\
-        .filter(Flashcards.retrievability > 0).all()
+        .filter(
+            Flashcards.retrievability > 0,
+            Flashcards.last_reviewed.isnot(None)  # Only include cards that have been reviewed
+        ).all()
     
     # Calculate retention statistics
     retention_data = {
         'total_cards_studied': len(cards_with_retention),
-        'average_retention': sum(c.retrievability for c in cards_with_retention) / len(cards_with_retention) \
-            if cards_with_retention else 0,
-        'retention_distribution': get_retention_distribution(cards_with_retention)
+        'has_retention_data': len(cards_with_retention) > 0,
     }
+    
+    # Only include average retention if there are cards with review history
+    if cards_with_retention:
+        retention_data['average_retention'] = sum(c.retrievability for c in cards_with_retention) / len(cards_with_retention)
+        retention_data['retention_distribution'] = get_retention_distribution(cards_with_retention)
+    else:
+        retention_data['average_retention'] = None
+        retention_data['retention_distribution'] = {}
     
     return jsonify(retention_data)
 
