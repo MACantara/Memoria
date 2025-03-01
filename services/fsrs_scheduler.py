@@ -96,6 +96,7 @@ def get_due_cards(deck_id, limit=None):
         List of due flashcards
     """
     from models import db, Flashcards, FlashcardDecks
+    from sqlalchemy import or_
     
     # Use recursive CTE to find all nested sub-decks
     cte = db.session.query(
@@ -116,7 +117,10 @@ def get_due_cards(deck_id, limit=None):
     now = get_current_time()  # Timezone-aware UTC datetime
     query = Flashcards.query.filter(
         Flashcards.flashcard_deck_id.in_(db.session.query(cte.c.id)),
-        Flashcards.due_date <= now
+        or_(
+            Flashcards.due_date <= now,  # Cards that are due
+            Flashcards.due_date == None  # Cards with no due date (new cards)
+        )
     ).order_by(Flashcards.due_date)
     
     if limit:
