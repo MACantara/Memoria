@@ -20,14 +20,20 @@
                 </div>
                 <div class="card-footer bg-transparent mt-3 p-0">
                     <div class="row text-muted small">
-                        <div class="col-4">
-                            <i class="bi bi-check-circle"></i> Correct: {{ flashcard.correct_count }}
+                        <div class="col-6">
+                            <i class="bi bi-clock"></i> Last Reviewed: 
+                            <span>{{ flashcard.last_reviewed.strftime('%Y-%m-%d') if flashcard.last_reviewed else 'Never' }}</span>
                         </div>
-                        <div class="col-4">
-                            <i class="bi bi-x-circle"></i> Incorrect: {{ flashcard.incorrect_count }}
-                        </div>
-                        <div class="col-4">
-                            <i class="bi bi-clock"></i> Last: {{ flashcard.last_reviewed.strftime('%Y-%m-%d') if flashcard.last_reviewed else 'Never' }}
+                        <div class="col-6">
+                            <i class="bi bi-stars"></i> State: 
+                            <span class="badge 
+                            {% if flashcard.get_state_name() == 'new' %}bg-secondary
+                            {% elif flashcard.get_state_name() == 'learning' %}bg-warning
+                            {% elif flashcard.get_state_name() == 'mastered' %}bg-success
+                            {% elif flashcard.get_state_name() == 'forgotten' %}bg-danger
+                            {% endif %}">
+                                {{ flashcard.get_state_name() }}
+                            </span>
                         </div>
                     </div>
                 </div>
