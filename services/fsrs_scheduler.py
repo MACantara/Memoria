@@ -63,12 +63,6 @@ def process_review(flashcard, is_correct):
         flashcard.difficulty = next_card.difficulty
         flashcard.retrievability = next_card.get_retrievability() or 0.0
         
-        # Update regular stats
-        if is_correct:
-            flashcard.correct_count += 1
-        else:
-            flashcard.incorrect_count += 1
-        
         flashcard.last_reviewed = now
         
         # Save to database
@@ -84,13 +78,6 @@ def process_review(flashcard, is_correct):
         # Simple fallback if FSRS fails
         now = get_current_time()
         flashcard.last_reviewed = now
-        
-        if is_correct:
-            flashcard.due_date = now + timedelta(days=1)
-            flashcard.correct_count += 1
-        else:
-            flashcard.due_date = now + timedelta(minutes=10)
-            flashcard.incorrect_count += 1
             
         db.session.add(flashcard)
         db.session.commit()
