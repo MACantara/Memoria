@@ -16,7 +16,7 @@ export class FlashcardManager {
         this.flashcardsArray = Array.from(document.querySelectorAll('.flashcard'));
         this.flashcardsArray.forEach(card => this.initializeFlashcard(card));
         
-        // Initialize completed cards based on FSRS state instead of correct/incorrect counts
+        // Initialize completed cards based on FSRS state
         this.flashcardsArray.forEach(card => {
             // A card is considered completed if its state is "mastered" (2)
             const state = parseInt(card.dataset.state || 0);
@@ -91,9 +91,6 @@ export class FlashcardManager {
             const result = await updateProgress(flashcard.dataset.id, isCorrect);
             
             if (result.success) {
-                // Update card with latest server data
-                flashcard.dataset.correctCount = result.correct_count;
-                flashcard.dataset.incorrectCount = result.incorrect_count;
                 // Update FSRS specific data
                 flashcard.dataset.state = this.getFsrsStateNumber(result.state);
                 flashcard.dataset.retrievability = result.retrievability || 0;
@@ -150,14 +147,9 @@ export class FlashcardManager {
     }
     
     updateCardStatsUI(flashcard, data) {
-        // Update counters
-        const correctCountEl = flashcard.querySelector('.correct-count');
-        const incorrectCountEl = flashcard.querySelector('.incorrect-count');
+        // Update last reviewed date
         const lastReviewedEl = flashcard.querySelector('.last-reviewed');
         const stateEl = flashcard.querySelector('.card-state');
-        
-        if (correctCountEl) correctCountEl.textContent = data.correct_count;
-        if (incorrectCountEl) incorrectCountEl.textContent = data.incorrect_count;
         
         // Format date if provided
         if (lastReviewedEl && data.last_reviewed) {
