@@ -76,11 +76,15 @@ export class UIManager {
 
     updateCardCounter(index, total, score) {
         // Calculate cards left to review in this session
-        const remaining = total - score;
-        const remainingText = remaining > 0 ? `(${remaining} remaining)` : '(all reviewed)';
+        const remaining = Math.max(0, total - score);
+        const remainingText = remaining > 0 ? 
+            `(${remaining} remaining)` : 
+            '(0 remaining)';
         
-        document.getElementById('cardNumber').textContent = 
-            `Card ${index + 1} of ${total} ${remainingText}`;
+        if (this.cardNumberElement) {
+            this.cardNumberElement.textContent = 
+                `Card ${index + 1} of ${total} ${remainingText}`;
+        }
     }
 
     updateScore(score, totalDue) {
@@ -111,9 +115,15 @@ export class UIManager {
         // Update progress bar to 100% first
         this.updateScore(score, totalDue);
         
+        // Update card counter to show 0 remaining
+        if (this.cardNumberElement) {
+            this.cardNumberElement.textContent = 
+                `Complete (0 remaining)`;
+        }
+        
         // Update the status badge to show completion
         this.statusBadge.textContent = 'Completed';
-        this.statusBadge.className = 'badge fs-5 p-2 bg-success';
+        this.statusBadge.className = 'badge fs-4 p-3 bg-success';
         
         const container = document.getElementById('flashcardsContainer');
         container.innerHTML = `
