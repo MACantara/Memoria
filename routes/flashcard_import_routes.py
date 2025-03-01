@@ -21,7 +21,7 @@ if platform.system() == 'Windows':
     UPLOAD_FOLDER = tempfile.gettempdir()
 else:
     # For Linux (including serverless), use /tmp
-    UPLOAD_FOLDER = '/tmp'
+    UPLOAD_FOLDER = tempfile.gettempdir()
 
 # Create directory if it doesn't exist (shouldn't be needed for system temp dirs)
 if not os.path.exists(UPLOAD_FOLDER):
