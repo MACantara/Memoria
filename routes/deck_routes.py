@@ -1,8 +1,8 @@
 from flask import Blueprint, request, jsonify, redirect, url_for, render_template
 from models import db, FlashcardDecks, Flashcards
 from datetime import datetime
-from sqlalchemy.sql import func  # Add this import
-from services.fsrs_scheduler import get_due_cards
+from sqlalchemy.sql import func
+from services.fsrs_scheduler import get_due_cards, get_current_time  # Add get_current_time import
 
 deck_bp = Blueprint('deck', __name__)
 
@@ -18,14 +18,21 @@ def study_deck(deck_id):
     """Study flashcards in this deck and all nested sub-decks using FSRS scheduling"""
     deck = FlashcardDecks.query.get_or_404(deck_id)
     
-    # Get only due cards using FSRS scheduling
+    # Get due cards using FSRS scheduling
     flashcards = get_due_cards(deck_id)
     
-    # Initialize FSRS state for any cards that need it
+    # Initialize FSRS state and due dates for any cards that need it
     if flashcards:
+        current_time = get_current_time()
         for card in flashcards:
+            # If card doesn't have FSRS state or state is None, initialize it
             if not card.fsrs_state or card.state is None:
                 card.init_fsrs_state()
+            
+            # If card doesn't have a due date, make it due now
+            if card.due_date is None:
+                card.due_date = current_time
+        
         db.session.commit()
     
     return render_template("flashcards.html", deck=deck, flashcards=flashcards)
@@ -227,7 +234,7 @@ def get_decks_api():
 
 def get_child_decks(parent_id):
     """Helper function to recursively get child decks"""
-    child_decks = FlashcardDecks.query.filter_by(parent_deck_id=parent_id).all()
+    child_decks = FlashcardDecks.query.filter_by(parent_id=parent_id).all()
     result = []
     
     for deck in child_decks:
