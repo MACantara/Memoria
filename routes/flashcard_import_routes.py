@@ -14,6 +14,7 @@ import_bp = Blueprint('import', __name__)
 
 # Configuration
 ALLOWED_EXTENSIONS = {'txt', 'pdf'}
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB in bytes
 
 # Platform-specific temporary directory handling
 if platform.system() == 'Windows':
@@ -47,8 +48,24 @@ def upload_file():
     if file.filename == '':
         return jsonify({"success": False, "error": "No selected file"}), 400
         
+    # Check if the file type is allowed
     if not allowed_file(file.filename):
-        return jsonify({"success": False, "error": "File type not allowed"}), 400
+        return jsonify({"success": False, "error": "File type not allowed. Only PDF and TXT files are supported."}), 400
+    
+    # Check file size before processing
+    try:
+        # Read the file data and check its size
+        file_data = file.read()
+        if len(file_data) > MAX_FILE_SIZE:
+            return jsonify({
+                "success": False, 
+                "error": f"File is too large. Maximum size is {MAX_FILE_SIZE / (1024 * 1024)}MB."
+            }), 413
+        # Reset file pointer to beginning
+        file.seek(0)
+    except Exception as e:
+        current_app.logger.error(f"Error checking file size: {str(e)}")
+        return jsonify({"success": False, "error": "Error processing file"}), 500
 
     # Get form data
     deck_name = request.form.get('deck_name', 'Imported Content')

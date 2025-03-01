@@ -13,6 +13,9 @@ def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
     
+    # Set maximum content length for file uploads (10MB)
+    app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024
+    
     # Initialize database
     db.init_app(app)
     

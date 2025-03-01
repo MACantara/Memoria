@@ -93,60 +93,94 @@ export function initializeImportModal() {
     
     // File upload form submission
     const fileUploadForm = document.getElementById('fileUploadForm');
-    const uploadBtn = document.getElementById('uploadBtn');
-    const uploadResult = document.getElementById('uploadResult');
-    
-    fileUploadForm.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        
-        // Get button states
-        const normalState = uploadBtn.querySelector('.normal-state');
-        const loadingState = uploadBtn.querySelector('.loading-state');
-        
-        uploadBtn.disabled = true;
-        loadingState.classList.remove('d-none');
-        normalState.classList.add('d-none');
-        uploadResult.innerHTML = '';
-        
-        const formData = new FormData(fileUploadForm);
-        
-        try {
-            const response = await fetch(fileUploadForm.action, {
-                method: 'POST',
-                body: formData
-            });
+    if (fileUploadForm) {
+        fileUploadForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
             
-            const data = await response.json();
+            const fileInput = document.getElementById('fileInput');
+            const uploadBtn = document.getElementById('uploadBtn');
+            const normalState = uploadBtn.querySelector('.normal-state');
+            const loadingState = uploadBtn.querySelector('.loading-state');
+            const uploadResult = document.getElementById('uploadResult');
             
-            if (data.success) {
+            // Clear previous results
+            uploadResult.innerHTML = '';
+            
+            // Validate file size before uploading (client-side check)
+            if (fileInput.files[0]) {
+                const maxSize = 10 * 1024 * 1024; // 10MB
+                if (fileInput.files[0].size > maxSize) {
+                    uploadResult.innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                            File is too large. Maximum size is 10MB.
+                        </div>
+                    `;
+                    return;
+                }
+            }
+            
+            uploadBtn.disabled = true;
+            loadingState.classList.remove('d-none');
+            normalState.classList.add('d-none');
+            
+            const formData = new FormData(fileUploadForm);
+            
+            try {
+                const response = await fetch(fileUploadForm.action, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                // Check for specific error codes
+                if (response.status === 413) {
+                    throw new Error('File is too large. Maximum size is 10MB.');
+                }
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    try {
+                        // Try to parse as JSON
+                        const errorData = JSON.parse(errorText);
+                        throw new Error(errorData.error || 'Server error occurred');
+                    } catch (jsonError) {
+                        // If not valid JSON, use text or generic message
+                        throw new Error(errorText || 'An unknown error occurred');
+                    }
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    uploadResult.innerHTML = `
+                        <div class="alert alert-success">
+                            <i class="bi bi-check-circle-fill me-2"></i>
+                            ${data.message}
+                        </div>
+                    `;
+                    
+                    // Redirect after a short delay
+                    if (data.redirect_url) {
+                        setTimeout(() => {
+                            window.location.href = data.redirect_url;
+                        }, 1500);
+                    }
+                } else {
+                    throw new Error(data.error || 'An error occurred during processing');
+                }
+            } catch (error) {
                 uploadResult.innerHTML = `
-                    <div class="alert alert-success">
-                        <i class="bi bi-check-circle-fill me-2"></i>
-                        ${data.message}
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        ${error.message}
                     </div>
                 `;
-                
-                // Redirect after a short delay
-                if (data.redirect_url) {
-                    setTimeout(() => {
-                        window.location.href = data.redirect_url;
-                    }, 1500);
-                }
-            } else {
-                throw new Error(data.error || 'An error occurred during processing');
+                uploadBtn.disabled = false;
+                loadingState.classList.add('d-none');
+                normalState.classList.remove('d-none');
             }
-        } catch (error) {
-            uploadResult.innerHTML = `
-                <div class="alert alert-danger">
-                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                    ${error.message}
-                </div>
-            `;
-            uploadBtn.disabled = false;
-            loadingState.classList.add('d-none');
-            normalState.classList.remove('d-none');
-        }
-    });
+        });
+    }
     
     // Text processing form submission
     const textForm = document.getElementById('textForm');
