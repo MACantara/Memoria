@@ -4,36 +4,19 @@ from models import db, FlashcardDecks, Flashcards
 from datetime import datetime
 import os
 import json
-import tempfile
-from google import genai
-import traceback
-import platform
-import PyPDF2
 import io
+import PyPDF2
 import cloudinary
 import cloudinary.uploader
 import requests
+import traceback
+from google import genai
 from routes.flashcard_generation_routes import parse_flashcards, generate_prompt_template
 
 import_bp = Blueprint('import', __name__)
 
 # Configuration
 ALLOWED_EXTENSIONS = {'txt', 'pdf'}
-
-# Platform-specific temporary directory handling
-if platform.system() == 'Windows':
-    # For Windows, use system temp directory
-    UPLOAD_FOLDER = tempfile.gettempdir()
-else:
-    # For Linux (including serverless), use /tmp
-    UPLOAD_FOLDER = tempfile.gettempdir()
-
-# Create directory if it doesn't exist (shouldn't be needed for system temp dirs)
-if not os.path.exists(UPLOAD_FOLDER):
-    try:
-        os.makedirs(UPLOAD_FOLDER)
-    except Exception as e:
-        current_app.logger.error(f"Could not create upload folder: {str(e)}")
 
 # Configure Cloudinary
 cloudinary.config(
@@ -96,13 +79,13 @@ def upload_file():
     file_id = f"memoria_temp_{datetime.now().strftime('%Y%m%d%H%M%S')}_{secure_filename(file.filename)}"
     
     try:
-        # Upload file to Cloudinary instead of saving locally
+        # Upload file to Cloudinary
         current_app.logger.info(f"Uploading file to Cloudinary: {file_id}")
         upload_result = cloudinary.uploader.upload(
             file,
             public_id=file_id,
-            resource_type="auto",  # Let Cloudinary determine the resource type
-            folder="memoria_temp"  # Store in a specific folder for easier management
+            resource_type="auto",
+            folder="memoria_temp"
         )
         
         cloudinary_url = upload_result["secure_url"]
@@ -153,8 +136,16 @@ def upload_file():
         api_key = os.getenv("GOOGLE_GEMINI_API_KEY")
         client = genai.Client(api_key=api_key)
         
-        batch_size = 100
-        current_app.logger.info(f"Using batch size {batch_size}")
+        # Calculate appropriate batch size based on text length
+        text_length = len(file_text)
+        batch_size = min(max(text_length // 500, 5), 30)  # Between 5 and 30 cards
+        current_app.logger.info(f"Using batch size {batch_size} for text of length {text_length}")
+        
+        # Limit text size if needed
+        max_text_length = 25000  # Conservative limit
+        if len(file_text) > max_text_length:
+            current_app.logger.info(f"Truncating text from {len(file_text)} to {max_text_length} characters")
+            file_text = file_text[:max_text_length]
         
         # Generate prompt using existing template
         prompt = generate_prompt_template("the document content", batch_size)
