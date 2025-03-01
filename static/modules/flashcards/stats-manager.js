@@ -50,7 +50,7 @@ export class StatsManager {
                 const retentionPct = (stats.average_retention * 100).toFixed(0) + '%';
                 
                 if (stats.has_significant_retention_data) {
-                    // Good amount of data
+                    // Good amount of data (20+ cards or 10%+ coverage)
                     retentionElement.textContent = retentionPct;
                     retentionElement.classList.remove('text-muted', 'text-warning');
                 } else {
@@ -59,8 +59,8 @@ export class StatsManager {
                     retentionElement.classList.remove('text-muted');
                     retentionElement.classList.add('text-warning');
                     
-                    // Add a tooltip explaining the asterisk
-                    retentionElement.title = `Based on only ${stats.reviewed_count} out of ${stats.total_cards} cards (${stats.review_coverage}% coverage)`;
+                    // Add a tooltip explaining the asterisk with updated thresholds
+                    retentionElement.title = `Based on limited data: ${stats.reviewed_count} out of ${stats.total_cards} cards (${stats.review_coverage}% coverage). For reliable statistics, review at least 20 cards or 10% of the deck.`;
                     
                     // Add an explanation below if there's space
                     const retentionNoteElement = document.getElementById('retention-note');
