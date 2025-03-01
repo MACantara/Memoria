@@ -18,41 +18,15 @@ def study_deck(deck_id):
     """Study flashcards in this deck and all nested sub-decks using FSRS scheduling"""
     deck = FlashcardDecks.query.get_or_404(deck_id)
     
-    # Prioritize due cards using FSRS scheduling
+    # Get only due cards using FSRS scheduling
     flashcards = get_due_cards(deck_id)
     
-    # If no due cards, get 10 random cards from deck for initial learning
-    if not flashcards:
-        cte = db.session.query(
-            FlashcardDecks.flashcard_deck_id.label('id')
-        ).filter(
-            FlashcardDecks.flashcard_deck_id == deck_id
-        ).cte(name='study_decks', recursive=True)
-
-        cte = cte.union_all(
-            db.session.query(
-                FlashcardDecks.flashcard_deck_id.label('id')
-            ).filter(
-                FlashcardDecks.parent_deck_id == cte.c.id
-            )
-        )
-        
-        # Get cards that haven't been studied yet or are due later
-        flashcards = Flashcards.query.filter(
-            Flashcards.flashcard_deck_id.in_(db.session.query(cte.c.id))
-        ).order_by(db.func.random()).limit(10).all()
-        
-        # Initialize FSRS state for new cards
+    # Initialize FSRS state for any cards that need it
+    if flashcards:
         for card in flashcards:
-            if not card.fsrs_state:
+            if not card.fsrs_state or card.state is None:
                 card.init_fsrs_state()
-    
-    # Initialize FSRS state for new cards - ensure they start as "New"
-    for card in flashcards:
-        if not card.fsrs_state or card.state is None:
-            card.init_fsrs_state()  # This will now explicitly set State.New
-    
-    db.session.commit()
+        db.session.commit()
     
     return render_template("flashcards.html", deck=deck, flashcards=flashcards)
 
