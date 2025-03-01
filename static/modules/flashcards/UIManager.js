@@ -26,8 +26,7 @@ export class UIManager {
         this.md.renderer.rules.text = (tokens, idx) => {
             let content = tokens[idx].content;
             
-            // Pattern for math expressions like "2*3", "x*y", etc.
-            // This regex looks for digit/variable followed by asterisk followed by digit/variable
+            // Process any remaining math patterns that might have escaped pre-processing
             content = content.replace(/(\d|[a-zA-Z])\*(\d|[a-zA-Z])/g, '$1×$2');
             
             return originalRender(tokens, idx, this.md.options, {}, this);
@@ -184,17 +183,45 @@ export class UIManager {
     parseContent(text) {
         if (!text) return '';
         
-        // Clean the text and pre-process math expressions
+        // Clean the text
         let cleanText = text.trim()
             .replace(/\\n/g, '\n')  // Handle escaped newlines
             .replace(/\\"/g, '"');  // Handle escaped quotes
             
-        // Replace standalone multiplication operators with × symbol
-        // This handles cases like "2 * 3" with spaces
-        cleanText = cleanText.replace(/(\d|\b[a-zA-Z])\s*\*\s*(\d|\b[a-zA-Z])/g, '$1 × $2');
+        // STEP 1: Protect mathematical expressions before markdown parsing
         
-        // Process with markdown-it
-        return this.md.render(cleanText);
+        // FIRST protect exponentiation using a unique placeholder
+        // Pattern: number/variable + ** + number/variable
+        cleanText = cleanText.replace(
+            /(\d+|\b[a-zA-Z])\s*\*\*\s*(\d+|\b[a-zA-Z])/g, 
+            (match, base, exponent) => `${base}<EXPONENT>${exponent}</EXPONENT>`
+        );
+        
+        // THEN protect multiplication with a different placeholder
+        // Pattern: number/variable + * + number/variable
+        cleanText = cleanText.replace(
+            /(\d+|\b[a-zA-Z])\s*\*\s*(\d+|\b[a-zA-Z])/g, 
+            (match, a, b) => `${a}<MULTIPLY>${b}</MULTIPLY>`
+        );
+        
+        // Process with markdown-it (this handles **bold** formatting)
+        let renderedContent = this.md.render(cleanText);
+        
+        // STEP 2: Restore mathematical expressions after markdown parsing
+        
+        // Convert exponentiation placeholders to proper HTML
+        renderedContent = renderedContent.replace(
+            /<EXPONENT>(\d+|\w+)<\/EXPONENT>/g, 
+            (match, exponent) => `<sup>${exponent}</sup>`
+        );
+        
+        // Convert multiplication placeholders to × symbol
+        renderedContent = renderedContent.replace(
+            /<MULTIPLY>(\d+|\w+)<\/MULTIPLY>/g, 
+            (match, factor) => `×${factor}`
+        );
+        
+        return renderedContent;
     }
 
     renderAnswerOptions(flashcard, allAnswers) {
