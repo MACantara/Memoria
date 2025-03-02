@@ -111,12 +111,11 @@ export class StatsLoader {
     }
     
     /**
-     * Load upcoming review cards data for the table - simplified
+     * Load upcoming review cards data for the table - simplified without filter parameter
      */
-    async loadUpcomingReviews(filter = 'all', page = 1) {
+    async loadUpcomingReviews(page = 1) {
         try {
             const url = new URL(`/stats/deck/${this.deckId}/upcoming-reviews`, window.location.origin);
-            url.searchParams.append('filter', filter); // Always 'all'
             url.searchParams.append('page', page);
             url.searchParams.append('per_page', 20);
             

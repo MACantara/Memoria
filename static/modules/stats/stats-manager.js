@@ -14,6 +14,13 @@ export class StatsManager {
         this.tableManager = new TableManager();
         this.statsLoader = new StatsLoader(deckId);
         
+        // Get initial page from URL if available
+        const urlParams = new URLSearchParams(window.location.search);
+        const pageParam = urlParams.get('page');
+        if (pageParam && !isNaN(parseInt(pageParam))) {
+            this.tableManager.currentPage = parseInt(pageParam);
+        }
+        
         // Timer and observer for updates and theme changes
         this.observer = null;
         this.refreshInterval = null;
@@ -23,7 +30,19 @@ export class StatsManager {
         // Load initial data
         this.loadAllStats();
         
-        // No more filter button initialization
+        // Handle browser back/forward navigation
+        window.addEventListener('popstate', () => {
+            // Re-extract the page from URL when navigating with browser buttons
+            const urlParams = new URLSearchParams(window.location.search);
+            const pageParam = urlParams.get('page');
+            if (pageParam && !isNaN(parseInt(pageParam))) {
+                this.tableManager.currentPage = parseInt(pageParam);
+                this.loadUpcomingReviews(this.tableManager.currentPage);
+            } else {
+                this.tableManager.currentPage = 1;
+                this.loadUpcomingReviews(1);
+            }
+        });
         
         // Bind the loadUpcomingReviews method to this instance for callbacks
         const loadUpcomingReviewsCallback = this.loadUpcomingReviews.bind(this);
@@ -68,12 +87,12 @@ export class StatsManager {
     
     /**
      * Load upcoming reviews and update the table
-     * No longer takes a filter parameter, always shows all cards
+     * No longer takes a filter parameter, just page number
      */
     async loadUpcomingReviews(page = 1) {
         try {
-            // Always use 'all' filter
-            const reviewsData = await this.statsLoader.loadUpcomingReviews('all', page);
+            // No filter parameter needed anymore
+            const reviewsData = await this.statsLoader.loadUpcomingReviews(page);
             
             // Update table and pagination
             this.tableManager.updateUpcomingReviewsTable(reviewsData);

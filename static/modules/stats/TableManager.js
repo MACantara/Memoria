@@ -110,7 +110,7 @@ export class TableManager {
     }
     
     /**
-     * Update the pagination controls with dropdown page selector
+     * Update the pagination controls with dropdown page selector and URL state management
      */
     updatePagination(pagination, callback) {
         const paginationElement = document.querySelector('#upcomingPagination .pagination');
@@ -127,7 +127,7 @@ export class TableManager {
         prevItem.className = `page-item ${!pagination.has_prev ? 'disabled' : ''}`;
         const prevLink = document.createElement('a');
         prevLink.className = 'page-link';
-        prevLink.href = '#';
+        prevLink.href = pagination.urls?.prev_url || '#';
         prevLink.setAttribute('aria-label', 'Previous');
         prevLink.innerHTML = '<i class="bi bi-chevron-left"></i>';
         prevItem.appendChild(prevLink);
@@ -156,15 +156,59 @@ export class TableManager {
             const dropdownItem = document.createElement('li');
             const dropdownLink = document.createElement('a');
             dropdownLink.className = `dropdown-item ${i === pagination.page ? 'active' : ''}`;
-            dropdownLink.href = '#';
+            
+            // Fix URL construction to handle potentially undefined pagination.urls
+            let pageUrl;
+            try {
+                // Create URL safely with error handling
+                if (pagination.urls && pagination.urls.base_url) {
+                    // If we have a valid base URL from the API, use it
+                    pageUrl = new URL(pagination.urls.base_url);
+                    
+                    // Add or update the page parameter
+                    pageUrl.searchParams.set('page', i);
+                    
+                    // Preserve any existing filter parameter
+                    if (pagination.urls.current_url) {
+                        try {
+                            const currentUrl = new URL(pagination.urls.current_url, window.location.origin);
+                            const filterParam = currentUrl.searchParams.get('filter');
+                            if (filterParam) {
+                                pageUrl.searchParams.set('filter', filterParam);
+                            }
+                        } catch (e) {
+                            console.warn("Error extracting filter parameter:", e);
+                        }
+                    }
+                } else {
+                    // Fallback to modifying the current URL
+                    pageUrl = new URL(window.location.href);
+                    pageUrl.searchParams.set('page', i);
+                }
+            } catch (error) {
+                console.error('Error creating pagination URL:', error);
+                // If all else fails, just use hash navigation
+                pageUrl = new URL('#', window.location.href);
+                dropdownLink.dataset.page = i; // Store page number in data attribute
+            }
+            
+            dropdownLink.href = pageUrl.toString();
             dropdownLink.textContent = `Page ${i}`;
+            
             dropdownLink.addEventListener('click', (e) => {
                 e.preventDefault();
                 this.currentPage = i;
+                
+                // Update browser URL without reload
+                if (history.pushState && pageUrl.toString() !== '#') {
+                    history.pushState(null, null, pageUrl.toString());
+                }
+                
                 if (typeof callback === 'function') {
                     callback(i);
                 }
             });
+            
             dropdownItem.appendChild(dropdownLink);
             dropdownMenu.appendChild(dropdownItem);
         }
@@ -172,22 +216,28 @@ export class TableManager {
         pageDropdownItem.appendChild(dropdownMenu);
         paginationElement.appendChild(pageDropdownItem);
         
-        // Next button
+        // Next button - similar URL fixes needed
         const nextItem = document.createElement('li');
         nextItem.className = `page-item ${!pagination.has_next ? 'disabled' : ''}`;
         const nextLink = document.createElement('a');
         nextLink.className = 'page-link';
-        nextLink.href = '#';
+        nextLink.href = pagination.urls?.next_url || '#';
         nextLink.setAttribute('aria-label', 'Next');
         nextLink.innerHTML = '<i class="bi bi-chevron-right"></i>';
         nextItem.appendChild(nextLink);
         paginationElement.appendChild(nextItem);
         
-        // Add event listeners for next/previous
+        // Add event listeners for next/previous with URL updates
         if (pagination.has_prev) {
             prevLink.addEventListener('click', (e) => {
                 e.preventDefault();
                 this.currentPage = pagination.prev_page;
+                
+                // Update browser URL without reload - handle potential missing URL
+                if (history.pushState && prevLink.href !== '#') {
+                    history.pushState(null, null, prevLink.href);
+                }
+                
                 if (typeof callback === 'function') {
                     callback(this.currentPage);
                 }
@@ -198,6 +248,12 @@ export class TableManager {
             nextLink.addEventListener('click', (e) => {
                 e.preventDefault();
                 this.currentPage = pagination.next_page;
+                
+                // Update browser URL without reload - handle potential missing URL
+                if (history.pushState && nextLink.href !== '#') {
+                    history.pushState(null, null, nextLink.href);
+                }
+                
                 if (typeof callback === 'function') {
                     callback(this.currentPage);
                 }
