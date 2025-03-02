@@ -5,11 +5,11 @@
    {% with 
      deck=deck,                      <!-- Required for deck-specific actions -->
      show_import=true,               <!-- Show import button -->
+     show_add_cards=true,            <!-- Show add cards button -->
      show_create_deck=true,          <!-- Show create deck button -->
      show_create_subdeck=false,      <!-- Show create subdeck button -->
      show_study=true,                <!-- Show study now dropdown -->
      show_stats=true,                <!-- Show stats button -->
-     show_add_cards=true,            <!-- Show add cards button -->
      due_count=0                     <!-- Due count for study button -->
    %}
    {% include 'components/deck_action_buttons.html' %}
@@ -50,6 +50,25 @@
             <i class="bi bi-plus-lg"></i> Add
         </button>
         <ul class="dropdown-menu dropdown-menu-end">
+            <!-- Add Cards Option - Context-aware implementation -->
+            {% if show_add_cards %}
+                {% if deck %}
+                <!-- Deck context: Add cards directly to this deck -->
+                <li>
+                    <a class="dropdown-item add-cards-btn" href="#" data-deck-id="{{ deck.flashcard_deck_id }}">
+                        <i class="bi bi-card-text me-2"></i> Add Cards
+                    </a>
+                </li>
+                {% else %}
+                <!-- Index context: Generate cards that will prompt for deck selection -->
+                <li>
+                    <a class="dropdown-item" href="#" onclick="showGenerateModal(); return false;">
+                        <i class="bi bi-card-text me-2"></i> Add Cards
+                    </a>
+                </li>
+                {% endif %}
+            {% endif %}
+
             <!-- Create Empty Deck Option -->
             {% if show_create_deck %}
             <li>
@@ -68,18 +87,9 @@
             </li>
             {% endif %}
             
-            <!-- Add Cards Option - only when we have a deck -->
-            {% if show_add_cards and deck %}
-            <li>
-                <a class="dropdown-item add-cards-btn" href="#" data-deck-id="{{ deck.flashcard_deck_id }}">
-                    <i class="bi bi-card-text me-2"></i> Add Cards
-                </a>
-            </li>
-            {% endif %}
-            
             <!-- Add Separator When Import is Available -->
             {% if show_import %}
-                {% if show_create_deck or show_create_subdeck or (show_add_cards and deck) %}
+                {% if show_create_deck or show_create_subdeck or show_add_cards %}
                 <li><hr class="dropdown-divider"></li>
                 {% endif %}
                 
