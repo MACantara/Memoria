@@ -171,11 +171,6 @@ body {
     }
 }
 
-/* Make sure buttons have adequate touch targets */
-.btn {
-    min-height: 44px;
-}
-
 /* Ensure options are distinct on touch devices */
 .feedback-container {
     pointer-events: auto;
