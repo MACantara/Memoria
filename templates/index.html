@@ -36,14 +36,18 @@
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2 class="h3 mb-0">Your Decks</h2>
-    <div class="d-flex gap-2">
-        <button type="button" class="btn btn-outline-primary" onclick="showImportModal()">
-            <i class="bi bi-file-earmark-arrow-up"></i> Import Content
-        </button>
-        <button id="createEmptyDeckBtn" class="btn btn-outline-primary">
-            <i class="bi bi-plus-lg"></i> Create Empty Deck
-        </button>
-    </div>
+    
+    <!-- Replace old buttons with the new component -->
+    {% with 
+        show_import=true,
+        show_create_deck=true,
+        show_create_subdeck=false,
+        show_study=true,
+        show_stats=true,
+        show_add_cards=false
+    %}
+    {% include 'components/deck_action_buttons.html' %}
+    {% endwith %}
 </div>
 
 <div id="decks">
