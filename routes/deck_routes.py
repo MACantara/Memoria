@@ -18,8 +18,14 @@ def study_deck(deck_id):
     """Study flashcards in this deck and all nested sub-decks using FSRS scheduling"""
     deck = FlashcardDecks.query.get_or_404(deck_id)
     
-    # Get due cards using FSRS scheduling
-    flashcards = get_due_cards(deck_id)
+    # Check if we should only get due cards
+    due_only = request.args.get('due_only', 'false').lower() == 'true'
+    
+    # Get cards based on the due_only parameter
+    if due_only:
+        flashcards = get_due_cards(deck_id, due_only=True)
+    else:
+        flashcards = get_due_cards(deck_id, due_only=False)
     
     # Initialize FSRS state and due dates for any cards that need it
     if flashcards:
@@ -35,7 +41,7 @@ def study_deck(deck_id):
         
         db.session.commit()
     
-    return render_template("flashcards.html", deck=deck, flashcards=flashcards)
+    return render_template("flashcards.html", deck=deck, flashcards=flashcards, due_only=due_only)
 
 @deck_bp.route("/create", methods=["POST"])
 def create_deck():
