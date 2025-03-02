@@ -7,6 +7,7 @@ import json
 import traceback
 from google import genai
 from routes.flashcard_generation_routes import parse_flashcards, generate_prompt_template
+from services.fsrs_scheduler import get_current_time  # Import this like in flashcard_generation_routes.py
 
 import_bp = Blueprint('import', __name__)
 
@@ -80,15 +81,23 @@ def upload_file():
             current_app.logger.warning("No flashcards were generated from the content")
             raise ValueError("No flashcards could be generated from this content")
         
+        # Set current time for all cards to use same timestamp
+        current_time = get_current_time()
+        
         # Save to database
         cards_added = 0
         for card in flashcards_data:
+            # Create the flashcard with direct state and due_date assignment
+            # like in flashcard_generation_routes.py
             flashcard = Flashcards(
                 question=card['question'],
                 correct_answer=card['correct_answer'],
                 incorrect_answers=json.dumps(card['incorrect_answers']),
-                flashcard_deck_id=deck.flashcard_deck_id
+                flashcard_deck_id=deck.flashcard_deck_id,
+                due_date=current_time,  # Set due date to current time
+                state=0  # Explicitly set to NEW_STATE
             )
+            
             db.session.add(flashcard)
             cards_added += 1
         
@@ -150,22 +159,30 @@ def process_text():
         prompt = f"""{generate_prompt_template({text_content}, batch_size)}"""
 
         response = client.models.generate_content(
-            model="gemini-2.0-flash-lite",  # For text processing
+            model="gemini-2.0-flash-lite",
             contents=f"{prompt}\n\nContent:\n{text_content}"
         )
         
         # Parse the generated flashcards using the existing function
         flashcards_data = parse_flashcards(response.text)
         
+        # Set current time for all cards to use same timestamp
+        current_time = get_current_time()
+        
         # Save to database
         cards_added = 0
         for card in flashcards_data:
+            # Create the flashcard with direct state and due_date assignment
+            # like in flashcard_generation_routes.py
             flashcard = Flashcards(
                 question=card['question'],
                 correct_answer=card['correct_answer'],
                 incorrect_answers=json.dumps(card['incorrect_answers']),
-                flashcard_deck_id=deck.flashcard_deck_id
+                flashcard_deck_id=deck.flashcard_deck_id,
+                due_date=current_time,  # Set due date to current time
+                state=0  # Explicitly set to NEW_STATE
             )
+            
             db.session.add(flashcard)
             cards_added += 1
         
