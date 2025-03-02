@@ -85,6 +85,10 @@ export class FlashcardManager {
     }
 
     async handleAnswer(selectedAnswer, flashcard) {
+        // Prevent multiple submissions while processing
+        if (this.isProcessingAnswer) return;
+        this.isProcessingAnswer = true;
+        
         const isCorrect = selectedAnswer === flashcard.dataset.correct;
         
         try {
@@ -113,8 +117,6 @@ export class FlashcardManager {
             }
         });
         
-        this.ui.showAnswerFeedback(flashcard, isCorrect);
-
         // Mark this card as completed in this session (regardless of correctness)
         if (!this.completedCards.has(flashcard.dataset.id)) {
             this.completedCards.add(flashcard.dataset.id);
@@ -123,28 +125,30 @@ export class FlashcardManager {
             // Update the progress display
             this.ui.updateScore(this.score, this.totalDueCards);
         }
-
+        
         // Mark whether this card has been attempted (for resetting later)
         flashcard.dataset.attempted = 'true';
-
-        // Process the card after showing feedback
-        setTimeout(() => {
-            // Check if all due cards have been completed in this session
-            if (this.score >= this.totalDueCards) {
-                this.ui.showCompletion(this.score, this.totalDueCards);
-                return;
-            }
-            
-            // If answer was incorrect, move card to end for review
+        
+        // Show feedback with next button instead of auto-advancing
+        this.ui.showAnswerFeedback(flashcard, isCorrect, () => {
+            // This callback is triggered when the user clicks "Next"
             if (!isCorrect) {
                 this.moveCardToEnd(flashcard);
             }
             
-            // Always move to the next card after answering
-            this.moveToNextCard();
-        }, 1500);
+            // If all cards are completed, show completion screen
+            if (this.completedCards.size >= this.totalDueCards) {
+                this.ui.showCompletion(this.score, this.totalDueCards);
+            } else {
+                // Otherwise move to the next card
+                this.moveToNextCard();
+            }
+        });
+        
+        // Reset processing flag
+        this.isProcessingAnswer = false;
     }
-    
+
     getFsrsStateNumber(stateName) {
         const stateMap = {
             'new': 0,

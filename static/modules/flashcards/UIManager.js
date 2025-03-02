@@ -61,7 +61,7 @@ export class UIManager {
     }
 
     clearFeedback(flashcard) {
-        const existingFeedback = flashcard.querySelector('.alert');
+        const existingFeedback = flashcard.querySelector('.feedback-container');
         if (existingFeedback) {
             existingFeedback.remove();
         }
@@ -186,18 +186,42 @@ export class UIManager {
         });
     }
 
-    showAnswerFeedback(flashcard, isCorrect) {
+    showAnswerFeedback(flashcard, isCorrect, nextCardCallback) {
         // Clear any previous feedback first
         this.clearFeedback(flashcard);
         
-        const feedback = document.createElement('div');
-        feedback.classList.add('alert', isCorrect ? 'alert-success' : 'alert-danger', 'mt-3');
+        const feedbackContainer = document.createElement('div');
+        feedbackContainer.classList.add('feedback-container', 'mt-3');
         
+        // Feedback message
+        const feedback = document.createElement('div');
+        feedback.classList.add('alert', isCorrect ? 'alert-success' : 'alert-danger', 'mb-2');
         feedback.innerHTML = isCorrect ? 
             '<i class="bi bi-check-circle-fill"></i> Correct!' : 
-            '<i class="bi bi-x-circle-fill"></i> Incorrect - Moving to next question';
+            '<i class="bi bi-x-circle-fill"></i> Incorrect';
+            
+        feedbackContainer.appendChild(feedback);
         
-        flashcard.querySelector('.answer-form').appendChild(feedback);
+        // Add next button for manual advancement
+        const nextButton = document.createElement('button');
+        nextButton.type = 'button';
+        nextButton.classList.add('btn', 'btn-primary', 'w-100');
+        nextButton.innerHTML = '<i class="bi bi-arrow-right"></i> Next Question';
+        nextButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof nextCardCallback === 'function') {
+                nextCardCallback();
+            }
+        });
+        feedbackContainer.appendChild(nextButton);
+        
+        // Add container to the card
+        const form = flashcard.querySelector('.answer-form');
+        form.appendChild(feedbackContainer);
+        
+        // Focus next button to make keyboard navigation work
+        setTimeout(() => nextButton.focus(), 100);
     }
 
     getStateName(stateNum) {

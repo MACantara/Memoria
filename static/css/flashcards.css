@@ -6,6 +6,11 @@ body {
 /* Keep only custom functionality */
 .flashcard {
     display: none;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    position: relative;
 }
 
 .flashcard.active {
@@ -14,6 +19,8 @@ body {
 
 .answer-option {
     transition: all 0.2s ease;
+    margin-bottom: 12px;
+    transition: background-color 0.2s ease;
 }
 
 .answer-option:hover {
@@ -28,6 +35,15 @@ body {
 .answer-option.incorrect {
     background-color: var(--bs-danger-bg-subtle) !important;
     border-color: var(--bs-danger) !important;
+}
+
+.answer-option:active {
+    background-color: rgba(13, 110, 253, 0.1);
+}
+
+.answer-option.disabled {
+    pointer-events: none;
+    opacity: 0.7;
 }
 
 .key-hint {
@@ -123,4 +139,44 @@ body {
 .card-title ul {
     padding-left: 1.5rem;
     margin-bottom: 0.5rem;
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+    .answer-option {
+        padding: 12px !important;  /* Larger touch target on mobile */
+    }
+    
+    .feedback-container .btn {
+        padding: 12px;  /* Larger touch target for next button */
+        margin-top: 10px;
+        font-size: 1.1rem;
+    }
+    
+    /* Prevent accidental touches */
+    .answer-option input[type="radio"] {
+        pointer-events: none;
+    }
+    
+    /* Improve visibility */
+    .feedback-container .alert {
+        font-size: 1.1rem;
+        padding: 12px;
+    }
+    
+    /* Fix for mobile scrolling */
+    body.modal-open {
+        position: fixed;
+        width: 100%;
+    }
+}
+
+/* Make sure buttons have adequate touch targets */
+.btn {
+    min-height: 44px;
+}
+
+/* Ensure options are distinct on touch devices */
+.feedback-container {
+    pointer-events: auto;
 }
