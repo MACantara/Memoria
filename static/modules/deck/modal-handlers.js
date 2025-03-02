@@ -51,7 +51,20 @@ export function initializeModals() {
 
     // No cards handlers
     if (modals.noCardsModal) {
-        document.querySelectorAll('.no-cards').forEach(link => {
+        // Attach event to dropdown buttons with no-cards class
+        document.querySelectorAll('.dropdown-toggle.no-cards').forEach(button => {
+            button.addEventListener('click', (e) => {
+                e.preventDefault();
+                currentDeckId = button.dataset.deckId;
+                modals.noCardsModal.show();
+                
+                // Prevent dropdown from opening
+                e.stopPropagation();
+            });
+        });
+        
+        // Also attach to dropdown items with no-cards class
+        document.querySelectorAll('.dropdown-item.no-cards').forEach(link => {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
                 currentDeckId = link.dataset.deckId;
