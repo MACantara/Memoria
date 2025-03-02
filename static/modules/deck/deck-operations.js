@@ -115,6 +115,7 @@ async function handleDelete(deckToDelete) {
 
 function initializeMoveDeck() {
     let currentDeckId = null;
+    let currentDeckName = null;
     const moveDeckModal = document.getElementById('moveDeckModal');
     if (!moveDeckModal) return;
     
@@ -185,9 +186,17 @@ function initializeMoveDeck() {
     
     // Prepare the modal when it's shown
     moveDeckModal.addEventListener('show.bs.modal', function(event) {
-        const button = event.relatedTarget;
-        currentDeckId = button.getAttribute('data-deck-id');
-        const deckName = button.getAttribute('data-deck-name');
+        // Only try to get data from relatedTarget if it exists
+        // This fixes the undefined getAttribute error
+        if (event.relatedTarget) {
+            currentDeckId = event.relatedTarget.getAttribute('data-deck-id');
+            currentDeckName = event.relatedTarget.getAttribute('data-deck-name');
+        }
+        
+        // Set the deck name (use the stored values that might have been set by showMoveDeckModal)
+        if (currentDeckName) {
+            deckToMoveName.textContent = currentDeckName;
+        }
         
         // Reset the modal
         rootDeckOption.checked = true;
@@ -196,9 +205,6 @@ function initializeMoveDeck() {
         parentDeckInfo.classList.add('d-none');
         circularReferenceWarning.classList.add('d-none');
         confirmMoveBtn.disabled = false;
-        
-        // Set the deck name
-        deckToMoveName.textContent = deckName;
         
         // Remove the current deck and its children from options
         for (let i = 0; i < parentDeckSelect.options.length; i++) {
@@ -229,16 +235,22 @@ function initializeMoveDeck() {
     
     // Make showMoveDeckModal available globally for button handling
     window.showMoveDeckModal = (deckId, deckName) => {
+        // Store the deck ID and name for use in the modal
         currentDeckId = deckId;
-        const modalElement = document.getElementById('moveDeckModal');
-        const bsModal = new bootstrap.Modal(modalElement);
+        currentDeckName = deckName;
         
-        // Set the deck name text
+        // Get the modal element
+        const modalElement = document.getElementById('moveDeckModal');
+        if (!modalElement) return;
+        
+        // Update the deck name directly here
         const deckNameElement = document.getElementById('deckToMoveName');
         if (deckNameElement) {
             deckNameElement.textContent = deckName;
         }
         
+        // Show the modal
+        const bsModal = new bootstrap.Modal(modalElement);
         bsModal.show();
     };
     
