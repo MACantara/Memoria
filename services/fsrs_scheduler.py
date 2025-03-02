@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from fsrs import Scheduler, Card, Rating, ReviewLog, State
 import traceback
+from models import db  # Add this import at the top
 
 # We MUST use UTC timezone for FSRS
 def get_current_time():
@@ -34,7 +35,7 @@ def convert_rating(is_correct):
 
 def process_review(flashcard, is_correct):
     """Process a review for a flashcard"""
-    from models import db
+    # Note: No need to import db here since it's now imported at the module level
     
     try:
         # Get current card state
@@ -84,21 +85,22 @@ def process_review(flashcard, is_correct):
         
         return flashcard.due_date, 0.0
 
-def get_due_cards(deck_id, limit=None):
+def get_due_cards(deck_id, due_only=False):
     """
-    Get due cards from a deck
+    Get cards that are due for review from a deck and its sub-decks.
     
     Args:
-        deck_id: Deck ID
-        limit: Max number of cards to return (None for all)
-        
-    Returns:
-        List of due flashcards
-    """
-    from models import db, Flashcards, FlashcardDecks
-    from sqlalchemy import or_
+        deck_id: The ID of the deck to get cards from.
+        due_only: If True, only return cards that are due for review today.
+                 If False, return all cards regardless of due date.
     
-    # Use recursive CTE to find all nested sub-decks
+    Returns:
+        A list of Flashcards objects that are due for review.
+    """
+    from models import FlashcardDecks, Flashcards
+    from sqlalchemy import case
+    
+    # Create recursive CTE to find all decks including this one and its sub-decks
     cte = db.session.query(
         FlashcardDecks.flashcard_deck_id.label('id')
     ).filter(
@@ -113,20 +115,31 @@ def get_due_cards(deck_id, limit=None):
         )
     )
     
-    # Get due cards from all decks in the hierarchy
-    now = get_current_time()  # Timezone-aware UTC datetime
+    # Start with a query for all cards in these decks
     query = Flashcards.query.filter(
-        Flashcards.flashcard_deck_id.in_(db.session.query(cte.c.id)),
-        or_(
-            Flashcards.due_date <= now,  # Cards that are due
-            Flashcards.due_date == None  # Cards with no due date (new cards)
-        )
-    ).order_by(Flashcards.due_date)
+        Flashcards.flashcard_deck_id.in_(db.session.query(cte.c.id))
+    )
     
-    if limit:
-        query = query.limit(limit)
-        
-    return query.all()
+    # If due_only is True, filter for only cards that are due today
+    if due_only:
+        current_time = get_current_time()
+        query = query.filter(
+            (Flashcards.due_date <= current_time) | 
+            (Flashcards.due_date == None)  # Include cards without due date
+        )
+    
+    # Order by due date (earliest first), with None values at the beginning
+    # Updated to use SQLAlchemy's newer case syntax
+    flashcards = query.order_by(
+        # Put cards without due date first - FIXED CASE EXPRESSION
+        case((Flashcards.due_date == None, 0), else_=1),
+        # Then order by due date (earliest first)
+        Flashcards.due_date.asc(),
+        # Finally by ID to ensure stable ordering
+        Flashcards.flashcard_id.asc()
+    ).all()
+    
+    return flashcards
 
 def get_stats(deck_id=None):
     """
@@ -138,7 +151,7 @@ def get_stats(deck_id=None):
     Returns:
         Dictionary of stats
     """
-    from models import db, Flashcards, FlashcardDecks
+    from models import FlashcardDecks, Flashcards
     from sqlalchemy import func
     
     query = Flashcards.query
@@ -198,7 +211,7 @@ def get_stats(deck_id=None):
     review_coverage = (reviewed_count / total_cards * 100) if total_cards > 0 else 0
     
     # Only calculate average retention if there are actually reviewed cards
-    # and at least 5% of cards have been reviewed
+    # and at least 10% of cards have been reviewed
     if reviewed_count > 0:
         avg_retrievability = db.session.query(
             func.avg(Flashcards.retrievability)
