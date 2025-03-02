@@ -10,34 +10,9 @@
 {% block content %}
 <h1 class="display-4 mb-4">Memoria</h1>
 
-<div class="card mb-4">
-    <div class="card-body">
-        <form id="generateForm" method="POST" action="{{ url_for('generation.generate') }}">
-            <div class="mb-3">
-                <label for="topic" class="form-label">Enter a topic:</label>
-                <div class="input-group">
-                    <input type="text" class="form-control" id="topic" name="topic" required 
-                           placeholder="Enter any topic to generate flashcards...">
-                    <button class="btn btn-primary" type="submit" id="generateBtn">
-                        <span class="normal-state">
-                            <i class="bi bi-plus-circle me-2"></i>Generate Flashcards
-                        </span>
-                        <span class="loading-state d-none">
-                            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                            Generating...
-                        </span>
-                    </button>
-                </div>
-                <div id="generateStatus" class="mt-2"></div>
-            </div>
-        </form>
-    </div>
-</div>
-
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2 class="h3 mb-0">Your Decks</h2>
     
-    <!-- Updated parameters to enable add_cards -->
     {% with 
         show_import=true,
         show_create_deck=true,
