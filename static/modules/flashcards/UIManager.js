@@ -8,6 +8,7 @@ export class UIManager {
         
         // Get the study mode from URL parameters
         this.isDueOnlyMode = new URLSearchParams(window.location.search).get('due_only') === 'true';
+        console.log(`Study mode: ${this.isDueOnlyMode ? 'Due Only' : 'Study All'}`);
     }
 
     showCard(index, flashcardsArray, score) {
@@ -84,6 +85,9 @@ export class UIManager {
     }
 
     updateScore(score, totalDue) {
+        // Add debug info
+        console.log(`Updating score: ${score}/${totalDue}`);
+        
         // Update the score text to show session completion rather than mastery
         const scoreElement = document.getElementById('score');
         if (scoreElement) scoreElement.textContent = score;
@@ -108,6 +112,9 @@ export class UIManager {
     }
 
     showCompletion(score, totalDue) {
+        // Add debug info
+        console.log(`Showing completion screen. Score: ${score}/${totalDue}`);
+        
         // Update progress bar to 100% first
         this.updateScore(score, totalDue);
         
