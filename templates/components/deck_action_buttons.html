@@ -1,5 +1,6 @@
-{# Deck action buttons component with configurable options #}
 {# 
+   Consolidated deck action buttons component with streamlined dropdown menus
+   
    Usage: 
    {% with 
      deck=deck,                      <!-- Required for deck-specific actions -->
@@ -16,13 +17,13 @@
 #}
 
 <div class="d-flex flex-wrap gap-2">
-    {# Study Now dropdown - only shown when show_study=true and deck is provided #}
+    <!-- Study Button - with dropdown when applicable -->
     {% if show_study and deck %}
     <div class="dropdown">
-        <button class="btn btn-success dropdown-toggle" type="button" id="studyDropdownMenu" data-bs-toggle="dropdown" aria-expanded="false">
-            <i class="bi bi-book"></i> Study Now
+        <button class="btn btn-success dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="bi bi-book"></i> Study
         </button>
-        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="studyDropdownMenu">
+        <ul class="dropdown-menu dropdown-menu-end">
             <li>
                 <a class="dropdown-item due-today-item {% if due_count == 0 %}disabled{% endif %} {% if deck.count_all_flashcards() == 0 %}no-cards{% endif %}" 
                    href="{{ url_for('deck.study_deck', deck_id=deck.flashcard_deck_id, due_only='true') }}"
@@ -43,38 +44,58 @@
     </div>
     {% endif %}
 
-    {# Import Content Button - visible when show_import=true #}
-    {% if show_import %}
-    <button type="button" class="btn btn-outline-primary" onclick="showImportModal()">
-        <i class="bi bi-file-earmark-arrow-up"></i> Import
-    </button>
-    {% endif %}
+    <!-- Consolidated Add Dropdown Menu -->
+    <div class="dropdown">
+        <button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="bi bi-plus-lg"></i> Add
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end">
+            <!-- Create Empty Deck Option -->
+            {% if show_create_deck %}
+            <li>
+                <a class="dropdown-item" href="#" id="createEmptyDeckBtn">
+                    <i class="bi bi-folder me-2"></i> New Deck
+                </a>
+            </li>
+            {% endif %}
+            
+            <!-- Create Sub-deck Option -->
+            {% if show_create_subdeck %}
+            <li>
+                <a class="dropdown-item" href="#" id="createDeckBtn">
+                    <i class="bi bi-folder-symlink me-2"></i> New Sub-deck
+                </a>
+            </li>
+            {% endif %}
+            
+            <!-- Add Cards Option - only when we have a deck -->
+            {% if show_add_cards and deck %}
+            <li>
+                <a class="dropdown-item add-cards-btn" href="#" data-deck-id="{{ deck.flashcard_deck_id }}">
+                    <i class="bi bi-card-text me-2"></i> Add Cards
+                </a>
+            </li>
+            {% endif %}
+            
+            <!-- Add Separator When Import is Available -->
+            {% if show_import %}
+                {% if show_create_deck or show_create_subdeck or (show_add_cards and deck) %}
+                <li><hr class="dropdown-divider"></li>
+                {% endif %}
+                
+                <li>
+                    <a class="dropdown-item" href="#" onclick="showImportModal(); return false;">
+                        <i class="bi bi-file-earmark-arrow-up me-2"></i> Import Content
+                    </a>
+                </li>
+            {% endif %}
+        </ul>
+    </div>
 
-    {# View Stats Button - visible when show_stats=true and deck is provided #}
+    <!-- Stats button - standalone since it's important for analysis -->
     {% if show_stats and deck %}
     <a href="{{ url_for('stats.view_deck_stats', deck_id=deck.flashcard_deck_id) }}" class="btn btn-outline-success">
-        <i class="bi bi-graph-up"></i> View Stats
+        <i class="bi bi-graph-up"></i> Stats
     </a>
-    {% endif %}
-
-    {# Create Empty Deck Button - visible when show_create_deck=true #}
-    {% if show_create_deck %}
-    <button id="createEmptyDeckBtn" class="btn btn-outline-primary">
-        <i class="bi bi-plus-lg"></i> Create Empty Deck
-    </button>
-    {% endif %}
-
-    {# Create Sub-deck Button - visible when show_create_subdeck=true #}
-    {% if show_create_subdeck %}
-    <button id="createDeckBtn" class="btn btn-primary">
-        <i class="bi bi-plus-lg"></i> Create New Sub-deck
-    </button>
-    {% endif %}
-
-    {# Add Cards Button - visible when show_add_cards=true and deck is provided #}
-    {% if show_add_cards and deck %}
-    <button class="btn btn-outline-primary add-cards-btn" data-deck-id="{{ deck.flashcard_deck_id }}">
-        <i class="bi bi-plus-lg"></i> Add Cards
-    </button>
     {% endif %}
 </div>
