@@ -17,31 +17,39 @@
 #}
 
 <div class="d-flex flex-wrap gap-2">
-    <!-- Study Button - with dropdown when applicable -->
-    {% if show_study and deck %}
-    <div class="dropdown">
-        <button class="btn btn-success dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-            <i class="bi bi-book"></i> Study
-        </button>
-        <ul class="dropdown-menu dropdown-menu-end">
-            <li>
-                <a class="dropdown-item due-today-item {% if due_count == 0 %}disabled{% endif %} {% if deck.count_all_flashcards() == 0 %}no-cards{% endif %}" 
-                   href="{{ url_for('deck.study_deck', deck_id=deck.flashcard_deck_id, due_only='true') }}"
-                   data-deck-id="{{ deck.flashcard_deck_id }}">
-                    <i class="bi bi-calendar-check me-2"></i>Due Today
-                    <span class="ms-auto badge bg-secondary rounded-pill due-badge">{{ due_count }}</span>
-                </a>
-            </li>
-            <li>
-                <a class="dropdown-item {% if deck.count_all_flashcards() == 0 %}no-cards{% endif %}" 
-                   href="{{ url_for('deck.study_deck', deck_id=deck.flashcard_deck_id) }}"
-                   data-deck-id="{{ deck.flashcard_deck_id }}">
-                    <i class="bi bi-collection me-2"></i>All Cards
-                    <span class="ms-auto badge bg-secondary rounded-pill">{{ deck.count_all_flashcards() }}</span>
-                </a>
-            </li>
-        </ul>
-    </div>
+    <!-- Study Button - Context-aware implementation -->
+    {% if show_study %}
+        {% if deck %}
+            <!-- Deck context: Study this specific deck -->
+            <div class="dropdown">
+                <button class="btn btn-success dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-book"></i> Study
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li>
+                        <a class="dropdown-item due-today-item {% if due_count == 0 %}disabled{% endif %} {% if deck.count_all_flashcards() == 0 %}no-cards{% endif %}" 
+                           href="{{ url_for('deck.study_deck', deck_id=deck.flashcard_deck_id, due_only='true') }}"
+                           data-deck-id="{{ deck.flashcard_deck_id }}">
+                            <i class="bi bi-calendar-check me-2"></i>Due Today
+                            <span class="ms-auto badge bg-secondary rounded-pill due-badge">{{ due_count }}</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item {% if deck.count_all_flashcards() == 0 %}no-cards{% endif %}" 
+                           href="{{ url_for('deck.study_deck', deck_id=deck.flashcard_deck_id) }}"
+                           data-deck-id="{{ deck.flashcard_deck_id }}">
+                            <i class="bi bi-collection me-2"></i>All Cards
+                            <span class="ms-auto badge bg-secondary rounded-pill">{{ deck.count_all_flashcards() }}</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        {% else %}
+            <!-- Index context: Show study button that opens a modal to select a deck -->
+            <button class="btn btn-success" type="button" data-bs-toggle="modal" data-bs-target="#selectDeckToStudyModal">
+                <i class="bi bi-book"></i> Study
+            </button>
+        {% endif %}
     {% endif %}
 
     <!-- Consolidated Add Dropdown Menu -->
@@ -102,10 +110,18 @@
         </ul>
     </div>
 
-    <!-- Stats button - standalone since it's important for analysis -->
-    {% if show_stats and deck %}
-    <a href="{{ url_for('stats.view_deck_stats', deck_id=deck.flashcard_deck_id) }}" class="btn btn-outline-success">
-        <i class="bi bi-graph-up"></i> Stats
-    </a>
+    <!-- Stats button - Context-aware implementation -->
+    {% if show_stats %}
+        {% if deck %}
+            <!-- Deck context: Show stats for this deck -->
+            <a href="{{ url_for('stats.view_deck_stats', deck_id=deck.flashcard_deck_id) }}" class="btn btn-outline-success">
+                <i class="bi bi-graph-up"></i> Stats
+            </a>
+        {% else %}
+            <!-- Index context: Show stats button that opens a modal to select a deck -->
+            <button class="btn btn-outline-success" type="button" data-bs-toggle="modal" data-bs-target="#selectDeckForStatsModal">
+                <i class="bi bi-graph-up"></i> Stats
+            </button>
+        {% endif %}
     {% endif %}
 </div>
