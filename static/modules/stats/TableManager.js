@@ -127,7 +127,7 @@ export class TableManager {
         prevItem.className = `page-item ${!pagination.has_prev ? 'disabled' : ''}`;
         const prevLink = document.createElement('a');
         prevLink.className = 'page-link';
-        prevLink.href = pagination.urls?.prev_url || '#';
+        prevLink.href = '#'; // Default to hash
         prevLink.setAttribute('aria-label', 'Previous');
         prevLink.innerHTML = '<i class="bi bi-chevron-left"></i>';
         prevItem.appendChild(prevLink);
@@ -151,57 +151,49 @@ export class TableManager {
         const dropdownMenu = document.createElement('ul');
         dropdownMenu.className = 'dropdown-menu';
         
+        // Generate the base URL for pagination - safely
+        let baseUrlPath;
+        try {
+            // First try to use the deck_id from pagination to build a path
+            if (pagination.urls && pagination.urls.base_url) {
+                // Try to extract just the path without query parameters
+                const urlObj = new URL(pagination.urls.base_url, window.location.origin);
+                baseUrlPath = urlObj.pathname;
+            } else {
+                // Fall back to current path without query params
+                baseUrlPath = window.location.pathname;
+            }
+        } catch (error) {
+            console.warn("Error creating base URL, using current path:", error);
+            baseUrlPath = window.location.pathname;
+        }
+        
         // Add dropdown items for each page
         for (let i = 1; i <= pagination.pages; i++) {
             const dropdownItem = document.createElement('li');
             const dropdownLink = document.createElement('a');
             dropdownLink.className = `dropdown-item ${i === pagination.page ? 'active' : ''}`;
             
-            // Fix URL construction to handle potentially undefined pagination.urls
-            let pageUrl;
-            try {
-                // Create URL safely with error handling
-                if (pagination.urls && pagination.urls.base_url) {
-                    // If we have a valid base URL from the API, use it
-                    pageUrl = new URL(pagination.urls.base_url);
-                    
-                    // Add or update the page parameter
-                    pageUrl.searchParams.set('page', i);
-                    
-                    // Preserve any existing filter parameter
-                    if (pagination.urls.current_url) {
-                        try {
-                            const currentUrl = new URL(pagination.urls.current_url, window.location.origin);
-                            const filterParam = currentUrl.searchParams.get('filter');
-                            if (filterParam) {
-                                pageUrl.searchParams.set('filter', filterParam);
-                            }
-                        } catch (e) {
-                            console.warn("Error extracting filter parameter:", e);
-                        }
-                    }
-                } else {
-                    // Fallback to modifying the current URL
-                    pageUrl = new URL(window.location.href);
-                    pageUrl.searchParams.set('page', i);
-                }
-            } catch (error) {
-                console.error('Error creating pagination URL:', error);
-                // If all else fails, just use hash navigation
-                pageUrl = new URL('#', window.location.href);
-                dropdownLink.dataset.page = i; // Store page number in data attribute
-            }
+            // Build URL with query params (safer method)
+            const params = new URLSearchParams();
+            params.set('page', i);
             
-            dropdownLink.href = pageUrl.toString();
+            // Final URL construction
+            dropdownLink.href = `${baseUrlPath}?${params.toString()}`;
             dropdownLink.textContent = `Page ${i}`;
+            dropdownLink.setAttribute('data-page', i);
             
             dropdownLink.addEventListener('click', (e) => {
                 e.preventDefault();
                 this.currentPage = i;
                 
-                // Update browser URL without reload
-                if (history.pushState && pageUrl.toString() !== '#') {
-                    history.pushState(null, null, pageUrl.toString());
+                // Update browser URL without reload - safely
+                try {
+                    if (history.pushState) {
+                        history.pushState(null, null, dropdownLink.href);
+                    }
+                } catch (error) {
+                    console.warn("Error updating URL history:", error);
                 }
                 
                 if (typeof callback === 'function') {
@@ -216,16 +208,28 @@ export class TableManager {
         pageDropdownItem.appendChild(dropdownMenu);
         paginationElement.appendChild(pageDropdownItem);
         
-        // Next button - similar URL fixes needed
+        // Next button - using same safe URL construction
         const nextItem = document.createElement('li');
         nextItem.className = `page-item ${!pagination.has_next ? 'disabled' : ''}`;
         const nextLink = document.createElement('a');
         nextLink.className = 'page-link';
-        nextLink.href = pagination.urls?.next_url || '#';
+        nextLink.href = '#';
+        if (pagination.has_next) {
+            const nextParams = new URLSearchParams();
+            nextParams.set('page', pagination.next_page);
+            nextLink.href = `${baseUrlPath}?${nextParams.toString()}`;
+        }
         nextLink.setAttribute('aria-label', 'Next');
         nextLink.innerHTML = '<i class="bi bi-chevron-right"></i>';
         nextItem.appendChild(nextLink);
         paginationElement.appendChild(nextItem);
+        
+        // Set prev link href using same safe method
+        if (pagination.has_prev) {
+            const prevParams = new URLSearchParams();
+            prevParams.set('page', pagination.prev_page);
+            prevLink.href = `${baseUrlPath}?${prevParams.toString()}`;
+        }
         
         // Add event listeners for next/previous with URL updates
         if (pagination.has_prev) {
@@ -233,9 +237,13 @@ export class TableManager {
                 e.preventDefault();
                 this.currentPage = pagination.prev_page;
                 
-                // Update browser URL without reload - handle potential missing URL
-                if (history.pushState && prevLink.href !== '#') {
-                    history.pushState(null, null, prevLink.href);
+                // Update browser URL without reload - safely
+                try {
+                    if (history.pushState) {
+                        history.pushState(null, null, prevLink.href);
+                    }
+                } catch (error) {
+                    console.warn("Error updating URL history:", error);
                 }
                 
                 if (typeof callback === 'function') {
@@ -249,9 +257,13 @@ export class TableManager {
                 e.preventDefault();
                 this.currentPage = pagination.next_page;
                 
-                // Update browser URL without reload - handle potential missing URL
-                if (history.pushState && nextLink.href !== '#') {
-                    history.pushState(null, null, nextLink.href);
+                // Update browser URL without reload - safely
+                try {
+                    if (history.pushState) {
+                        history.pushState(null, null, nextLink.href);
+                    }
+                } catch (error) {
+                    console.warn("Error updating URL history:", error);
                 }
                 
                 if (typeof callback === 'function') {
@@ -259,6 +271,13 @@ export class TableManager {
                 }
             });
         }
+        
+        // For debugging
+        console.log("Pagination setup complete:", {
+            currentPage: pagination.page,
+            totalPages: pagination.pages,
+            baseUrlPath
+        });
     }
     
     /**
