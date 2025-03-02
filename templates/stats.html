@@ -131,24 +131,12 @@
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script type="module">
-    import { StatsManager } from '{{ url_for("static", filename="modules/flashcards/stats-manager.js") }}';
+    import { StatsManager } from '{{ url_for("static", filename="modules/stats/index.js") }}';
     
     document.addEventListener('DOMContentLoaded', function() {
+        // The refactored structure is used the same way
         const statsManager = new StatsManager({{ deck.flashcard_deck_id }});
         statsManager.initialize();
-        
-        // Set up filter buttons for upcoming reviews table
-        document.getElementById('showTodayBtn').addEventListener('click', () => {
-            statsManager.filterUpcomingReviews('today');
-        });
-        
-        document.getElementById('showWeekBtn').addEventListener('click', () => {
-            statsManager.filterUpcomingReviews('week');
-        });
-        
-        document.getElementById('showAllBtn').addEventListener('click', () => {
-            statsManager.filterUpcomingReviews('all');
-        });
         
         // Cleanup when page is unloaded
         window.addEventListener('beforeunload', () => {
