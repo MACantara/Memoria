@@ -17,8 +17,8 @@
         show_import=true,
         show_create_deck=true,
         show_create_subdeck=false,
-        show_study=false,
-        show_stats=false,
+        show_study=true,
+        show_stats=true,
         show_add_cards=true
     %}
     {% include 'components/deck_action_buttons.html' %}
@@ -57,6 +57,10 @@
 
 <!-- Import Content Modal -->
 {% include 'components/import_content_modal.html' %}
+
+<!-- Add these new modals for deck selection -->
+{% include 'components/select_deck_to_study_modal.html' %}
+{% include 'components/select_deck_for_stats_modal.html' %}
 
 {% endblock %}
 
