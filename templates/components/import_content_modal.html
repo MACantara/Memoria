@@ -31,12 +31,16 @@
                                        placeholder="Name for the new flashcard deck" required>
                             </div>
                             
-                            <div class="mb-3">
+                            <div class="mb-3" id="fileParentDeckContainer">
                                 <label for="parentDeckId" class="form-label">Parent Deck (Optional)</label>
-                                <select class="form-select" id="parentDeckId" name="parent_deck_id">
-                                    <option value="">None (Root Level)</option>
-                                    <!-- Parent decks populated dynamically -->
-                                </select>
+                                <div class="position-relative">
+                                    <select class="form-select" id="parentDeckId" name="parent_deck_id">
+                                        <option value="">Select a parent deck</option>
+                                    </select>
+                                    <div class="loading-spinner">
+                                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                    </div>
+                                </div>
                             </div>
                             
                             <div class="mb-3">
@@ -80,12 +84,16 @@
                                        placeholder="Name for the new flashcard deck" required>
                             </div>
                             
-                            <div class="mb-3">
+                            <div class="mb-3" id="textParentDeckContainer">
                                 <label for="textParentDeckId" class="form-label">Parent Deck (Optional)</label>
-                                <select class="form-select" id="textParentDeckId">
-                                    <option value="">None (Root Level)</option>
-                                    <!-- Parent decks populated dynamically -->
-                                </select>
+                                <div class="position-relative">
+                                    <select class="form-select" id="textParentDeckId">
+                                        <option value="">Select a parent deck</option>
+                                    </select>
+                                    <div class="loading-spinner">
+                                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                    </div>
+                                </div>
                             </div>
                             
                             <div class="mb-3">
@@ -132,5 +140,19 @@
         font-size: 2.5rem;
         color: var(--bs-secondary);
         margin-bottom: 1rem;
+    }
+    /* Additional styles for the deck selector loading state */
+    .select-loading {
+        position: relative;
+    }
+    .loading-spinner {
+        display: none;
+        position: absolute;
+        right: 30px;
+        top: 50%;
+        transform: translateY(-50%);
+    }
+    .select-loading .loading-spinner {
+        display: inline-block;
     }
 </style>
