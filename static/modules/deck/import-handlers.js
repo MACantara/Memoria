@@ -2,27 +2,43 @@ export function initializeImportModal() {
     // Initialize drag and drop for file upload
     const dropArea = document.getElementById('drop-area');
     const fileInput = document.getElementById('fileInput');
-    const importModal = new bootstrap.Modal(document.getElementById('importContentModal'));
+    const importModal = document.getElementById('importContentModal');
+    
+    // Skip if we're not on a page with the import modal
+    if (!importModal) {
+        console.log("Import modal not found, skipping initialization");
+        return;
+    }
+    
+    const bsImportModal = new bootstrap.Modal(importModal);
     
     // Set up window functions for modal
     window.showImportModal = () => {
+        console.log("Opening import modal");
         // Clear previous results and form inputs
-        document.getElementById('uploadResult').innerHTML = '';
-        document.getElementById('textResult').innerHTML = '';
-        document.getElementById('fileUploadForm').reset();
-        document.getElementById('textForm').reset();
+        const uploadResult = document.getElementById('uploadResult');
+        const textResult = document.getElementById('textResult');
+        if (uploadResult) uploadResult.innerHTML = '';
+        if (textResult) textResult.innerHTML = '';
+        
+        const fileUploadForm = document.getElementById('fileUploadForm');
+        const textForm = document.getElementById('textForm');
+        if (fileUploadForm) fileUploadForm.reset();
+        if (textForm) textForm.reset();
         
         // Remove any file info message
-        const existingInfo = dropArea?.querySelector('p:not(:first-child)');
-        if (existingInfo) {
-            existingInfo.remove();
+        if (dropArea) {
+            const existingInfo = dropArea.querySelector('p:not(:first-child)');
+            if (existingInfo) {
+                existingInfo.remove();
+            }
         }
         
-        // Load parent decks for both forms
+        // Load parent decks for both forms - call this BEFORE showing the modal
         loadParentDecks();
         
         // Show the modal
-        importModal.show();
+        bsImportModal.show();
         
         // Activate first tab
         const firstTab = document.querySelector('#importTabs .nav-link');
@@ -32,7 +48,13 @@ export function initializeImportModal() {
         }
     };
     
-    // Skip if we're not on a page with the import modal
+    // Also attach the loadParentDecks function to the modal's shown.bs.modal event
+    importModal.addEventListener('shown.bs.modal', function() {
+        console.log("Import modal shown event triggered");
+        loadParentDecks();  // Load decks when modal is fully shown
+    });
+    
+    // Skip if drag and drop elements aren't present
     if (!dropArea || !fileInput) {
         return;
     }
@@ -237,25 +259,53 @@ export function initializeImportModal() {
 
 async function loadParentDecks() {
     try {
-        const response = await fetch('/deck/api/decks');
-        const decks = await response.json();
+        console.log("Fetching parent decks for import modal");
         
+        // Set loading state for the select elements
         const parentDeckId = document.getElementById('parentDeckId');
         const textParentDeckId = document.getElementById('textParentDeckId');
         
-        if (!parentDeckId || !textParentDeckId) return;
-        
-        // Clear existing options except first one
-        while (parentDeckId.options.length > 1) {
-            parentDeckId.remove(1);
+        if (parentDeckId) {
+            parentDeckId.innerHTML = '<option value="">Loading decks...</option>';
+            parentDeckId.parentElement.classList.add('select-loading');
         }
         
-        while (textParentDeckId.options.length > 1) {
-            textParentDeckId.remove(1);
+        if (textParentDeckId) {
+            textParentDeckId.innerHTML = '<option value="">Loading decks...</option>';
+            textParentDeckId.parentElement.classList.add('select-loading');
+        }
+        
+        // Fetch the decks
+        const response = await fetch('/deck/api/list');
+        
+        if (!response.ok) {
+            throw new Error(`Failed to fetch decks: ${response.statusText}`);
+        }
+        
+        const decks = await response.json();
+        console.log(`Fetched ${decks.length} decks`, decks);
+        
+        // Check if the select elements exist
+        if (!parentDeckId && !textParentDeckId) {
+            console.warn("Parent deck select elements not found");
+            return;
+        }
+        
+        // Reset the first option for both selects
+        if (parentDeckId) {
+            parentDeckId.innerHTML = '<option value="">Select a parent deck</option>';
+            parentDeckId.parentElement.classList.remove('select-loading');
+        }
+        
+        if (textParentDeckId) {
+            textParentDeckId.innerHTML = '<option value="">Select a parent deck</option>';
+            textParentDeckId.parentElement.classList.remove('select-loading');
         }
         
         // Helper function to populate select element
         function populateSelect(selectElement, decks, level = 0) {
+            if (!selectElement) return;
+            
             decks.forEach(deck => {
                 const option = document.createElement('option');
                 option.value = deck.id;
@@ -272,7 +322,25 @@ async function loadParentDecks() {
         populateSelect(parentDeckId, decks);
         populateSelect(textParentDeckId, decks);
         
+        console.log("Finished populating deck selectors");
+        
     } catch (error) {
         console.error('Error loading parent decks:', error);
+        
+        // Set error state if loading fails
+        const errorMsg = 'Failed to load decks';
+        
+        const parentDeckId = document.getElementById('parentDeckId');
+        const textParentDeckId = document.getElementById('textParentDeckId');
+        
+        if (parentDeckId) {
+            parentDeckId.innerHTML = `<option value="">${errorMsg}</option>`;
+            parentDeckId.parentElement.classList.remove('select-loading');
+        }
+        
+        if (textParentDeckId) {
+            textParentDeckId.innerHTML = `<option value="">${errorMsg}</option>`;
+            textParentDeckId.parentElement.classList.remove('select-loading');
+        }
     }
 }

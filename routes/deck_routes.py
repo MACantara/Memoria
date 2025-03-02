@@ -245,3 +245,20 @@ def get_child_decks(parent_id):
         })
     
     return result
+
+# Add this new route to fetch all decks for the import modal
+@deck_bp.route("/api/list", methods=["GET"])
+def api_list_decks():
+    """Get all decks as a flat list for API usage"""
+    decks = FlashcardDecks.query.order_by(FlashcardDecks.name).all()
+    result = []
+    
+    for deck in decks:
+        result.append({
+            'id': deck.flashcard_deck_id,
+            'name': deck.name,
+            'parent_id': deck.parent_deck_id,
+            'flashcard_count': len(deck.flashcards) if deck.flashcards else 0
+        })
+    
+    return jsonify(result)
