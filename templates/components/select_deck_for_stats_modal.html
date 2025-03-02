@@ -10,12 +10,34 @@
                     <label for="statsDeckSelect" class="form-label">Choose a deck to view statistics:</label>
                     <select class="form-select" id="statsDeckSelect">
                         <option value="" disabled selected>Select a deck...</option>
+                        
+                        <!-- Root level decks -->
                         {% for deck in decks %}
-                            <option value="{{ deck.flashcard_deck_id }}"
-                                    data-card-count="{{ deck.count_all_flashcards() }}"
-                                    data-has-cards="{{ 'true' if deck.count_all_flashcards() > 0 else 'false' }}">
-                                {{ deck.name }} ({{ deck.count_all_flashcards() }} cards)
-                            </option>
+                            {% if not deck.parent_deck_id %}
+                                <option value="{{ deck.flashcard_deck_id }}" 
+                                        data-card-count="{{ deck.count_all_flashcards() }}"
+                                        data-has-cards="{{ 'true' if deck.count_all_flashcards() > 0 else 'false' }}">
+                                    {{ deck.name }} ({{ deck.count_all_flashcards() }} cards)
+                                </option>
+                                
+                                <!-- First level sub-decks -->
+                                {% for subdeck in deck.child_decks %}
+                                    <option value="{{ subdeck.flashcard_deck_id }}" 
+                                            data-card-count="{{ subdeck.count_all_flashcards() }}"
+                                            data-has-cards="{{ 'true' if subdeck.count_all_flashcards() > 0 else 'false' }}">
+                                        &nbsp;&nbsp;└─ {{ subdeck.name }} ({{ subdeck.count_all_flashcards() }} cards)
+                                    </option>
+                                    
+                                    <!-- Second level sub-decks -->
+                                    {% for subsubdeck in subdeck.child_decks %}
+                                        <option value="{{ subsubdeck.flashcard_deck_id }}" 
+                                                data-card-count="{{ subsubdeck.count_all_flashcards() }}"
+                                                data-has-cards="{{ 'true' if subsubdeck.count_all_flashcards() > 0 else 'false' }}">
+                                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ {{ subsubdeck.name }} ({{ subsubdeck.count_all_flashcards() }} cards)
+                                        </option>
+                                    {% endfor %}
+                                {% endfor %}
+                            {% endif %}
                         {% endfor %}
                     </select>
                 </div>
