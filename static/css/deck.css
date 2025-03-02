@@ -54,3 +54,36 @@
 .dropdown-item:hover {
     background-color: var(--bs-light);
 }
+
+/* Updated dropdown styling for side-by-side layout */
+.card .dropdown {
+    position: relative;
+}
+
+.card .dropdown .btn.dropdown-toggle {
+    width: 100%;
+    height: 100%; /* Make button take full height */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Fix dropdown width to cover only its button */
+.card .dropdown .dropdown-menu {
+    width: 100%;
+    min-width: 180px;
+}
+
+/* Fix alignment for side-by-side buttons */
+.card .btn {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* For smaller screens, ensure buttons have equal height */
+@media (max-width: 576px) {
+    .card .d-flex.gap-2 {
+        align-items: stretch;
+    }
+}
