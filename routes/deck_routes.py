@@ -52,7 +52,24 @@ def study_deck(deck_id):
         
         db.session.commit()
     
-    return render_template("flashcards.html", deck=deck, flashcards=flashcards, due_only=due_only)
+    # Get parent deck information for each card to display subdeck names
+    deck_info = {}
+    for card in flashcards:
+        if card.flashcard_deck_id != deck_id:  # This card is from a subdeck
+            subdeck = FlashcardDecks.query.get(card.flashcard_deck_id)
+            if subdeck:
+                deck_info[card.flashcard_id] = {
+                    'deck_id': subdeck.flashcard_deck_id,
+                    'deck_name': subdeck.name
+                }
+    
+    return render_template(
+        "flashcards.html", 
+        deck=deck, 
+        flashcards=flashcards, 
+        due_only=due_only,
+        deck_info=deck_info
+    )
 
 @deck_bp.route("/create", methods=["POST"])
 def create_deck():
