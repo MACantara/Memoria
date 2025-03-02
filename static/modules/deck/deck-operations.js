@@ -252,6 +252,57 @@ function initializeMoveDeck() {
     }
 }
 
+async function loadDeckTree(currentDeckId) {
+    try {
+        const response = await fetch('/deck/api/decks/tree');
+        const decks = await response.json();
+        
+        const treeHtml = renderDeckTree(decks, 0, currentDeckId);
+        document.getElementById('deckTreeContainer').innerHTML = treeHtml || '<div class="text-muted">No other decks available</div>';
+    } catch (error) {
+        console.error('Error loading deck tree:', error);
+        document.getElementById('deckTreeContainer').innerHTML = 
+            '<div class="alert alert-danger">Failed to load decks</div>';
+    }
+}
+
+function renderDeckTree(decks, level, currentDeckId) {
+    if (!decks || decks.length === 0) return '';
+    
+    let html = '<ul class="deck-tree" style="list-style-type: none; padding-left: ' + 
+               (level > 0 ? '20px' : '0') + ';">';
+    
+    decks.forEach(deck => {
+        // Skip the current deck and its descendants
+        if (deck.flashcard_deck_id == currentDeckId) return;
+        
+        html += `
+            <li class="mb-2">
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="destinationDeck" 
+                           id="deck${deck.flashcard_deck_id}" value="${deck.flashcard_deck_id}">
+                    <label class="form-check-label" for="deck${deck.flashcard_deck_id}">
+                        <i class="bi bi-folder"></i> ${deck.name}
+                    </label>
+                </div>
+            `;
+        
+        // Recursively render children, excluding the current deck's branch
+        const filteredChildren = deck.child_decks.filter(child => 
+            !isDescendant(child, currentDeckId)
+        );
+        
+        if (filteredChildren.length > 0) {
+            html += renderDeckTree(filteredChildren, level + 1, currentDeckId);
+        }
+        
+        html += '</li>';
+    });
+    
+    html += '</ul>';
+    return html;
+}
+
 function isDescendant(deck, ancestorId) {
     if (deck.flashcard_deck_id == ancestorId) return true;
     
