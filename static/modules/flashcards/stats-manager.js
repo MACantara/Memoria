@@ -5,13 +5,16 @@ export class StatsManager {
         this.upcomingChart = null;
         this.observer = null;
         this.refreshInterval = null;
-        this.upcomingFilter = 'week'; // Default to showing this week's reviews
+        this.upcomingFilter = 'today'; // Default to 'today' instead of 'week'
         this.upcomingCurrentPage = 1;
     }
 
     initialize() {
         this.loadStats();
         this.loadUpcomingReviews();
+        
+        // Set the Today button as active by default
+        document.getElementById('showTodayBtn').classList.replace('btn-outline-primary', 'btn-primary');
         
         // Refresh stats every 30 seconds
         this.refreshInterval = setInterval(() => this.loadStats(), 30000);
@@ -512,19 +515,26 @@ export class StatsManager {
      * Filter the upcoming reviews based on time period
      */
     filterUpcomingReviews(filterType) {
-        // Update active filter button
+        // Reset all buttons to outline style
         document.querySelectorAll('.btn-group .btn').forEach(btn => {
             btn.classList.remove('btn-primary');
             btn.classList.add('btn-outline-primary');
         });
         
-        document.getElementById(`show${filterType.charAt(0).toUpperCase() + filterType.slice(1)}Btn`)
-            .classList.replace('btn-outline-primary', 'btn-primary');
+        // Set active button style
+        const activeButton = document.getElementById(`show${filterType.charAt(0).toUpperCase() + filterType.slice(1)}Btn`);
+        if (activeButton) {
+            activeButton.classList.remove('btn-outline-primary');
+            activeButton.classList.add('btn-primary');
+        }
         
         // Update filter and reload data
         this.upcomingFilter = filterType;
         this.upcomingCurrentPage = 1; // Reset to first page
         this.loadUpcomingReviews();
+        
+        // Add some debug info
+        console.log(`Filtered to: ${filterType}, page: ${this.upcomingCurrentPage}`);
     }
 
     // Clean up method to prevent memory leaks
