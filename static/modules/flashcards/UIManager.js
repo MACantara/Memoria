@@ -35,6 +35,9 @@ export class UIManager {
             // Update prominent status badge above the card
             const state = currentCard.dataset.state || '0';
             this.updateStatusBadge(parseInt(state));
+            
+            // Update header if this card has subdeck info
+            this.updateSubdeckInfo(currentCard);
         }
     }
     
@@ -281,5 +284,36 @@ export class UIManager {
             3: 'forgotten'
         };
         return stateMap[stateNum] || 'new';
+    }
+    
+    updateSubdeckInfo(card) {
+        // Check if card has subdeck information
+        const hasSubdeck = card && card.dataset.subdeckName;
+        
+        // Find or create the subdeck indicator element
+        let subdeckIndicator = document.getElementById('subdeckIndicator');
+        
+        if (hasSubdeck) {
+            // If we have subdeck info, show it
+            if (!subdeckIndicator) {
+                // Create the indicator if it doesn't exist
+                const deckTitleContainer = document.querySelector('.col-6.text-center .d-flex');
+                if (deckTitleContainer) {
+                    subdeckIndicator = document.createElement('span');
+                    subdeckIndicator.id = 'subdeckIndicator';
+                    subdeckIndicator.className = 'subdeck-indicator d-block w-100 text-center small text-muted mt-1';
+                    deckTitleContainer.parentNode.appendChild(subdeckIndicator);
+                }
+            }
+            
+            // Update the text
+            if (subdeckIndicator) {
+                subdeckIndicator.textContent = `From subdeck: ${card.dataset.subdeckName}`;
+                subdeckIndicator.style.display = 'block';
+            }
+        } else if (subdeckIndicator) {
+            // Hide the indicator if this card doesn't have subdeck info
+            subdeckIndicator.style.display = 'none';
+        }
     }
 }
