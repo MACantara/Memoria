@@ -63,7 +63,7 @@
             }
         });
         
-        // Handle the view stats button click
+        // Handle the view stats button click with corrected URL
         viewStatsBtn.addEventListener('click', function() {
             const deckId = deckSelect.value;
             
@@ -73,8 +73,8 @@
                 return;
             }
             
-            // Navigate to the stats page
-            window.location.href = `/deck/${deckId}/view_stats`;
+            // Navigate to the stats page with correct URL format
+            window.location.href = `/stats/deck/${deckId}/view_stats`;
         });
     });
 </script>
