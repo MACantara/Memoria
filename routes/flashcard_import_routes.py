@@ -6,8 +6,11 @@ import os
 import json
 import traceback
 from google import genai
-from routes.flashcard_generation_routes import parse_flashcards, generate_prompt_template
-from services.fsrs_scheduler import get_current_time  # Import this like in flashcard_generation_routes.py
+# Import functions from flashcard_generation_routes instead of duplicating them
+from routes.flashcard_generation_routes import (
+    parse_flashcards, generate_prompt_template
+)
+from services.fsrs_scheduler import get_current_time
 
 import_bp = Blueprint('import', __name__)
 
@@ -66,16 +69,68 @@ def upload_file():
         api_key = os.getenv("GOOGLE_GEMINI_API_KEY")
         client = genai.Client(api_key=api_key)
         
-        # Generate prompt using existing template
-        prompt = generate_prompt_template("the document content", batch_size)
+        # Generate prompt using the existing function from flashcard_generation_routes
+        prompt = generate_prompt_template(f"content in file: {secure_filename(file.filename)}", batch_size)
         
+        print(f"Processing file upload: '{file.filename}', content length: {len(file_text)} chars")
+        
+        # Use schema with shorter field names for optimization
+        schema = {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "q": {"type": "string"},  # short for question
+                    "ca": {"type": "string"}, # short for correct_answer
+                    "ia": {                   # short for incorrect_answers
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "minItems": 1,
+                        "maxItems": 3
+                    }
+                },
+                "required": ["q", "ca", "ia"]
+            }
+        }
+        
+        print("Sending request to Gemini API...")
         response = client.models.generate_content(
             model="gemini-2.0-flash-lite",
-            contents=f"{prompt}\n\nContent:\n{file_text}"
+            contents=f"{prompt}\n\nContent:\n{file_text[:1000]}..." if len(file_text) > 1000 else f"{prompt}\n\nContent:\n{file_text}",
+            config={
+                'response_mime_type': 'application/json',
+                'response_schema': schema
+            }
         )
         
-        # Parse the generated flashcards
-        flashcards_data = parse_flashcards(response.text)
+        print("\n==== RAW GEMINI API RESPONSE (FILE UPLOAD) ====")
+        print(response.text[:1000] + "..." if len(response.text) > 1000 else response.text)
+        print("===== END OF RAW RESPONSE =====\n")
+        
+        # Get parsed flashcards or fall back to manual parsing
+        try:
+            # Try to parse the response as JSON
+            flashcards_data = json.loads(response.text)
+            current_app.logger.info(f"Successfully parsed JSON output: {len(flashcards_data)} cards")
+            print(f"Successfully parsed JSON: {len(flashcards_data)} cards")
+            
+            # Print sample cards for debugging
+            if flashcards_data:
+                print("\n==== SAMPLE FLASHCARD DATA ====")
+                sample_count = min(2, len(flashcards_data))
+                for i in range(sample_count):
+                    print(f"Card {i+1}:")
+                    print(f"  Question: {flashcards_data[i].get('q')}")
+                    print(f"  Correct: {flashcards_data[i].get('ca')}")
+                    print(f"  Incorrect: {flashcards_data[i].get('ia')}")
+                print("============================\n")
+            
+        except json.JSONDecodeError as parse_error:
+            # Fallback to manual parsing if JSON parsing fails
+            print(f"JSON parsing failed: {parse_error}. Falling back to manual parsing.")
+            print(f"Response text type: {type(response.text)}")
+            flashcards_data = parse_flashcards(response.text)
+            print(f"Manual parsing result: {len(flashcards_data)} cards extracted")
         
         if not flashcards_data:
             current_app.logger.warning("No flashcards were generated from the content")
@@ -87,12 +142,23 @@ def upload_file():
         # Save to database
         cards_added = 0
         for card in flashcards_data:
-            # Create the flashcard with direct state and due_date assignment
-            # like in flashcard_generation_routes.py
+            # Convert to dict if it's a Pydantic model
+            if hasattr(card, 'model_dump'):
+                card = card.model_dump()
+            
+            # Use the abbreviated field names (with fallback to old names)
+            question = card.get('q', card.get('question', ''))
+            correct_answer = card.get('ca', card.get('correct_answer', ''))
+            incorrect_answers = card.get('ia', card.get('incorrect_answers', []))[:3]
+                
+            # Pad with empty answers if needed
+            while len(incorrect_answers) < 3:
+                incorrect_answers.append(f"Incorrect answer {len(incorrect_answers) + 1}")
+            
             flashcard = Flashcards(
-                question=card['question'],
-                correct_answer=card['correct_answer'],
-                incorrect_answers=json.dumps(card['incorrect_answers']),
+                question=question,
+                correct_answer=correct_answer,
+                incorrect_answers=json.dumps(incorrect_answers),
                 flashcard_deck_id=deck.flashcard_deck_id,
                 due_date=current_time,  # Set due date to current time
                 state=0  # Explicitly set to NEW_STATE
@@ -114,6 +180,8 @@ def upload_file():
     except Exception as e:
         current_app.logger.error(f"Error processing uploaded file: {str(e)}")
         current_app.logger.error(traceback.format_exc())
+        print(f"Error in file upload processing: {str(e)}")
+        print(traceback.format_exc())  # Print full stack trace for debugging
         
         # Clean up any created deck
         try:
@@ -153,31 +221,95 @@ def process_text():
         api_key = os.getenv("GOOGLE_GEMINI_API_KEY")
         client = genai.Client(api_key=api_key)
         
-        # Generate content based on text using the existing prompt template
-        batch_size = 100
+        print(f"Processing pasted text, content length: {len(text_content)} chars")
         
-        prompt = f"""{generate_prompt_template({text_content}, batch_size)}"""
-
+        # Generate prompt using the existing function from flashcard_generation_routes
+        batch_size = 100
+        prompt = generate_prompt_template("pasted text content", batch_size)
+        
+        # Use schema with shorter field names for optimization
+        schema = {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "q": {"type": "string"},  # short for question
+                    "ca": {"type": "string"}, # short for correct_answer
+                    "ia": {                   # short for incorrect_answers
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "minItems": 1,
+                        "maxItems": 3
+                    }
+                },
+                "required": ["q", "ca", "ia"]
+            }
+        }
+        
         response = client.models.generate_content(
             model="gemini-2.0-flash-lite",
-            contents=f"{prompt}\n\nContent:\n{text_content}"
+            contents=f"{prompt}\n\nContent:\n{text_content}",
+            config={
+                'response_mime_type': 'application/json',
+                'response_schema': schema
+            }
         )
         
-        # Parse the generated flashcards using the existing function
-        flashcards_data = parse_flashcards(response.text)
+        print("\n==== RAW GEMINI API RESPONSE (TEXT PASTE) ====")
+        print(response.text[:1000] + "..." if len(response.text) > 1000 else response.text)
+        print("===== END OF RAW RESPONSE =====\n")
+        
+        # Get parsed flashcards or fall back to manual parsing
+        try:
+            # Try to parse the response as JSON
+            flashcards_data = json.loads(response.text)
+            current_app.logger.info(f"Successfully parsed JSON output: {len(flashcards_data)} cards")
+            print(f"Successfully parsed JSON: {len(flashcards_data)} cards")
+            
+            # Print sample cards for debugging
+            if flashcards_data:
+                print("\n==== SAMPLE FLASHCARD DATA ====")
+                sample_count = min(2, len(flashcards_data))
+                for i in range(sample_count):
+                    print(f"Card {i+1}:")
+                    print(f"  Question: {flashcards_data[i].get('q', '')}")
+                    print(f"  Correct: {flashcards_data[i].get('ca', '')}")
+                    print(f"  Incorrect: {flashcards_data[i].get('ia', [])}") # Using .get() for safety
+                print("============================\n")
+            
+        except json.JSONDecodeError as parse_error:
+            # Fallback to manual parsing if JSON parsing fails
+            print(f"JSON parsing failed: {parse_error}. Falling back to manual parsing.")
+            print(f"Response text type: {type(response.text)}")
+            flashcards_data = parse_flashcards(response.text)
+            print(f"Manual parsing result: {len(flashcards_data)} cards extracted")
+        
+        if not flashcards_data:
+            raise ValueError("No flashcards could be generated from this content")
         
         # Set current time for all cards to use same timestamp
         current_time = get_current_time()
         
-        # Save to database
+        # Save to database - same code as in upload_file
         cards_added = 0
         for card in flashcards_data:
-            # Create the flashcard with direct state and due_date assignment
-            # like in flashcard_generation_routes.py
+            # Convert to dict if it's a Pydantic model
+            if hasattr(card, 'model_dump'):
+                card = card.model_dump()
+            
+            # Use the abbreviated field names (with fallback to old names)
+            question = card.get('q', card.get('question', ''))
+            correct_answer = card.get('ca', card.get('correct_answer', ''))
+            incorrect_answers = card.get('ia', card.get('incorrect_answers', []))[:3]
+            
+            # Pad with empty answers if needed
+            while len(incorrect_answers) < 3:
+                incorrect_answers.append(f"Incorrect answer {len(incorrect_answers) + 1}")
+                
             flashcard = Flashcards(
-                question=card['question'],
-                correct_answer=card['correct_answer'],
-                incorrect_answers=json.dumps(card['incorrect_answers']),
+                question=question,
+                correct_answer=correct_answer,
+                incorrect_answers=json.dumps(incorrect_answers),
                 flashcard_deck_id=deck.flashcard_deck_id,
                 due_date=current_time,  # Set due date to current time
                 state=0  # Explicitly set to NEW_STATE
@@ -198,6 +330,8 @@ def process_text():
     except Exception as e:
         current_app.logger.error(f"Error processing text content: {str(e)}")
         current_app.logger.error(traceback.format_exc())
+        print(f"Error in text processing: {str(e)}")
+        print(traceback.format_exc())  # Print full stack trace for debugging
         
         # Clean up any created deck
         try:
