@@ -141,6 +141,23 @@ body {
     margin-bottom: 0.5rem;
 }
 
+/* Subdeck indicator styles */
+.subdeck-indicator {
+    font-size: 0.85rem;
+    margin-top: 0.25rem;
+    color: var(--bs-secondary);
+}
+
+.card-subtitle.text-muted {
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+}
+
+[data-bs-theme="dark"] .card-subtitle.text-muted {
+    border-bottom-color: rgba(255,255,255,0.1);
+}
+
 /* Mobile optimizations */
 @media (max-width: 768px) {
     .answer-option {
