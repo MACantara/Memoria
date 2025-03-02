@@ -74,22 +74,22 @@ def upload_file():
         
         print(f"Processing file upload: '{file.filename}', content length: {len(file_text)} chars")
         
-        # Use schema as a simple dictionary instead of Pydantic model
+        # Use schema with shorter field names for optimization
         schema = {
             "type": "array",
             "items": {
                 "type": "object",
                 "properties": {
-                    "question": {"type": "string"},
-                    "correct_answer": {"type": "string"},
-                    "incorrect_answers": {
+                    "q": {"type": "string"},  # short for question
+                    "ca": {"type": "string"}, # short for correct_answer
+                    "ia": {                   # short for incorrect_answers
                         "type": "array",
                         "items": {"type": "string"},
                         "minItems": 1,
                         "maxItems": 3
                     }
                 },
-                "required": ["question", "correct_answer", "incorrect_answers"]
+                "required": ["q", "ca", "ia"]
             }
         }
         
@@ -120,9 +120,9 @@ def upload_file():
                 sample_count = min(2, len(flashcards_data))
                 for i in range(sample_count):
                     print(f"Card {i+1}:")
-                    print(f"  Question: {flashcards_data[i]['question']}")
-                    print(f"  Correct: {flashcards_data[i]['correct_answer']}")
-                    print(f"  Incorrect: {flashcards_data[i]['incorrect_answers']}")
+                    print(f"  Question: {flashcards_data[i].get('q')}")
+                    print(f"  Correct: {flashcards_data[i].get('ca')}")
+                    print(f"  Incorrect: {flashcards_data[i].get('ia')}")
                 print("============================\n")
             
         except json.JSONDecodeError as parse_error:
@@ -145,16 +145,19 @@ def upload_file():
             # Convert to dict if it's a Pydantic model
             if hasattr(card, 'model_dump'):
                 card = card.model_dump()
+            
+            # Use the abbreviated field names (with fallback to old names)
+            question = card.get('q', card.get('question', ''))
+            correct_answer = card.get('ca', card.get('correct_answer', ''))
+            incorrect_answers = card.get('ia', card.get('incorrect_answers', []))[:3]
                 
-            # Make sure we have at least one incorrect answer
-            incorrect_answers = card['incorrect_answers'][:3]
             # Pad with empty answers if needed
             while len(incorrect_answers) < 3:
                 incorrect_answers.append(f"Incorrect answer {len(incorrect_answers) + 1}")
             
             flashcard = Flashcards(
-                question=card['question'],
-                correct_answer=card['correct_answer'],
+                question=question,
+                correct_answer=correct_answer,
                 incorrect_answers=json.dumps(incorrect_answers),
                 flashcard_deck_id=deck.flashcard_deck_id,
                 due_date=current_time,  # Set due date to current time
@@ -224,22 +227,22 @@ def process_text():
         batch_size = 100
         prompt = generate_prompt_template("pasted text content", batch_size)
         
-        # Use schema as a simple dictionary instead of Pydantic model
+        # Use schema with shorter field names for optimization
         schema = {
             "type": "array",
             "items": {
                 "type": "object",
                 "properties": {
-                    "question": {"type": "string"},
-                    "correct_answer": {"type": "string"},
-                    "incorrect_answers": {
+                    "q": {"type": "string"},  # short for question
+                    "ca": {"type": "string"}, # short for correct_answer
+                    "ia": {                   # short for incorrect_answers
                         "type": "array",
                         "items": {"type": "string"},
                         "minItems": 1,
                         "maxItems": 3
                     }
                 },
-                "required": ["question", "correct_answer", "incorrect_answers"]
+                "required": ["q", "ca", "ia"]
             }
         }
         
@@ -269,9 +272,9 @@ def process_text():
                 sample_count = min(2, len(flashcards_data))
                 for i in range(sample_count):
                     print(f"Card {i+1}:")
-                    print(f"  Question: {flashcards_data[i]['question']}")
-                    print(f"  Correct: {flashcards_data[i]['correct_answer']}")
-                    print(f"  Incorrect: {flashcards_data[i].get('incorrect_answers', [])}") # Using .get() for safety
+                    print(f"  Question: {flashcards_data[i].get('q', '')}")
+                    print(f"  Correct: {flashcards_data[i].get('ca', '')}")
+                    print(f"  Incorrect: {flashcards_data[i].get('ia', [])}") # Using .get() for safety
                 print("============================\n")
             
         except json.JSONDecodeError as parse_error:
@@ -293,16 +296,19 @@ def process_text():
             # Convert to dict if it's a Pydantic model
             if hasattr(card, 'model_dump'):
                 card = card.model_dump()
-                
-            # Make sure we have at least one incorrect answer
-            incorrect_answers = card['incorrect_answers'][:3]
+            
+            # Use the abbreviated field names (with fallback to old names)
+            question = card.get('q', card.get('question', ''))
+            correct_answer = card.get('ca', card.get('correct_answer', ''))
+            incorrect_answers = card.get('ia', card.get('incorrect_answers', []))[:3]
+            
             # Pad with empty answers if needed
             while len(incorrect_answers) < 3:
                 incorrect_answers.append(f"Incorrect answer {len(incorrect_answers) + 1}")
                 
             flashcard = Flashcards(
-                question=card['question'],
-                correct_answer=card['correct_answer'],
+                question=question,
+                correct_answer=correct_answer,
                 incorrect_answers=json.dumps(incorrect_answers),
                 flashcard_deck_id=deck.flashcard_deck_id,
                 due_date=current_time,  # Set due date to current time

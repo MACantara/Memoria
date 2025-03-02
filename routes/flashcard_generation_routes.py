@@ -39,23 +39,22 @@ def generate():
     print(f"Generating flashcards for topic: '{deck.name}', batch size: {batch_size}")
 
     try:
-        # Use schema as a simple dictionary instead of Pydantic model
-        # This avoids compatibility issues with the Gemini API
+        # Use schema with shorter field names for optimization
         schema = {
             "type": "array",
             "items": {
                 "type": "object",
                 "properties": {
-                    "question": {"type": "string"},
-                    "correct_answer": {"type": "string"},
-                    "incorrect_answers": {
+                    "q": {"type": "string"},  # short for question
+                    "ca": {"type": "string"}, # short for correct_answer
+                    "ia": {                   # short for incorrect_answers
                         "type": "array",
                         "items": {"type": "string"},
                         "minItems": 1,
                         "maxItems": 3
                     }
                 },
-                "required": ["question", "correct_answer", "incorrect_answers"]
+                "required": ["q", "ca", "ia"]
             }
         }
         
@@ -79,15 +78,15 @@ def generate():
             flashcards_data = json.loads(response.text)
             print(f"Successfully parsed JSON output: {len(flashcards_data)} cards")
             
-            # Print sample cards for debugging
+            # Print sample cards for debugging with the new field names
             if flashcards_data:
                 print("\n==== SAMPLE FLASHCARD DATA ====")
                 sample_count = min(2, len(flashcards_data))
                 for i in range(sample_count):
                     print(f"Card {i+1}:")
-                    print(f"  Question: {flashcards_data[i]['question']}")
-                    print(f"  Correct: {flashcards_data[i]['correct_answer']}")
-                    print(f"  Incorrect: {flashcards_data[i]['incorrect_answers']}")
+                    print(f"  Question: {flashcards_data[i].get('q')}")
+                    print(f"  Correct: {flashcards_data[i].get('ca')}")
+                    print(f"  Incorrect: {flashcards_data[i].get('ia')}")
                 print("============================\n")
             
         except json.JSONDecodeError as parse_error:
@@ -108,19 +107,22 @@ def generate():
             if hasattr(card, 'model_dump'):
                 card = card.model_dump()
                 
+            # Use the abbreviated field names (with fallback to old names)
+            question = card.get('q', card.get('question', ''))
+            correct_answer = card.get('ca', card.get('correct_answer', ''))
+            incorrect_answers = card.get('ia', card.get('incorrect_answers', []))[:3]
+                
             if not Flashcards.query.filter_by(
                 flashcard_deck_id=deck.flashcard_deck_id,
-                question=card['question']
+                question=question
             ).first():
-                # Make sure we have exactly 3 incorrect answers
-                incorrect_answers = card['incorrect_answers'][:3]
-                # Pad with empty answers if needed
+                # Pad with empty answers if needed - FIXED LINE BELOW
                 while len(incorrect_answers) < 3:
                     incorrect_answers.append(f"Incorrect answer {len(incorrect_answers) + 1}")
                 
                 flashcard = Flashcards(
-                    question=card['question'],
-                    correct_answer=card['correct_answer'],
+                    question=question,
+                    correct_answer=correct_answer,
                     incorrect_answers=json.dumps(incorrect_answers),
                     flashcard_deck_id=deck.flashcard_deck_id,
                     due_date=current_time,
@@ -172,9 +174,9 @@ def generate_prompt_template(topic, batch_size):
        - Don't make the correct answer stand out by length or detail
     
     Format your response as a JSON array of objects, each with:
-    - 'question': the flashcard question
-    - 'correct_answer': the correct answer
-    - 'incorrect_answers': array of exactly three incorrect answers
+    - 'q': the flashcard question (short for question)
+    - 'ca': the correct answer (short for correct_answer)
+    - 'ia': array of exactly three incorrect answers (short for incorrect_answers)
 
     Generate {batch_size} unique flashcards covering different aspects of the topic.
     Ensure comprehensive coverage by:
@@ -190,8 +192,19 @@ def parse_flashcards(text):
     try:
         # First try to parse as JSON
         data = json.loads(text)
+        
+        # Process the data to normalize field names
         if isinstance(data, list):
-            return data
+            # Convert short names to standard names if needed
+            normalized_data = []
+            for card in data:
+                normalized = {}
+                # Handle both short and long field names
+                normalized['question'] = card.get('q', card.get('question', ''))
+                normalized['correct_answer'] = card.get('ca', card.get('correct_answer', ''))
+                normalized['incorrect_answers'] = card.get('ia', card.get('incorrect_answers', []))
+                normalized_data.append(normalized)
+            return normalized_data
         elif isinstance(data, dict) and "flashcards" in data:
             return data["flashcards"]
     except:
