@@ -111,13 +111,15 @@ def get_upcoming_reviews(deck_id):
         # Get current time in UTC
         current_time = get_current_time()
         
-        # Get filter type from query param
-        filter_type = request.args.get('filter', 'week')
+        # Get filter type from query param (default to 'today')
+        filter_type = request.args.get('filter', 'today')
         
-        # Define the end date based on filter type
+        # Define the end date based on filter type with more precise calculations
         if filter_type == 'today':
-            # End of today
-            end_date = current_time + timedelta(days=1)
+            # Calculate end of today (23:59:59.999999)
+            today = current_time.replace(hour=0, minute=0, second=0, microsecond=0)
+            end_date = today + timedelta(days=1) - timedelta(microseconds=1)
+            print(f"Today filter: current_time={current_time}, end_date={end_date}")
         elif filter_type == 'week':
             # End of next 7 days
             end_date = current_time + timedelta(days=7)
@@ -128,9 +130,24 @@ def get_upcoming_reviews(deck_id):
         # Query for cards due within the filter period
         query = Flashcards.query.filter(
             Flashcards.flashcard_deck_id.in_(db.session.query(cte.c.id))
-        ).filter(
-            (Flashcards.due_date <= end_date) | (Flashcards.due_date == None)
-        ).order_by(
+        )
+        
+        # Apply different filtering based on filter type
+        if filter_type == 'today':
+            # For today, be explicit: cards must be due now or earlier (not tomorrow)
+            query = query.filter(
+                (Flashcards.due_date <= end_date) | 
+                (Flashcards.due_date == None)
+            )
+        else:
+            # For week and all views, use the normal end_date
+            query = query.filter(
+                (Flashcards.due_date <= end_date) | 
+                (Flashcards.due_date == None)
+            )
+        
+        # Order the results
+        query = query.order_by(
             # Cards with no due date first, then by due date ascending
             case((Flashcards.due_date == None, 0), else_=1),
             Flashcards.due_date.asc()
