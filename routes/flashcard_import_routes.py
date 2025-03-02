@@ -72,6 +72,8 @@ def upload_file():
         # Generate prompt using the existing function from flashcard_generation_routes
         prompt = generate_prompt_template(f"content in file: {secure_filename(file.filename)}", batch_size)
         
+        print(f"Processing file upload: '{file.filename}', content length: {len(file_text)} chars")
+        
         # Use schema as a simple dictionary instead of Pydantic model
         schema = {
             "type": "array",
@@ -91,24 +93,44 @@ def upload_file():
             }
         }
         
+        print("Sending request to Gemini API...")
         response = client.models.generate_content(
             model="gemini-2.0-flash-lite",
-            contents=f"{prompt}\n\nContent:\n{file_text}",
+            contents=f"{prompt}\n\nContent:\n{file_text[:1000]}..." if len(file_text) > 1000 else f"{prompt}\n\nContent:\n{file_text}",
             config={
                 'response_mime_type': 'application/json',
                 'response_schema': schema
             }
         )
         
+        print("\n==== RAW GEMINI API RESPONSE (FILE UPLOAD) ====")
+        print(response.text[:1000] + "..." if len(response.text) > 1000 else response.text)
+        print("===== END OF RAW RESPONSE =====\n")
+        
         # Get parsed flashcards or fall back to manual parsing
         try:
             # Try to parse the response as JSON
             flashcards_data = json.loads(response.text)
             current_app.logger.info(f"Successfully parsed JSON output: {len(flashcards_data)} cards")
+            print(f"Successfully parsed JSON: {len(flashcards_data)} cards")
+            
+            # Print sample cards for debugging
+            if flashcards_data:
+                print("\n==== SAMPLE FLASHCARD DATA ====")
+                sample_count = min(2, len(flashcards_data))
+                for i in range(sample_count):
+                    print(f"Card {i+1}:")
+                    print(f"  Question: {flashcards_data[i]['question']}")
+                    print(f"  Correct: {flashcards_data[i]['correct_answer']}")
+                    print(f"  Incorrect: {flashcards_data[i]['incorrect_answers']}")
+                print("============================\n")
+            
         except json.JSONDecodeError as parse_error:
             # Fallback to manual parsing if JSON parsing fails
-            current_app.logger.warning(f"JSON parsing failed: {parse_error}. Falling back to manual parsing.")
+            print(f"JSON parsing failed: {parse_error}. Falling back to manual parsing.")
+            print(f"Response text type: {type(response.text)}")
             flashcards_data = parse_flashcards(response.text)
+            print(f"Manual parsing result: {len(flashcards_data)} cards extracted")
         
         if not flashcards_data:
             current_app.logger.warning("No flashcards were generated from the content")
@@ -155,6 +177,8 @@ def upload_file():
     except Exception as e:
         current_app.logger.error(f"Error processing uploaded file: {str(e)}")
         current_app.logger.error(traceback.format_exc())
+        print(f"Error in file upload processing: {str(e)}")
+        print(traceback.format_exc())  # Print full stack trace for debugging
         
         # Clean up any created deck
         try:
@@ -194,6 +218,8 @@ def process_text():
         api_key = os.getenv("GOOGLE_GEMINI_API_KEY")
         client = genai.Client(api_key=api_key)
         
+        print(f"Processing pasted text, content length: {len(text_content)} chars")
+        
         # Generate prompt using the existing function from flashcard_generation_routes
         batch_size = 100
         prompt = generate_prompt_template("pasted text content", batch_size)
@@ -226,15 +252,34 @@ def process_text():
             }
         )
         
+        print("\n==== RAW GEMINI API RESPONSE (TEXT PASTE) ====")
+        print(response.text[:1000] + "..." if len(response.text) > 1000 else response.text)
+        print("===== END OF RAW RESPONSE =====\n")
+        
         # Get parsed flashcards or fall back to manual parsing
         try:
             # Try to parse the response as JSON
             flashcards_data = json.loads(response.text)
             current_app.logger.info(f"Successfully parsed JSON output: {len(flashcards_data)} cards")
+            print(f"Successfully parsed JSON: {len(flashcards_data)} cards")
+            
+            # Print sample cards for debugging
+            if flashcards_data:
+                print("\n==== SAMPLE FLASHCARD DATA ====")
+                sample_count = min(2, len(flashcards_data))
+                for i in range(sample_count):
+                    print(f"Card {i+1}:")
+                    print(f"  Question: {flashcards_data[i]['question']}")
+                    print(f"  Correct: {flashcards_data[i]['correct_answer']}")
+                    print(f"  Incorrect: {flashcards_data[i].get('incorrect_answers', [])}") # Using .get() for safety
+                print("============================\n")
+            
         except json.JSONDecodeError as parse_error:
             # Fallback to manual parsing if JSON parsing fails
-            current_app.logger.warning(f"JSON parsing failed: {parse_error}. Falling back to manual parsing.")
+            print(f"JSON parsing failed: {parse_error}. Falling back to manual parsing.")
+            print(f"Response text type: {type(response.text)}")
             flashcards_data = parse_flashcards(response.text)
+            print(f"Manual parsing result: {len(flashcards_data)} cards extracted")
         
         if not flashcards_data:
             raise ValueError("No flashcards could be generated from this content")
@@ -279,6 +324,8 @@ def process_text():
     except Exception as e:
         current_app.logger.error(f"Error processing text content: {str(e)}")
         current_app.logger.error(traceback.format_exc())
+        print(f"Error in text processing: {str(e)}")
+        print(traceback.format_exc())  # Print full stack trace for debugging
         
         # Clean up any created deck
         try:

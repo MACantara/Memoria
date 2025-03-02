@@ -36,6 +36,7 @@ def generate():
 
     client = genai.Client(api_key=api_key)
     prompt_template = generate_prompt_template(deck.name, batch_size)
+    print(f"Generating flashcards for topic: '{deck.name}', batch size: {batch_size}")
 
     try:
         # Use schema as a simple dictionary instead of Pydantic model
@@ -58,6 +59,7 @@ def generate():
             }
         }
         
+        print("Sending request to Gemini API...")
         response = client.models.generate_content(
             model="gemini-2.0-flash-lite",
             contents=prompt_template,
@@ -67,15 +69,32 @@ def generate():
             }
         )
         
+        print("\n==== RAW GEMINI API RESPONSE ====")
+        print(response.text[:1000] + "..." if len(response.text) > 1000 else response.text)
+        print("===== END OF RAW RESPONSE =====\n")
+        
         # Parse JSON response
         try:
             # Try to parse the response as JSON
             flashcards_data = json.loads(response.text)
             print(f"Successfully parsed JSON output: {len(flashcards_data)} cards")
+            
+            # Print sample cards for debugging
+            if flashcards_data:
+                print("\n==== SAMPLE FLASHCARD DATA ====")
+                sample_count = min(2, len(flashcards_data))
+                for i in range(sample_count):
+                    print(f"Card {i+1}:")
+                    print(f"  Question: {flashcards_data[i]['question']}")
+                    print(f"  Correct: {flashcards_data[i]['correct_answer']}")
+                    print(f"  Incorrect: {flashcards_data[i]['incorrect_answers']}")
+                print("============================\n")
+            
         except json.JSONDecodeError as parse_error:
             # Fallback to manual parsing if JSON parsing fails
             print(f"JSON parsing failed: {parse_error}. Falling back to manual parsing.")
             flashcards_data = parse_flashcards(response.text)
+            print(f"Manual parsing result: {len(flashcards_data)} cards extracted")
             
         if not flashcards_data:
             raise ValueError("No valid flashcards generated")
@@ -114,6 +133,8 @@ def generate():
             
     except Exception as e:
         print(f"Error in flashcard generation: {e}")
+        import traceback
+        print(traceback.format_exc())  # Print full stack trace for debugging
         db.session.rollback()
     
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
