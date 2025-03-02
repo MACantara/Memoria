@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, render_template, request
+from flask import Blueprint, jsonify, render_template, request, url_for, redirect
 from models import db, FlashcardDecks, Flashcards
 from services.fsrs_scheduler import get_stats, get_current_time
 from datetime import datetime, timedelta
@@ -8,11 +8,17 @@ import traceback
 stats_bp = Blueprint('stats', __name__)
 
 @stats_bp.route("/deck/<int:deck_id>/view_stats")
-def view_deck_stats(deck_id):
-    """View spaced repetition stats for a deck"""
+@stats_bp.route("/deck/<int:deck_id>/view_stats/<int:page>")
+def view_deck_stats(deck_id, page=1):
+    """
+    View spaced repetition stats for a deck
+    Now supports an optional page parameter to maintain pagination state in the URL
+    """
     deck = FlashcardDecks.query.get_or_404(deck_id)
     
-    return render_template("stats.html", deck=deck)
+    # Removed filter_type parameter - no longer needed
+    
+    return render_template("stats.html", deck=deck, current_page=page)
 
 @stats_bp.route("/deck/<int:deck_id>/stats")
 def deck_stats(deck_id):
@@ -111,42 +117,12 @@ def get_upcoming_reviews(deck_id):
         # Get current time in UTC
         current_time = get_current_time()
         
-        # Get filter type from query param (default to 'today')
-        filter_type = request.args.get('filter', 'today')
-        
-        # Define the end date based on filter type with more precise calculations
-        if filter_type == 'today':
-            # Calculate end of today (23:59:59.999999)
-            today = current_time.replace(hour=0, minute=0, second=0, microsecond=0)
-            end_date = today + timedelta(days=1) - timedelta(microseconds=1)
-            print(f"Today filter: current_time={current_time}, end_date={end_date}")
-        elif filter_type == 'week':
-            # End of next 7 days
-            end_date = current_time + timedelta(days=7)
-        else:  # 'all'
-            # Far future date for "all"
-            end_date = current_time + timedelta(days=365)
-        
-        # Query for cards due within the filter period
+        # Query for all cards
         query = Flashcards.query.filter(
             Flashcards.flashcard_deck_id.in_(db.session.query(cte.c.id))
         )
         
-        # Apply different filtering based on filter type
-        if filter_type == 'today':
-            # For today, be explicit: cards must be due now or earlier (not tomorrow)
-            query = query.filter(
-                (Flashcards.due_date <= end_date) | 
-                (Flashcards.due_date == None)
-            )
-        else:
-            # For week and all views, use the normal end_date
-            query = query.filter(
-                (Flashcards.due_date <= end_date) | 
-                (Flashcards.due_date == None)
-            )
-        
-        # Order the results
+        # Order the results by due date
         query = query.order_by(
             # Cards with no due date first, then by due date ascending
             case((Flashcards.due_date == None, 0), else_=1),
@@ -187,6 +163,14 @@ def get_upcoming_reviews(deck_id):
                 'deck_id': card.flashcard_deck_id
             })
         
+        # Build pagination URLs - removed filter parameter
+        pagination_urls = {
+            'current_url': url_for('stats.view_deck_stats', deck_id=deck_id, page=page),
+            'base_url': url_for('stats.view_deck_stats', deck_id=deck_id),
+            'next_url': url_for('stats.view_deck_stats', deck_id=deck_id, page=paginated_cards.next_num) if paginated_cards.has_next else None,
+            'prev_url': url_for('stats.view_deck_stats', deck_id=deck_id, page=paginated_cards.prev_num) if paginated_cards.has_prev else None,
+        }
+        
         return jsonify({
             'cards': results,
             'pagination': {
@@ -197,7 +181,8 @@ def get_upcoming_reviews(deck_id):
                 'has_next': paginated_cards.has_next,
                 'has_prev': paginated_cards.has_prev,
                 'next_page': paginated_cards.next_num,
-                'prev_page': paginated_cards.prev_num
+                'prev_page': paginated_cards.prev_num,
+                'urls': pagination_urls
             }
         })
         
