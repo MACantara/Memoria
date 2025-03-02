@@ -11,35 +11,23 @@
                     <select class="form-select" id="statsDeckSelect">
                         <option value="" disabled selected>Select a deck...</option>
                         
-                        <!-- Root level decks -->
-                        {% for deck in decks %}
-                            {% if not deck.parent_deck_id %}
-                                <option value="{{ deck.flashcard_deck_id }}" 
-                                        data-card-count="{{ deck.count_all_flashcards() }}"
-                                        data-has-cards="{{ 'true' if deck.count_all_flashcards() > 0 else 'false' }}">
-                                    {{ deck.name }} ({{ deck.count_all_flashcards() }} cards)
-                                </option>
-                                
-                                <!-- First level sub-decks -->
-                                {% for subdeck in deck.child_decks %}
-                                    <option value="{{ subdeck.flashcard_deck_id }}" 
-                                            data-card-count="{{ subdeck.count_all_flashcards() }}"
-                                            data-has-cards="{{ 'true' if subdeck.count_all_flashcards() > 0 else 'false' }}">
-                                        &nbsp;&nbsp;└─ {{ subdeck.name }} ({{ subdeck.count_all_flashcards() }} cards)
-                                    </option>
-                                    
-                                    <!-- Second level sub-decks -->
-                                    {% for subsubdeck in subdeck.child_decks %}
-                                        <option value="{{ subsubdeck.flashcard_deck_id }}" 
-                                                data-card-count="{{ subsubdeck.count_all_flashcards() }}"
-                                                data-has-cards="{{ 'true' if subsubdeck.count_all_flashcards() > 0 else 'false' }}">
-                                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ {{ subsubdeck.name }} ({{ subsubdeck.count_all_flashcards() }} cards)
-                                        </option>
-                                    {% endfor %}
-                                {% endfor %}
-                            {% endif %}
+                        <!-- Flat list of ALL decks at any level -->
+                        {% for deck in decks recursive %}
+                            <option value="{{ deck.flashcard_deck_id }}" 
+                                    data-card-count="{{ deck.count_all_flashcards() }}"
+                                    data-has-cards="{{ 'true' if deck.count_all_flashcards() > 0 else 'false' }}"
+                                    data-parent="{{ deck.parent_deck.name if deck.parent_deck_id else '' }}">
+                                {{ deck.name }} ({{ deck.count_all_flashcards() }} cards)
+                            </option>
+                            
+                            <!-- Recursively add all children decks -->
+                            {{ loop(deck.child_decks) }}
                         {% endfor %}
                     </select>
+                </div>
+                
+                <div id="statsDeckInfo" class="small text-muted mb-3 d-none">
+                    <i class="bi bi-folder2"></i> <span id="statsParentDeckName"></span>
                 </div>
                 
                 <div class="alert alert-warning d-none" id="noStatsDeckSelectedWarning">
@@ -69,15 +57,26 @@
         const viewStatsBtn = document.getElementById('viewStatsBtn');
         const noDeckSelectedWarning = document.getElementById('noStatsDeckSelectedWarning');
         const noStatsAvailableWarning = document.getElementById('noStatsAvailableWarning');
+        const statsDeckInfo = document.getElementById('statsDeckInfo');
+        const statsParentDeckName = document.getElementById('statsParentDeckName');
         
         // Update UI when a deck is selected
         deckSelect.addEventListener('change', function() {
             const selectedOption = deckSelect.options[deckSelect.selectedIndex];
             const hasCards = selectedOption.dataset.hasCards === 'true';
+            const parentName = selectedOption.dataset.parent;
             
             // Reset warning states
             noDeckSelectedWarning.classList.add('d-none');
             noStatsAvailableWarning.classList.add('d-none');
+            
+            // Show parent deck info if this is a subdeck
+            if (parentName) {
+                statsParentDeckName.textContent = `Sub-deck of ${parentName}`;
+                statsDeckInfo.classList.remove('d-none');
+            } else {
+                statsDeckInfo.classList.add('d-none');
+            }
             
             // Show warning if the deck has no cards
             if (!hasCards) {
