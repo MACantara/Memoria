@@ -56,21 +56,49 @@
                     </div>
                 </div>
                 
-                <!-- Button Section - Always at the bottom -->
+                <!-- Button Section - Modified to disable Due Today when no cards are due -->
                 <div class="d-grid gap-2 mt-3">
+                    <!-- Row for View Deck and Study Now buttons -->
                     <div class="d-flex gap-2">
+                        <!-- View Deck Button -->
                         <a href="{{ url_for('deck.get_deck_flashcards', deck_id=deck.flashcard_deck_id) }}" 
-                           class="btn btn-primary w-100 d-flex align-items-center justify-content-center">
+                           class="btn btn-primary flex-grow-1 d-flex align-items-center justify-content-center">
                            <i class="bi bi-folder2 me-1"></i> View Deck
                         </a>
-                        <a href="{{ url_for('deck.study_deck', deck_id=deck.flashcard_deck_id) }}" 
-                           class="btn btn-success w-100 {% if deck.count_all_flashcards() == 0 %}no-cards{% endif %} d-flex align-items-center justify-content-center"
-                           data-deck-id="{{ deck.flashcard_deck_id }}"
-                           data-bs-toggle="tooltip" 
-                           title="Study all flashcards in this deck and its sub-decks">
-                           <i class="bi bi-play-fill me-1"></i> Study All
-                        </a>
+                        
+                        <!-- Study Now Button -->
+                        <div class="dropdown flex-grow-1">
+                            <button class="btn btn-success dropdown-toggle w-100 {% if deck.count_all_flashcards() == 0 %}no-cards{% endif %}" 
+                                    type="button" 
+                                    id="studyDropdownMenu{{ deck.flashcard_deck_id }}" 
+                                    data-bs-toggle="dropdown" 
+                                    aria-expanded="false"
+                                    data-deck-id="{{ deck.flashcard_deck_id }}">
+                                    <i class="bi bi-book me-1"></i> Study Now
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="studyDropdownMenu{{ deck.flashcard_deck_id }}">
+                                <li>
+                                    <a class="dropdown-item due-today-item {% if deck.count_all_flashcards() == 0 %}no-cards{% endif %}" 
+                                       href="{{ url_for('deck.study_deck', deck_id=deck.flashcard_deck_id, due_only='true') }}"
+                                       data-deck-id="{{ deck.flashcard_deck_id }}"
+                                       data-due="0">
+                                        <i class="bi bi-calendar-check me-2"></i> Due Today
+                                        <span class="ms-auto due-badge badge bg-secondary rounded-pill"></span>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item {% if deck.count_all_flashcards() == 0 %}no-cards{% endif %}" 
+                                       href="{{ url_for('deck.study_deck', deck_id=deck.flashcard_deck_id) }}"
+                                       data-deck-id="{{ deck.flashcard_deck_id }}">
+                                        <i class="bi bi-collection me-2"></i> All Cards
+                                        <span class="ms-auto badge bg-secondary rounded-pill">{{ deck.count_all_flashcards() }}</span>
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
                     </div>
+                    
+                    <!-- Add Cards Button (still full-width) -->
                     <button class="btn btn-outline-primary w-100 add-cards-btn d-flex align-items-center justify-content-center" data-deck-id="{{ deck.flashcard_deck_id }}">
                         <i class="bi bi-plus-lg me-1"></i> Add Cards
                     </button>

@@ -5,6 +5,10 @@ export class UIManager {
         this.scoreElement = document.getElementById('score');
         this.cardNumberElement = document.getElementById('cardNumber');
         this.statusBadge = document.getElementById('statusBadge');
+        
+        // Get the study mode from URL parameters
+        this.isDueOnlyMode = new URLSearchParams(window.location.search).get('due_only') === 'true';
+        console.log(`Study mode: ${this.isDueOnlyMode ? 'Due Only' : 'Study All'}`);
     }
 
     showCard(index, flashcardsArray, score) {
@@ -81,6 +85,9 @@ export class UIManager {
     }
 
     updateScore(score, totalDue) {
+        // Add debug info
+        console.log(`Updating score: ${score}/${totalDue}`);
+        
         // Update the score text to show session completion rather than mastery
         const scoreElement = document.getElementById('score');
         if (scoreElement) scoreElement.textContent = score;
@@ -105,6 +112,9 @@ export class UIManager {
     }
 
     showCompletion(score, totalDue) {
+        // Add debug info
+        console.log(`Showing completion screen. Score: ${score}/${totalDue}`);
+        
         // Update progress bar to 100% first
         this.updateScore(score, totalDue);
         
@@ -119,32 +129,71 @@ export class UIManager {
         this.statusBadge.className = 'badge fs-4 p-3 bg-success';
         
         const container = document.getElementById('flashcardsContainer');
-        container.innerHTML = `
-            <div class="card text-center p-5">
-                <div class="card-body">
-                    <h2 class="card-title mb-4">
-                        <i class="bi bi-emoji-smile-fill text-success"></i> Session Complete!
-                    </h2>
-                    <p class="card-text fs-5">You've completed your flashcard review session.</p>
-                    <div class="progress mb-3" style="height: 20px;">
-                        <div class="progress-bar bg-success" role="progressbar" 
-                            style="width: 100%" aria-valuenow="100" aria-valuemin="0" 
-                            aria-valuemax="100">100%</div>
-                    </div>
-                    <p class="card-text fs-4 text-success fw-bold">
-                        <i class="bi bi-trophy-fill"></i> Session Score: ${score}/${totalDue}
-                    </p>
-                    <div class="d-flex justify-content-center gap-3 mt-4">
-                        <a href="${window.location.href}" class="btn btn-primary">
-                            <i class="bi bi-arrow-repeat"></i> Study Again
-                        </a>
-                        <a href="/" class="btn btn-outline-primary">
-                            <i class="bi bi-house-door"></i> Back to Decks
-                        </a>
+        
+        // Completely separate templates for each mode
+        if (this.isDueOnlyMode) {
+            // DUE ONLY MODE COMPLETION
+            container.innerHTML = `
+                <div class="card text-center p-5">
+                    <div class="card-body">
+                        <h2 class="card-title mb-4">
+                            <i class="bi bi-calendar-check-fill text-success"></i> All Due Cards Completed!
+                        </h2>
+                        <p class="card-text fs-5">You've reviewed all flashcards that were due today.</p>
+                        <div class="progress mb-3" style="height: 20px;">
+                            <div class="progress-bar bg-success" role="progressbar" 
+                                style="width: 100%" aria-valuenow="100" aria-valuemin="0" 
+                                aria-valuemax="100">100%</div>
+                        </div>
+                        <p class="card-text fs-4 text-success fw-bold">
+                            <i class="bi bi-trophy-fill"></i> Session Score: ${score}/${totalDue}
+                        </p>
+                        
+                        <div class="alert alert-info mt-4">
+                            <i class="bi bi-info-circle me-2"></i>
+                            Want to study more? You can also review cards that aren't due yet.
+                        </div>
+                        
+                        <div class="d-flex justify-content-center gap-3 mt-4 flex-wrap">
+                            <a href="${window.location.pathname}" class="btn btn-primary">
+                                <i class="bi bi-collection"></i> Study All Cards
+                            </a>
+                            <a href="/" class="btn btn-outline-secondary">
+                                <i class="bi bi-house-door"></i> Back to Decks
+                            </a>
+                        </div>
                     </div>
                 </div>
-            </div>
-        `;
+            `;
+        } else {
+            // STUDY ALL MODE COMPLETION
+            container.innerHTML = `
+                <div class="card text-center p-5">
+                    <div class="card-body">
+                        <h2 class="card-title mb-4">
+                            <i class="bi bi-emoji-smile-fill text-success"></i> Session Complete!
+                        </h2>
+                        <p class="card-text fs-5">You've completed your flashcard review session.</p>
+                        <div class="progress mb-3" style="height: 20px;">
+                            <div class="progress-bar bg-success" role="progressbar" 
+                                style="width: 100%" aria-valuenow="100" aria-valuemin="0" 
+                                aria-valuemax="100">100%</div>
+                        </div>
+                        <p class="card-text fs-4 text-success fw-bold">
+                            <i class="bi bi-trophy-fill"></i> Session Score: ${score}/${totalDue}
+                        </p>
+                        <div class="d-flex justify-content-center gap-3 mt-4 flex-wrap">
+                            <a href="${window.location.href}" class="btn btn-primary">
+                                <i class="bi bi-arrow-repeat"></i> Study Again
+                            </a>
+                            <a href="/" class="btn btn-outline-primary">
+                                <i class="bi bi-house-door"></i> Back to Decks
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
 
         // Update badge to show completion status
         if (this.statusBadge) {

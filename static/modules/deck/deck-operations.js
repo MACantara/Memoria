@@ -29,6 +29,9 @@ export function initializeDeckOperations() {
     
     // Initialize move deck functionality
     initializeMoveDeck();
+
+    // Add this new function to load due counts for each deck
+    loadDueCounts();
 }
 
 async function handleRenameSubmit(e) {
@@ -246,5 +249,44 @@ async function handleMoveConfirm(deckId) {
         button.disabled = false;
         normalState.classList.remove('d-none');
         loadingState.classList.add('d-none');
+    }
+}
+
+// Add this new function to load due counts
+async function loadDueCounts() {
+    try {
+        const response = await fetch('/deck/api/due-counts');
+        if (!response.ok) {
+            throw new Error('Failed to load due counts');
+        }
+        
+        const dueCounts = await response.json();
+        
+        // Update all due today menu items
+        const dueItems = document.querySelectorAll('.due-today-item');
+        dueItems.forEach(item => {
+            const deckId = item.dataset.deckId;
+            const dueCount = dueCounts[deckId] || 0;
+            
+            // Update the badge
+            const badge = item.querySelector('.due-badge');
+            if (badge) {
+                badge.textContent = dueCount;
+            }
+            
+            // Disable the link if there are no due cards
+            if (dueCount === 0) {
+                item.classList.add('disabled');
+                item.setAttribute('aria-disabled', 'true');
+                if (item.tagName === 'A') {
+                    item.href = 'javascript:void(0)';
+                }
+            } else {
+                item.classList.remove('disabled');
+                item.removeAttribute('aria-disabled');
+            }
+        });
+    } catch (error) {
+        console.error('Error loading due counts:', error);
     }
 }

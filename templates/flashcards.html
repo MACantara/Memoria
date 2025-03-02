@@ -1,11 +1,17 @@
 {% extends "base.html" %}
 
-{% block title %}Study {{ deck.name }} (All Flashcards){% endblock %}
+{% block title %}
+{% if due_only %}
+Study {{ deck.name }} (Due Today)
+{% else %}
+Study {{ deck.name }} (All Cards)
+{% endif %}
+{% endblock %}
 
 {% block styles %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/flashcards.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css') }}">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, maximum-scale=1.0, user-scalable=no">
 {% endblock %}
 
 {% block content %}
@@ -13,19 +19,18 @@
     <div class="card-body">
         <div class="row mb-3">
             <div class="col-3 text-start">
-                {% if deck.parent_deck_id %}
-                <a href="{{ url_for('deck.get_deck_flashcards', deck_id=deck.parent_deck_id) }}" class="btn btn-outline-primary">
-                    <i class="bi bi-arrow-left"></i> Back to Parent Deck
+                <a href="{{ url_for('deck.get_deck_flashcards', deck_id=deck.flashcard_deck_id) }}" class="btn btn-outline-primary">
+                    <i class="bi bi-arrow-left"></i> Back to Deck
                 </a>
-                {% else %}
-                <a href="{{ url_for('main.index') }}" class="btn btn-outline-primary">
-                    <i class="bi bi-arrow-left"></i> Back to Decks
-                </a>
-                {% endif %}
             </div>
             <div class="col-6 text-center">
                 <div class="d-flex justify-content-center align-items-center">
                     <h1 class="h2 mb-0">{{ deck.name }}</h1>
+                    {% if due_only %}
+                    <span class="badge bg-info ms-2">Due Today</span>
+                    {% else %}
+                    <span class="badge bg-secondary ms-2">All Cards</span>
+                    {% endif %}
                 </div>
             </div>
             <div class="col-3">
@@ -58,8 +63,8 @@
          data-id="{{ flashcard.flashcard_id }}"
          data-correct="{{ flashcard.correct_answer }}"
          data-incorrect="{{ flashcard.incorrect_answers }}"
-         data-state="{{ flashcard.state }}"
-         data-retrievability="{{ flashcard.retrievability }}"
+         data-state="{{ flashcard.state or 0 }}"
+         data-retrievability="{{ flashcard.retrievability or 0 }}"
          style="display: none;">
         <div class="card-body">
             <div class="card-title h4" data-question="{{ flashcard.question }}">
@@ -81,18 +86,45 @@
         </div>
     </div>
     {% endfor %}
+
+    {% if not flashcards %}
+    <div class="alert alert-info">
+        <h3 class="h5"><i class="bi bi-info-circle me-2"></i>No Cards to Study</h3>
+        <p class="mb-0">
+            {% if due_only %}
+            There are no cards due for review today. Try studying all cards instead.
+            <a href="{{ url_for('deck.study_deck', deck_id=deck.flashcard_deck_id) }}" class="btn btn-sm btn-primary mt-2">
+                <i class="bi bi-collection me-1"></i> Study All Cards
+            </a>
+            {% else %}
+            This deck doesn't have any flashcards yet. Add some cards first.
+            <a href="{{ url_for('deck.get_deck_flashcards', deck_id=deck.flashcard_deck_id) }}" class="btn btn-sm btn-primary mt-2">
+                <i class="bi bi-arrow-left me-1"></i> Back to Deck
+            </a>
+            {% endif %}
+        </p>
+    </div>
+    {% endif %}
 </div>
+
+<!-- Added a hidden flag to properly pass study mode to JavaScript -->
+<input type="hidden" id="studyMode" value="{{ 'due_only' if due_only else 'all' }}">
 {% endblock %}
 
 {% block scripts %}
 <script type="module">
     import { FlashcardManager } from '{{ url_for("static", filename="modules/flashcards/FlashcardManager.js") }}';
     
-    const manager = new FlashcardManager();
-    manager.initialize();
+    document.addEventListener('DOMContentLoaded', () => {
+        console.log("Page loaded. Initializing FlashcardManager...");
+        console.log("Found " + document.querySelectorAll('.flashcard').length + " flashcards in DOM");
+        
+        const manager = new FlashcardManager();
+        manager.initialize();
 
-    document.addEventListener('keydown', (e) => {
-        manager.handleKeyboardNavigation(e.key);
+        document.addEventListener('keydown', (e) => {
+            manager.handleKeyboardNavigation(e.key);
+        });
     });
 </script>
 {% endblock %}
