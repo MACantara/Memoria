@@ -11,7 +11,12 @@ def get_deck_flashcards(deck_id):
     """View deck structure and its contents"""
     deck = FlashcardDecks.query.get_or_404(deck_id)
     flashcards = Flashcards.query.filter_by(flashcard_deck_id=deck_id).all()
-    return render_template("deck.html", deck=deck, flashcards=flashcards)
+    
+    # Count due flashcards for this deck (including sub-decks)
+    current_time = get_current_time()
+    due_count = count_due_flashcards(deck_id, current_time)
+    
+    return render_template("deck.html", deck=deck, flashcards=flashcards, due_count=due_count)
 
 @deck_bp.route("/<int:deck_id>/study")
 def study_deck(deck_id):
@@ -266,5 +271,47 @@ def api_list_decks():
             'parent_id': deck.parent_deck_id,
             'flashcard_count': len(deck.flashcards) if deck.flashcards else 0
         })
+    
+    return jsonify(result)
+
+# Add this new helper function
+def count_due_flashcards(deck_id, current_time=None):
+    """Count flashcards that are due for a deck and its sub-decks"""
+    if current_time is None:
+        current_time = get_current_time()
+    
+    # Create recursive CTE to find all decks including this one and its sub-decks
+    cte = db.session.query(
+        FlashcardDecks.flashcard_deck_id.label('id')
+    ).filter(
+        FlashcardDecks.flashcard_deck_id == deck_id
+    ).cte(name='due_decks', recursive=True)
+
+    cte = cte.union_all(
+        db.session.query(
+            FlashcardDecks.flashcard_deck_id.label('id')
+        ).filter(
+            FlashcardDecks.parent_deck_id == cte.c.id
+        )
+    )
+    
+    # Count cards that are due now
+    due_count = Flashcards.query.filter(
+        Flashcards.flashcard_deck_id.in_(db.session.query(cte.c.id)),
+        (Flashcards.due_date <= current_time) | (Flashcards.due_date == None)
+    ).count()
+    
+    return due_count
+
+# Add this helper function for the deck listing
+@deck_bp.route("/api/due-counts")
+def get_due_counts():
+    """Get counts of due flashcards for all decks"""
+    current_time = get_current_time()
+    decks = FlashcardDecks.query.all()
+    result = {}
+    
+    for deck in decks:
+        result[deck.flashcard_deck_id] = count_due_flashcards(deck.flashcard_deck_id, current_time)
     
     return jsonify(result)
