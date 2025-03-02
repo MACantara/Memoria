@@ -114,74 +114,142 @@ async function handleDelete(deckToDelete) {
 }
 
 function initializeMoveDeck() {
-    let deckToMoveId = null;
-    const moveModal = new bootstrap.Modal(document.getElementById('moveDeckModal'));
+    let currentDeckId = null;
+    const moveDeckModal = document.getElementById('moveDeckModal');
+    if (!moveDeckModal) return;
     
-    window.showMoveDeckModal = async (deckId, deckName) => {
-        deckToMoveId = deckId;
-        document.getElementById('deckToMoveName').textContent = deckName;
-        document.getElementById('moveStatus').innerHTML = '';
-        
-        // Load the deck tree
-        await loadDeckTree(deckId);
-        
-        moveModal.show();
-    };
+    const rootDeckOption = document.getElementById('rootDeck');
+    const subdeckOption = document.getElementById('subdeckOption');
+    const parentDeckSelect = document.getElementById('parentDeckSelect');
+    const parentDeckSelectContainer = document.getElementById('parentDeckSelectContainer');
+    const parentDeckInfo = document.getElementById('parentDeckInfo');
+    const parentDeckPath = document.getElementById('parentDeckPath');
+    const circularReferenceWarning = document.getElementById('circularReferenceWarning');
+    const deckToMoveName = document.getElementById('deckToMoveName');
+    const confirmMoveBtn = document.getElementById('confirmMoveBtn');
     
-    document.getElementById('confirmMoveBtn')?.addEventListener('click', async () => {
-        handleMoveConfirm(deckToMoveId);
+    // Set up radio button change handlers
+    rootDeckOption.addEventListener('change', function() {
+        if (this.checked) {
+            parentDeckSelect.disabled = true;
+            parentDeckSelectContainer.classList.add('d-none');
+            confirmMoveBtn.disabled = false;
+        }
     });
-}
-
-async function loadDeckTree(currentDeckId) {
-    try {
-        const response = await fetch('/deck/api/decks/tree');
-        const decks = await response.json();
-        
-        const treeHtml = renderDeckTree(decks, 0, currentDeckId);
-        document.getElementById('deckTreeContainer').innerHTML = treeHtml || '<div class="text-muted">No other decks available</div>';
-    } catch (error) {
-        console.error('Error loading deck tree:', error);
-        document.getElementById('deckTreeContainer').innerHTML = 
-            '<div class="alert alert-danger">Failed to load decks</div>';
-    }
-}
-
-function renderDeckTree(decks, level, currentDeckId) {
-    if (!decks || decks.length === 0) return '';
     
-    let html = '<ul class="deck-tree" style="list-style-type: none; padding-left: ' + 
-               (level > 0 ? '20px' : '0') + ';">';
+    subdeckOption.addEventListener('change', function() {
+        if (this.checked) {
+            parentDeckSelect.disabled = false;
+            parentDeckSelectContainer.classList.remove('d-none');
+            
+            // Reevaluate the confirmation button state
+            checkMoveValidity();
+        }
+    });
     
-    decks.forEach(deck => {
-        // Skip the current deck and its descendants
-        if (deck.flashcard_deck_id == currentDeckId) return;
+    // Handle parent deck selection change
+    parentDeckSelect.addEventListener('change', function() {
+        const selectedDeckId = this.value;
         
-        html += `
-            <li class="mb-2">
-                <div class="form-check">
-                    <input class="form-check-input" type="radio" name="destinationDeck" 
-                           id="deck${deck.flashcard_deck_id}" value="${deck.flashcard_deck_id}">
-                    <label class="form-check-label" for="deck${deck.flashcard_deck_id}">
-                        <i class="bi bi-folder"></i> ${deck.name}
-                    </label>
-                </div>
-            `;
+        // Clear previous info
+        parentDeckInfo.classList.add('d-none');
+        circularReferenceWarning.classList.add('d-none');
         
-        // Recursively render children, excluding the current deck's branch
-        const filteredChildren = deck.child_decks.filter(child => 
-            !isDescendant(child, currentDeckId)
-        );
+        if (selectedDeckId) {
+            // Check for circular reference
+            if (selectedDeckId === currentDeckId) {
+                circularReferenceWarning.classList.remove('d-none');
+                confirmMoveBtn.disabled = true;
+                return;
+            }
+            
+            // Show parent info if available
+            const selectedOption = this.options[this.selectedIndex];
+            const parentName = selectedOption.dataset.parent;
+            
+            if (parentName) {
+                parentDeckPath.textContent = `Parent deck: ${parentName} > ${selectedOption.text}`;
+                parentDeckInfo.classList.remove('d-none');
+            } else {
+                parentDeckPath.textContent = `This is a top-level deck`;
+                parentDeckInfo.classList.remove('d-none');
+            }
+            
+            // Enable move button
+            confirmMoveBtn.disabled = false;
+        } else {
+            // No selection, disable move button
+            confirmMoveBtn.disabled = true;
+        }
+    });
+    
+    // Prepare the modal when it's shown
+    moveDeckModal.addEventListener('show.bs.modal', function(event) {
+        const button = event.relatedTarget;
+        currentDeckId = button.getAttribute('data-deck-id');
+        const deckName = button.getAttribute('data-deck-name');
         
-        if (filteredChildren.length > 0) {
-            html += renderDeckTree(filteredChildren, level + 1, currentDeckId);
+        // Reset the modal
+        rootDeckOption.checked = true;
+        parentDeckSelect.disabled = true;
+        parentDeckSelectContainer.classList.add('d-none');
+        parentDeckInfo.classList.add('d-none');
+        circularReferenceWarning.classList.add('d-none');
+        confirmMoveBtn.disabled = false;
+        
+        // Set the deck name
+        deckToMoveName.textContent = deckName;
+        
+        // Remove the current deck and its children from options
+        for (let i = 0; i < parentDeckSelect.options.length; i++) {
+            const option = parentDeckSelect.options[i];
+            
+            // Skip placeholder option
+            if (option.disabled && option.selected) continue;
+            
+            // Check if this is the current deck or a child of it
+            // For now, a simple check if it's the same deck
+            if (option.value === currentDeckId) {
+                option.disabled = true;
+                option.style.display = 'none';
+            } else {
+                option.disabled = false;
+                option.style.display = '';
+            }
         }
         
-        html += '</li>';
+        // Reset the selection
+        parentDeckSelect.selectedIndex = 0;
     });
     
-    html += '</ul>';
-    return html;
+    // Add move confirmation handler
+    confirmMoveBtn.addEventListener('click', function() {
+        handleMoveConfirm(currentDeckId);
+    });
+    
+    // Make showMoveDeckModal available globally for button handling
+    window.showMoveDeckModal = (deckId, deckName) => {
+        currentDeckId = deckId;
+        const modalElement = document.getElementById('moveDeckModal');
+        const bsModal = new bootstrap.Modal(modalElement);
+        
+        // Set the deck name text
+        const deckNameElement = document.getElementById('deckToMoveName');
+        if (deckNameElement) {
+            deckNameElement.textContent = deckName;
+        }
+        
+        bsModal.show();
+    };
+    
+    // Helper function to check if the move is valid
+    function checkMoveValidity() {
+        if (subdeckOption.checked && (!parentDeckSelect.value || parentDeckSelect.value === currentDeckId)) {
+            confirmMoveBtn.disabled = true;
+        } else {
+            confirmMoveBtn.disabled = false;
+        }
+    }
 }
 
 function isDescendant(deck, ancestorId) {
@@ -200,18 +268,15 @@ async function handleMoveConfirm(deckId) {
     const loadingState = button.querySelector('.loading-state');
     const statusDiv = document.getElementById('moveStatus');
     
-    // Get selected destination
-    const selectedRadio = document.querySelector('input[name="destinationDeck"]:checked');
-    if (!selectedRadio) {
-        statusDiv.innerHTML = `
-            <div class="alert alert-warning">
-                <i class="bi bi-exclamation-triangle"></i> Please select a destination
-            </div>
-        `;
-        return;
-    }
+    // Determine new parent ID based on radio button selection
+    const rootDeckOption = document.getElementById('rootDeck');
+    const parentDeckSelect = document.getElementById('parentDeckSelect');
     
-    const newParentId = selectedRadio.value || null;  // Empty string means root level
+    let newParentId = null;
+    
+    if (!rootDeckOption.checked) {
+        newParentId = parentDeckSelect.value;
+    }
     
     button.disabled = true;
     normalState.classList.add('d-none');
@@ -223,17 +288,17 @@ async function handleMoveConfirm(deckId) {
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ 
-                new_parent_id: newParentId === '' ? null : newParentId
-            })
+            body: JSON.stringify({
+                new_parent_id: newParentId
+            }),
         });
         
         const data = await response.json();
         
         if (response.ok) {
             statusDiv.innerHTML = `
-                <div class="alert alert-success">
-                    <i class="bi bi-check-circle"></i> ${data.message}
+                <div class="alert alert-success mt-3">
+                    <i class="bi bi-check-circle-fill"></i> ${data.message}
                 </div>
             `;
             setTimeout(() => location.reload(), 1000);
@@ -242,8 +307,8 @@ async function handleMoveConfirm(deckId) {
         }
     } catch (error) {
         statusDiv.innerHTML = `
-            <div class="alert alert-danger">
-                <i class="bi bi-exclamation-triangle"></i> ${error.message}
+            <div class="alert alert-danger mt-3">
+                <i class="bi bi-exclamation-circle-fill"></i> ${error.message}
             </div>
         `;
         button.disabled = false;
