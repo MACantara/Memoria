@@ -22,13 +22,28 @@
         <h1 class="h2 mb-0">{{ deck.name }}</h1>
     </div>
     <div class="d-flex gap-2">
-        <a href="{{ url_for('deck.study_deck', deck_id=deck.flashcard_deck_id) }}" 
-           class="btn btn-success {% if deck.count_all_flashcards() == 0 %}no-cards{% endif %}"
-           data-deck-id="{{ deck.flashcard_deck_id }}"
-           data-bs-toggle="tooltip" 
-           title="Study all flashcards in this deck and its sub-decks">
-           <i class="bi bi-play-fill"></i> Study Now
-        </a>
+        <!-- Replace the single Study Now button with a dropdown -->
+        <div class="dropdown">
+            <button class="btn btn-success dropdown-toggle" type="button" id="studyDropdownMenu" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="bi bi-play-fill"></i> Study Now
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="studyDropdownMenu">
+                <li>
+                    <a class="dropdown-item {% if deck.count_all_flashcards() == 0 %}no-cards{% endif %}" 
+                       href="{{ url_for('deck.study_deck', deck_id=deck.flashcard_deck_id, due_only='true') }}"
+                       data-deck-id="{{ deck.flashcard_deck_id }}">
+                        <i class="bi bi-calendar-check me-2"></i>Due Today
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item {% if deck.count_all_flashcards() == 0 %}no-cards{% endif %}" 
+                       href="{{ url_for('deck.study_deck', deck_id=deck.flashcard_deck_id) }}"
+                       data-deck-id="{{ deck.flashcard_deck_id }}">
+                        <i class="bi bi-collection me-2"></i>All Cards
+                    </a>
+                </li>
+            </ul>
+        </div>
         <button type="button" class="btn btn-outline-primary" onclick="showImportModal()">
             <i class="bi bi-file-earmark-arrow-up"></i> Import
         </button>
