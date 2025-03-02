@@ -37,14 +37,14 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2 class="h3 mb-0">Your Decks</h2>
     
-    <!-- Replace old buttons with the new component -->
+    <!-- Updated parameters to enable add_cards -->
     {% with 
         show_import=true,
         show_create_deck=true,
         show_create_subdeck=false,
         show_study=false,
         show_stats=false,
-        show_add_cards=false
+        show_add_cards=true
     %}
     {% include 'components/deck_action_buttons.html' %}
     {% endwith %}
