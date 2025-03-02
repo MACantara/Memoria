@@ -5,16 +5,8 @@ from google import genai
 import json
 import os
 from services.fsrs_scheduler import get_current_time
-from pydantic import BaseModel, Field
-from typing import List
 
 generation_bp = Blueprint('generation', __name__)
-
-# Define Pydantic models for structured output
-class Flashcard(BaseModel):
-    question: str
-    correct_answer: str
-    incorrect_answers: List[str] = Field(min_items=1, max_items=3)
 
 api_key = os.getenv("GOOGLE_GEMINI_API_KEY")
 
@@ -46,22 +38,43 @@ def generate():
     prompt_template = generate_prompt_template(deck.name, batch_size)
 
     try:
-        # Use structured output with schema
+        # Use schema as a simple dictionary instead of Pydantic model
+        # This avoids compatibility issues with the Gemini API
+        schema = {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "question": {"type": "string"},
+                    "correct_answer": {"type": "string"},
+                    "incorrect_answers": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "minItems": 1,
+                        "maxItems": 3
+                    }
+                },
+                "required": ["question", "correct_answer", "incorrect_answers"]
+            }
+        }
+        
         response = client.models.generate_content(
             model="gemini-2.0-flash-lite",
             contents=prompt_template,
             config={
                 'response_mime_type': 'application/json',
-                'response_schema': List[Flashcard],
+                'response_schema': schema
             }
         )
         
-        # Directly use parsed objects if available
+        # Parse JSON response
         try:
-            flashcards_data = response.parsed
-        except Exception as parse_error:
-            # Fallback to manual parsing if structured output fails
-            print(f"Structured parsing failed: {parse_error}. Falling back to manual parsing.")
+            # Try to parse the response as JSON
+            flashcards_data = json.loads(response.text)
+            print(f"Successfully parsed JSON output: {len(flashcards_data)} cards")
+        except json.JSONDecodeError as parse_error:
+            # Fallback to manual parsing if JSON parsing fails
+            print(f"JSON parsing failed: {parse_error}. Falling back to manual parsing.")
             flashcards_data = parse_flashcards(response.text)
             
         if not flashcards_data:

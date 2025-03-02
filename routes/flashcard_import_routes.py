@@ -8,9 +8,8 @@ import traceback
 from google import genai
 # Import functions from flashcard_generation_routes instead of duplicating them
 from routes.flashcard_generation_routes import (
-    parse_flashcards, generate_prompt_template, Flashcard
+    parse_flashcards, generate_prompt_template
 )
-from typing import List
 from services.fsrs_scheduler import get_current_time
 
 import_bp = Blueprint('import', __name__)
@@ -73,23 +72,42 @@ def upload_file():
         # Generate prompt using the existing function from flashcard_generation_routes
         prompt = generate_prompt_template(f"content in file: {secure_filename(file.filename)}", batch_size)
         
-        # Use structured output with schema, same as in flashcard_generation_routes
+        # Use schema as a simple dictionary instead of Pydantic model
+        schema = {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "question": {"type": "string"},
+                    "correct_answer": {"type": "string"},
+                    "incorrect_answers": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "minItems": 1,
+                        "maxItems": 3
+                    }
+                },
+                "required": ["question", "correct_answer", "incorrect_answers"]
+            }
+        }
+        
         response = client.models.generate_content(
             model="gemini-2.0-flash-lite",
             contents=f"{prompt}\n\nContent:\n{file_text}",
             config={
                 'response_mime_type': 'application/json',
-                'response_schema': List[Flashcard],
+                'response_schema': schema
             }
         )
         
         # Get parsed flashcards or fall back to manual parsing
         try:
-            flashcards_data = response.parsed
-            current_app.logger.info(f"Successfully parsed structured output, received {len(flashcards_data)} cards")
-        except Exception as parse_error:
-            # Fallback to manual parsing if structured output fails
-            current_app.logger.warning(f"Structured parsing failed: {parse_error}. Falling back to manual parsing.")
+            # Try to parse the response as JSON
+            flashcards_data = json.loads(response.text)
+            current_app.logger.info(f"Successfully parsed JSON output: {len(flashcards_data)} cards")
+        except json.JSONDecodeError as parse_error:
+            # Fallback to manual parsing if JSON parsing fails
+            current_app.logger.warning(f"JSON parsing failed: {parse_error}. Falling back to manual parsing.")
             flashcards_data = parse_flashcards(response.text)
         
         if not flashcards_data:
@@ -180,23 +198,42 @@ def process_text():
         batch_size = 100
         prompt = generate_prompt_template("pasted text content", batch_size)
         
-        # Use structured output with schema
+        # Use schema as a simple dictionary instead of Pydantic model
+        schema = {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "question": {"type": "string"},
+                    "correct_answer": {"type": "string"},
+                    "incorrect_answers": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "minItems": 1,
+                        "maxItems": 3
+                    }
+                },
+                "required": ["question", "correct_answer", "incorrect_answers"]
+            }
+        }
+        
         response = client.models.generate_content(
             model="gemini-2.0-flash-lite",
             contents=f"{prompt}\n\nContent:\n{text_content}",
             config={
                 'response_mime_type': 'application/json',
-                'response_schema': List[Flashcard],
+                'response_schema': schema
             }
         )
         
         # Get parsed flashcards or fall back to manual parsing
         try:
-            flashcards_data = response.parsed
-            current_app.logger.info(f"Successfully parsed structured output, received {len(flashcards_data)} cards")
-        except Exception as parse_error:
-            # Fallback to manual parsing if structured output fails
-            current_app.logger.warning(f"Structured parsing failed: {parse_error}. Falling back to manual parsing.")
+            # Try to parse the response as JSON
+            flashcards_data = json.loads(response.text)
+            current_app.logger.info(f"Successfully parsed JSON output: {len(flashcards_data)} cards")
+        except json.JSONDecodeError as parse_error:
+            # Fallback to manual parsing if JSON parsing fails
+            current_app.logger.warning(f"JSON parsing failed: {parse_error}. Falling back to manual parsing.")
             flashcards_data = parse_flashcards(response.text)
         
         if not flashcards_data:
