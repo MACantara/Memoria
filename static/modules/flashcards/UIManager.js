@@ -5,6 +5,9 @@ export class UIManager {
         this.scoreElement = document.getElementById('score');
         this.cardNumberElement = document.getElementById('cardNumber');
         this.statusBadge = document.getElementById('statusBadge');
+        
+        // Get the study mode from URL parameters
+        this.isDueOnlyMode = new URLSearchParams(window.location.search).get('due_only') === 'true';
     }
 
     showCard(index, flashcardsArray, score) {
@@ -119,13 +122,38 @@ export class UIManager {
         this.statusBadge.className = 'badge fs-4 p-3 bg-success';
         
         const container = document.getElementById('flashcardsContainer');
+        
+        // Different message based on whether we're in due-only mode or all cards mode
+        const heading = this.isDueOnlyMode ? 
+            "All Due Cards Completed!" : 
+            "Session Complete!";
+            
+        const message = this.isDueOnlyMode ?
+            "You've reviewed all flashcards that were due today." :
+            "You've completed your flashcard review session.";
+            
+        const icon = this.isDueOnlyMode ? 
+            "bi-calendar-check-fill" : 
+            "bi-emoji-smile-fill";
+            
+        // Create additional study options for due-only mode
+        const additionalOptions = this.isDueOnlyMode ? `
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle me-2"></i>
+                Want to study more? You can also review cards that aren't due yet.
+            </div>
+            <a href="${window.location.pathname}" class="btn btn-outline-primary me-2">
+                <i class="bi bi-collection"></i> Study All Cards
+            </a>
+        ` : '';
+        
         container.innerHTML = `
             <div class="card text-center p-5">
                 <div class="card-body">
                     <h2 class="card-title mb-4">
-                        <i class="bi bi-emoji-smile-fill text-success"></i> Session Complete!
+                        <i class="bi ${icon} text-success"></i> ${heading}
                     </h2>
-                    <p class="card-text fs-5">You've completed your flashcard review session.</p>
+                    <p class="card-text fs-5">${message}</p>
                     <div class="progress mb-3" style="height: 20px;">
                         <div class="progress-bar bg-success" role="progressbar" 
                             style="width: 100%" aria-valuenow="100" aria-valuemin="0" 
@@ -134,7 +162,8 @@ export class UIManager {
                     <p class="card-text fs-4 text-success fw-bold">
                         <i class="bi bi-trophy-fill"></i> Session Score: ${score}/${totalDue}
                     </p>
-                    <div class="d-flex justify-content-center gap-3 mt-4">
+                    <div class="d-flex justify-content-center gap-3 mt-4 flex-wrap">
+                        ${additionalOptions}
                         <a href="${window.location.href}" class="btn btn-primary">
                             <i class="bi bi-arrow-repeat"></i> Study Again
                         </a>
