@@ -16,8 +16,6 @@ def view_deck_stats(deck_id, page=1):
     """
     deck = FlashcardDecks.query.get_or_404(deck_id)
     
-    # Removed filter_type parameter - no longer needed
-    
     return render_template("stats.html", deck=deck, current_page=page)
 
 @stats_bp.route("/deck/<int:deck_id>/stats")

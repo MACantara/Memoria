@@ -23,7 +23,7 @@ def create_app(config_class=Config):
         return json.loads(value)
     
     # Register blueprints
-    app.register_blueprint(main_bp)
+    app.register_blueprint(main_bp, url_prefix='/')
     app.register_blueprint(deck_bp, url_prefix='/deck')
     app.register_blueprint(flashcard_bp, url_prefix='/flashcard')
     app.register_blueprint(generation_bp, url_prefix='/generation')

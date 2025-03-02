@@ -21,41 +21,20 @@
         {% endif %}
         <h1 class="h2 mb-0">{{ deck.name }}</h1>
     </div>
-    <div class="d-flex gap-2">
-        <!-- Study Now dropdown with due count -->
-        <div class="dropdown">
-            <button class="btn btn-success dropdown-toggle" type="button" id="studyDropdownMenu" data-bs-toggle="dropdown" aria-expanded="false">
-                <i class="bi bi-book"></i> Study Now
-            </button>
-            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="studyDropdownMenu">
-                <li>
-                    <a class="dropdown-item {% if due_count == 0 %}disabled{% endif %} {% if deck.count_all_flashcards() == 0 %}no-cards{% endif %}" 
-                       href="{{ url_for('deck.study_deck', deck_id=deck.flashcard_deck_id, due_only='true') }}"
-                       data-deck-id="{{ deck.flashcard_deck_id }}">
-                        <i class="bi bi-calendar-check me-2"></i>Due Today
-                        <span class="ms-auto badge bg-secondary rounded-pill">{{ due_count }}</span>
-                    </a>
-                </li>
-                <li>
-                    <a class="dropdown-item {% if deck.count_all_flashcards() == 0 %}no-cards{% endif %}" 
-                       href="{{ url_for('deck.study_deck', deck_id=deck.flashcard_deck_id) }}"
-                       data-deck-id="{{ deck.flashcard_deck_id }}">
-                        <i class="bi bi-collection me-2"></i>All Cards
-                        <span class="ms-auto badge bg-secondary rounded-pill">{{ deck.count_all_flashcards() }}</span>
-                    </a>
-                </li>
-            </ul>
-        </div>
-        <button type="button" class="btn btn-outline-primary" onclick="showImportModal()">
-            <i class="bi bi-file-earmark-arrow-up"></i> Import
-        </button>
-        <a href="{{ url_for('stats.view_deck_stats', deck_id=deck.flashcard_deck_id) }}" class="btn btn-outline-success">
-            <i class="bi bi-graph-up"></i> View Stats
-        </a>
-        <button id="createDeckBtn" class="btn btn-primary">
-            <i class="bi bi-plus-lg"></i> Create New Sub-deck
-        </button>
-    </div>
+    
+    <!-- Replace old buttons with the new component -->
+    {% with 
+        deck=deck,
+        show_import=true,
+        show_add_cards=true,
+        show_create_deck=false,
+        show_create_subdeck=true,
+        show_study=true,
+        show_stats=true,
+        due_count=due_count
+    %}
+    {% include 'components/deck_action_buttons.html' %}
+    {% endwith %}
 </div>
 
 {% if deck.child_decks %}
@@ -76,9 +55,6 @@
                 {{ flashcards|length }}
             </span>
         </div>
-        <button class="btn btn-outline-primary add-cards-btn" data-deck-id="{{ deck.flashcard_deck_id }}">
-            <i class="bi bi-plus-lg"></i> Add Cards
-        </button>
     </div>
     {% include 'components/flashcard_list.html' %}
 </section>
@@ -94,9 +70,6 @@
 
 <!-- Move Deck Modal -->
 {% include 'components/move_deck_modal.html' %}
-
-<!-- No Cards Modal -->
-{% include 'components/no_cards_modal.html' %}
 
 <!-- Delete Confirmation Modal -->
 {% include 'components/delete_deck_modal.html' %}

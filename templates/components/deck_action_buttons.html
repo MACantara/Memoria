@@ -1,0 +1,127 @@
+{# 
+   Consolidated deck action buttons component with streamlined dropdown menus
+   
+   Usage: 
+   {% with 
+     deck=deck,                      <!-- Required for deck-specific actions -->
+     show_import=true,               <!-- Show import button -->
+     show_add_cards=true,            <!-- Show add cards button -->
+     show_create_deck=true,          <!-- Show create deck button -->
+     show_create_subdeck=false,      <!-- Show create subdeck button -->
+     show_study=true,                <!-- Show study now dropdown -->
+     show_stats=true,                <!-- Show stats button -->
+     due_count=0                     <!-- Due count for study button -->
+   %}
+   {% include 'components/deck_action_buttons.html' %}
+   {% endwith %}
+#}
+
+<div class="d-flex flex-wrap gap-2">
+    <!-- Study Button - Context-aware implementation -->
+    {% if show_study %}
+        {% if deck %}
+            <!-- Deck context: Study this specific deck -->
+            <div class="dropdown">
+                <button class="btn btn-success dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-book"></i> Study
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li>
+                        <a class="dropdown-item due-today-item {% if due_count == 0 %}disabled{% endif %} {% if deck.count_all_flashcards() == 0 %}no-cards{% endif %}" 
+                           href="{{ url_for('deck.study_deck', deck_id=deck.flashcard_deck_id, due_only='true') }}"
+                           data-deck-id="{{ deck.flashcard_deck_id }}">
+                            <i class="bi bi-calendar-check me-2"></i>Due Today
+                            <span class="ms-auto badge bg-secondary rounded-pill due-badge">{{ due_count }}</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item {% if deck.count_all_flashcards() == 0 %}no-cards{% endif %}" 
+                           href="{{ url_for('deck.study_deck', deck_id=deck.flashcard_deck_id) }}"
+                           data-deck-id="{{ deck.flashcard_deck_id }}">
+                            <i class="bi bi-collection me-2"></i>All Cards
+                            <span class="ms-auto badge bg-secondary rounded-pill">{{ deck.count_all_flashcards() }}</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        {% else %}
+            <!-- Index context: Show study button that opens a modal to select a deck -->
+            <button class="btn btn-success" type="button" data-bs-toggle="modal" data-bs-target="#selectDeckToStudyModal">
+                <i class="bi bi-book"></i> Study
+            </button>
+        {% endif %}
+    {% endif %}
+
+    <!-- Consolidated Add Dropdown Menu -->
+    <div class="dropdown">
+        <button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="bi bi-plus-lg"></i> Add
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end">
+            <!-- Add Cards Option - Context-aware implementation -->
+            {% if show_add_cards %}
+                {% if deck %}
+                <!-- Deck context: Add cards directly to this deck -->
+                <li>
+                    <a class="dropdown-item add-cards-btn" href="#" data-deck-id="{{ deck.flashcard_deck_id }}">
+                        <i class="bi bi-card-text me-2"></i> Add Cards
+                    </a>
+                </li>
+                {% else %}
+                <!-- Index context: Generate cards that will prompt for deck selection -->
+                <li>
+                    <a class="dropdown-item" href="#" onclick="showGenerateModal(); return false;">
+                        <i class="bi bi-card-text me-2"></i> Add Cards
+                    </a>
+                </li>
+                {% endif %}
+            {% endif %}
+
+            <!-- Create Empty Deck Option -->
+            {% if show_create_deck %}
+            <li>
+                <a class="dropdown-item" href="#" id="createEmptyDeckBtn">
+                    <i class="bi bi-folder me-2"></i> New Deck
+                </a>
+            </li>
+            {% endif %}
+            
+            <!-- Create Sub-deck Option -->
+            {% if show_create_subdeck %}
+            <li>
+                <a class="dropdown-item" href="#" id="createDeckBtn">
+                    <i class="bi bi-folder-symlink me-2"></i> New Sub-deck
+                </a>
+            </li>
+            {% endif %}
+            
+            <!-- Add Separator When Import is Available -->
+            {% if show_import %}
+                {% if show_create_deck or show_create_subdeck or show_add_cards %}
+                <li><hr class="dropdown-divider"></li>
+                {% endif %}
+                
+                <li>
+                    <a class="dropdown-item" href="#" onclick="showImportModal(); return false;">
+                        <i class="bi bi-file-earmark-arrow-up me-2"></i> Import Content
+                    </a>
+                </li>
+            {% endif %}
+        </ul>
+    </div>
+
+    <!-- Stats button - Context-aware implementation -->
+    {% if show_stats %}
+        {% if deck %}
+            <!-- Deck context: Show stats for this deck -->
+            <a href="{{ url_for('stats.view_deck_stats', deck_id=deck.flashcard_deck_id) }}" class="btn btn-outline-success">
+                <i class="bi bi-graph-up"></i> Stats
+            </a>
+        {% else %}
+            <!-- Index context: Show stats button that opens a modal to select a deck -->
+            <button class="btn btn-outline-success" type="button" data-bs-toggle="modal" data-bs-target="#selectDeckForStatsModal">
+                <i class="bi bi-graph-up"></i> Stats
+            </button>
+        {% endif %}
+    {% endif %}
+</div>

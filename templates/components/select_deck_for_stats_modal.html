@@ -1,0 +1,101 @@
+<div class="modal fade" id="selectDeckForStatsModal" tabindex="-1" aria-labelledby="selectDeckForStatsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="selectDeckForStatsModalLabel">Select Deck for Statistics</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="statsDeckSelect" class="form-label">Choose a deck to view statistics:</label>
+                    <select class="form-select" id="statsDeckSelect">
+                        <option value="" disabled selected>Select a deck...</option>
+                        
+                        <!-- Flat list of ALL decks at any level -->
+                        {% for deck in decks recursive %}
+                            <option value="{{ deck.flashcard_deck_id }}" 
+                                    data-card-count="{{ deck.count_all_flashcards() }}"
+                                    data-has-cards="{{ 'true' if deck.count_all_flashcards() > 0 else 'false' }}"
+                                    data-parent="{{ deck.parent_deck.name if deck.parent_deck_id else '' }}">
+                                {{ deck.name }} ({{ deck.count_all_flashcards() }} cards)
+                            </option>
+                            
+                            <!-- Recursively add all children decks -->
+                            {{ loop(deck.child_decks) }}
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div id="statsDeckInfo" class="small text-muted mb-3 d-none">
+                    <i class="bi bi-folder2"></i> <span id="statsParentDeckName"></span>
+                </div>
+                
+                <div class="alert alert-warning d-none" id="noStatsDeckSelectedWarning">
+                    <i class="bi bi-exclamation-triangle me-2"></i> Please select a deck first.
+                </div>
+                
+                <div class="alert alert-info d-none" id="noStatsAvailableWarning">
+                    <i class="bi bi-info-circle me-2"></i> This deck has no cards or study history for statistics.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" id="viewStatsBtn">
+                    <i class="bi bi-graph-up"></i> View Statistics
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const selectStatsModal = document.getElementById('selectDeckForStatsModal');
+        if (!selectStatsModal) return;
+        
+        const deckSelect = document.getElementById('statsDeckSelect');
+        const viewStatsBtn = document.getElementById('viewStatsBtn');
+        const noDeckSelectedWarning = document.getElementById('noStatsDeckSelectedWarning');
+        const noStatsAvailableWarning = document.getElementById('noStatsAvailableWarning');
+        const statsDeckInfo = document.getElementById('statsDeckInfo');
+        const statsParentDeckName = document.getElementById('statsParentDeckName');
+        
+        // Update UI when a deck is selected
+        deckSelect.addEventListener('change', function() {
+            const selectedOption = deckSelect.options[deckSelect.selectedIndex];
+            const hasCards = selectedOption.dataset.hasCards === 'true';
+            const parentName = selectedOption.dataset.parent;
+            
+            // Reset warning states
+            noDeckSelectedWarning.classList.add('d-none');
+            noStatsAvailableWarning.classList.add('d-none');
+            
+            // Show parent deck info if this is a subdeck
+            if (parentName) {
+                statsParentDeckName.textContent = `Sub-deck of ${parentName}`;
+                statsDeckInfo.classList.remove('d-none');
+            } else {
+                statsDeckInfo.classList.add('d-none');
+            }
+            
+            // Show warning if the deck has no cards
+            if (!hasCards) {
+                noStatsAvailableWarning.classList.remove('d-none');
+            }
+        });
+        
+        // Handle the view stats button click with corrected URL
+        viewStatsBtn.addEventListener('click', function() {
+            const deckId = deckSelect.value;
+            
+            // Validate selection
+            if (!deckId) {
+                noDeckSelectedWarning.classList.remove('d-none');
+                return;
+            }
+            
+            // Navigate to the stats page with correct URL format
+            window.location.href = `/stats/deck/${deckId}/view_stats`;
+        });
+    });
+</script>
