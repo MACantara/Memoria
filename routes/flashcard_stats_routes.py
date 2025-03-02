@@ -1,15 +1,24 @@
-from flask import Blueprint, jsonify, render_template
+from flask import Blueprint, jsonify, render_template, request, url_for, redirect
 from models import db, FlashcardDecks, Flashcards
-from services.fsrs_scheduler import get_stats
+from services.fsrs_scheduler import get_stats, get_current_time
+from datetime import datetime, timedelta
+from sqlalchemy import case
+import traceback
 
 stats_bp = Blueprint('stats', __name__)
 
 @stats_bp.route("/deck/<int:deck_id>/view_stats")
-def view_deck_stats(deck_id):
-    """View spaced repetition stats for a deck"""
+@stats_bp.route("/deck/<int:deck_id>/view_stats/<int:page>")
+def view_deck_stats(deck_id, page=1):
+    """
+    View spaced repetition stats for a deck
+    Now supports an optional page parameter to maintain pagination state in the URL
+    """
     deck = FlashcardDecks.query.get_or_404(deck_id)
     
-    return render_template("stats.html", deck=deck)
+    # Removed filter_type parameter - no longer needed
+    
+    return render_template("stats.html", deck=deck, current_page=page)
 
 @stats_bp.route("/deck/<int:deck_id>/stats")
 def deck_stats(deck_id):
@@ -85,3 +94,99 @@ def get_retention_distribution(cards):
             distribution['90-100%'] += 1
     
     return distribution
+
+@stats_bp.route("/deck/<int:deck_id>/upcoming-reviews")
+def get_upcoming_reviews(deck_id):
+    """Get upcoming review cards data for a specific deck"""
+    try:
+        # Create recursive CTE to find all decks including this one and its sub-decks
+        cte = db.session.query(
+            FlashcardDecks.flashcard_deck_id.label('id')
+        ).filter(
+            FlashcardDecks.flashcard_deck_id == deck_id
+        ).cte(name='review_decks', recursive=True)
+
+        cte = cte.union_all(
+            db.session.query(
+                FlashcardDecks.flashcard_deck_id.label('id')
+            ).filter(
+                FlashcardDecks.parent_deck_id == cte.c.id
+            )
+        )
+        
+        # Get current time in UTC
+        current_time = get_current_time()
+        
+        # Query for all cards
+        query = Flashcards.query.filter(
+            Flashcards.flashcard_deck_id.in_(db.session.query(cte.c.id))
+        )
+        
+        # Order the results by due date
+        query = query.order_by(
+            # Cards with no due date first, then by due date ascending
+            case((Flashcards.due_date == None, 0), else_=1),
+            Flashcards.due_date.asc()
+        )
+        
+        # Get pagination parameters
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        
+        # Paginate the results
+        paginated_cards = query.paginate(page=page, per_page=per_page, error_out=False)
+        
+        # Format results
+        results = []
+        for card in paginated_cards.items:
+            # Determine card state name
+            state_name = "New"
+            if card.state == 1:
+                state_name = "Learning"
+            elif card.state == 2:
+                state_name = "Mastered"
+            elif card.state == 3:
+                state_name = "Forgotten"
+            
+            # Format due date
+            due_date_str = "Not scheduled" if card.due_date is None else card.due_date.isoformat()
+            last_reviewed_str = "Never" if card.last_reviewed is None else card.last_reviewed.isoformat()
+            
+            results.append({
+                'id': card.flashcard_id,
+                'question': card.question,
+                'due_date': due_date_str,
+                'last_reviewed': last_reviewed_str,
+                'state': state_name,
+                'state_value': card.state or 0,
+                'retrievability': card.retrievability or 0.0,
+                'deck_id': card.flashcard_deck_id
+            })
+        
+        # Build pagination URLs - removed filter parameter
+        pagination_urls = {
+            'current_url': url_for('stats.view_deck_stats', deck_id=deck_id, page=page),
+            'base_url': url_for('stats.view_deck_stats', deck_id=deck_id),
+            'next_url': url_for('stats.view_deck_stats', deck_id=deck_id, page=paginated_cards.next_num) if paginated_cards.has_next else None,
+            'prev_url': url_for('stats.view_deck_stats', deck_id=deck_id, page=paginated_cards.prev_num) if paginated_cards.has_prev else None,
+        }
+        
+        return jsonify({
+            'cards': results,
+            'pagination': {
+                'total': paginated_cards.total,
+                'pages': paginated_cards.pages,
+                'page': page,
+                'per_page': per_page,
+                'has_next': paginated_cards.has_next,
+                'has_prev': paginated_cards.has_prev,
+                'next_page': paginated_cards.next_num,
+                'prev_page': paginated_cards.prev_num,
+                'urls': pagination_urls
+            }
+        })
+        
+    except Exception as e:
+        print(f"Error getting upcoming review cards: {e}")
+        print(traceback.format_exc())  # Now using correctly imported traceback
+        return jsonify({'error': str(e)}), 500

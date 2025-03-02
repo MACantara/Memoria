@@ -1,116 +1,15 @@
-export class StatsManager {
-    constructor(deckId) {
-        this.deckId = deckId;
+/**
+ * Manages chart creation and updates for the stats page
+ */
+export class ChartManager {
+    constructor() {
         this.stateChart = null;
         this.upcomingChart = null;
-        this.observer = null;
-        this.refreshInterval = null;
-    }
-
-    initialize() {
-        this.loadStats();
-        
-        // Optional: Load advanced retention stats
-        // this.loadRetentionDistribution();
-        
-        // Refresh stats every 30 seconds
-        this.refreshInterval = setInterval(() => this.loadStats(), 30000);
-        
-        // Listen for theme changes to update charts
-        this.observer = new MutationObserver((mutations) => {
-            mutations.forEach((mutation) => {
-                if (mutation.attributeName === 'data-bs-theme') {
-                    // Redraw charts when theme changes
-                    this.loadStats();
-                }
-            });
-        });
-        
-        this.observer.observe(document.documentElement, {
-            attributes: true,
-            attributeFilter: ['data-bs-theme']
-        });
-    }
-
-    async loadStats() {
-        try {
-            const response = await fetch(`/stats/deck/${this.deckId}/stats`);
-            const stats = await response.json();
-            
-            console.log("Stats data:", stats); // Debug info
-            
-            // Update summary cards
-            document.getElementById('total-cards').textContent = stats.total_cards;
-            document.getElementById('due-count').textContent = stats.due_count;
-            
-            // Handle retention data with coverage context
-            const retentionElement = document.getElementById('retention');
-            if (stats.has_retention_data) {
-                // Format as percentage with coverage context
-                const retentionPct = (stats.average_retention * 100).toFixed(0) + '%';
-                
-                if (stats.has_significant_retention_data) {
-                    // Good amount of data (20+ cards or 10%+ coverage)
-                    retentionElement.textContent = retentionPct;
-                    retentionElement.classList.remove('text-muted', 'text-warning');
-                } else {
-                    // Limited data - show with warning
-                    retentionElement.textContent = `${retentionPct}*`;
-                    retentionElement.classList.remove('text-muted');
-                    retentionElement.classList.add('text-warning');
-                    
-                    // Add a tooltip explaining the asterisk with updated thresholds
-                    retentionElement.title = `Based on limited data: ${stats.reviewed_count} out of ${stats.total_cards} cards (${stats.review_coverage}% coverage). For reliable statistics, review at least 20 cards or 10% of the deck.`;
-                    
-                    // Add an explanation below if there's space
-                    const retentionNoteElement = document.getElementById('retention-note');
-                    if (retentionNoteElement) {
-                        retentionNoteElement.textContent = 
-                            `*Limited data (${stats.review_coverage}% of cards reviewed)`;
-                        retentionNoteElement.classList.remove('d-none');
-                    }
-                }
-            } else {
-                // No review history available
-                retentionElement.textContent = 'No data';
-                retentionElement.classList.add('text-muted');
-                retentionElement.classList.remove('text-warning');
-                retentionElement.title = 'No cards have been reviewed yet';
-                
-                // Hide the note if present
-                const retentionNoteElement = document.getElementById('retention-note');
-                if (retentionNoteElement) {
-                    retentionNoteElement.classList.add('d-none');
-                }
-            }
-            
-            document.getElementById('mastered-count').textContent = stats.state_counts.mastered;
-            
-            // Update charts
-            this.updateStateChart(stats.state_counts);
-            this.updateUpcomingChart(stats.upcoming_reviews);
-            
-        } catch (error) {
-            console.error('Error loading stats:', error);
-        }
     }
     
-    async loadRetentionDistribution() {
-        try {
-            const response = await fetch(`/stats/deck/${this.deckId}/retention`);
-            const retentionData = await response.json();
-            
-            // You can display this data in an additional chart if needed
-            console.log("Retention distribution:", retentionData);
-            
-            // Build retention chart here if desired
-            // this.updateRetentionChart(retentionData.retention_distribution);
-            
-        } catch (error) {
-            console.error('Error loading retention data:', error);
-        }
-    }
-    
+    /**
+     * Updates the state distribution pie chart
+     */
     updateStateChart(stateCounts) {
         const ctx = document.getElementById('stateChart').getContext('2d');
         
@@ -204,10 +103,13 @@ export class StatsManager {
             ctx.fillStyle = isDarkMode ? '#e0e0e0' : '#666';
             ctx.textAlign = 'center';
             ctx.fillText('No card data available', 
-                         ctx.canvas.width / 2, ctx.canvas.height / 2);
+                        ctx.canvas.width / 2, ctx.canvas.height / 2);
         }
     }
     
+    /**
+     * Updates the upcoming reviews bar chart
+     */
     updateUpcomingChart(upcomingReviews) {
         const ctx = document.getElementById('upcomingChart').getContext('2d');
         const labels = [];
@@ -321,23 +223,19 @@ export class StatsManager {
             options: chartOptions
         });
     }
-
-    // Clean up method to prevent memory leaks
+    
+    /**
+     * Clean up chart resources to prevent memory leaks
+     */
     destroy() {
-        if (this.refreshInterval) {
-            clearInterval(this.refreshInterval);
-        }
-
-        if (this.observer) {
-            this.observer.disconnect();
-        }
-
         if (this.stateChart) {
             this.stateChart.destroy();
+            this.stateChart = null;
         }
-
+        
         if (this.upcomingChart) {
             this.upcomingChart.destroy();
+            this.upcomingChart = null;
         }
     }
 }
