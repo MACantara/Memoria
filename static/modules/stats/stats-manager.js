@@ -23,17 +23,10 @@ export class StatsManager {
         // Load initial data
         this.loadAllStats();
         
-        // Initialize table filter buttons
-        this.tableManager.initializeFilterButtons();
+        // No more filter button initialization
         
         // Bind the loadUpcomingReviews method to this instance for callbacks
         const loadUpcomingReviewsCallback = this.loadUpcomingReviews.bind(this);
-        
-        // Set filter callback to reload data when filter changes
-        const originalFilterMethod = this.tableManager.filterUpcomingReviews;
-        this.tableManager.filterUpcomingReviews = function(filterType) {
-            originalFilterMethod.call(this, filterType, loadUpcomingReviewsCallback);
-        };
         
         // Refresh stats every 30 seconds
         this.refreshInterval = setInterval(() => this.loadAllStats(), 30000);
@@ -66,8 +59,8 @@ export class StatsManager {
             this.chartManager.updateStateChart(stats.state_counts);
             this.chartManager.updateUpcomingChart(stats.upcoming_reviews);
             
-            // Load table data with current filter and page
-            await this.loadUpcomingReviews(this.tableManager.filter, this.tableManager.currentPage);
+            // Load table data - always using 'all' filter now
+            await this.loadUpcomingReviews(1);
         } catch (error) {
             console.error('Error loading all stats:', error);
         }
@@ -75,11 +68,12 @@ export class StatsManager {
     
     /**
      * Load upcoming reviews and update the table
+     * No longer takes a filter parameter, always shows all cards
      */
-    async loadUpcomingReviews(filter, page) {
+    async loadUpcomingReviews(page = 1) {
         try {
-            // Load reviews for the table with current filter and page
-            const reviewsData = await this.statsLoader.loadUpcomingReviews(filter, page);
+            // Always use 'all' filter
+            const reviewsData = await this.statsLoader.loadUpcomingReviews('all', page);
             
             // Update table and pagination
             this.tableManager.updateUpcomingReviewsTable(reviewsData);

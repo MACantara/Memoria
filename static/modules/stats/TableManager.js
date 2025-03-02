@@ -4,58 +4,6 @@
 export class TableManager {
     constructor() {
         this.currentPage = 1;
-        this.filter = 'today'; // Default to today's reviews
-    }
-    
-    /**
-     * Initialize the table filter buttons
-     */
-    initializeFilterButtons() {
-        // Set the Today button as active by default
-        document.getElementById('showTodayBtn').classList.replace('btn-outline-primary', 'btn-primary');
-        
-        // Set up filter buttons for upcoming reviews table
-        document.getElementById('showTodayBtn')?.addEventListener('click', () => {
-            this.filterUpcomingReviews('today');
-        });
-        
-        document.getElementById('showWeekBtn')?.addEventListener('click', () => {
-            this.filterUpcomingReviews('week');
-        });
-        
-        document.getElementById('showAllBtn')?.addEventListener('click', () => {
-            this.filterUpcomingReviews('all');
-        });
-    }
-    
-    /**
-     * Filter the upcoming reviews table
-     */
-    filterUpcomingReviews(filterType, callback) {
-        // Reset all buttons to outline style
-        document.querySelectorAll('.btn-group .btn').forEach(btn => {
-            btn.classList.remove('btn-primary');
-            btn.classList.add('btn-outline-primary');
-        });
-        
-        // Set active button style
-        const activeButton = document.getElementById(`show${filterType.charAt(0).toUpperCase() + filterType.slice(1)}Btn`);
-        if (activeButton) {
-            activeButton.classList.remove('btn-outline-primary');
-            activeButton.classList.add('btn-primary');
-        }
-        
-        // Update filter and reset to first page
-        this.filter = filterType;
-        this.currentPage = 1;
-        
-        // Call the callback to reload the data with new filter
-        if (typeof callback === 'function') {
-            callback(this.filter, this.currentPage);
-        }
-        
-        // Add some debug info
-        console.log(`Filtered to: ${filterType}, page: ${this.currentPage}`);
     }
     
     /**
@@ -72,7 +20,7 @@ export class TableManager {
         if (!data.cards || data.cards.length === 0) {
             tableBody.innerHTML = `
                 <tr>
-                    <td colspan="6" class="text-center">
+                    <td colspan="5" class="text-center">
                         <i class="bi bi-info-circle"></i> No upcoming reviews found.
                     </td>
                 </tr>
@@ -119,24 +67,11 @@ export class TableManager {
                     <span class="badge ${stateBadgeClass}">${card.state}</span>
                 </td>
                 <td class="align-middle">${card.state_value > 0 ? retrievability : 'N/A'}</td>
-                <td class="align-middle">
-                    <button class="btn btn-sm btn-primary review-now-btn" 
-                            data-card-id="${card.id}" data-deck-id="${card.deck_id}">
-                        Review
-                    </button>
-                </td>
             `;
             
             tableBody.appendChild(row);
         });
         
-        // Add event listeners for the Review buttons
-        document.querySelectorAll('.review-now-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const deckId = btn.dataset.deckId;
-                window.location.href = `/deck/${deckId}/study?card_id=${btn.dataset.cardId}`;
-            });
-        });
     }
     
     /**
@@ -174,7 +109,7 @@ export class TableManager {
                 e.preventDefault();
                 this.currentPage = i;
                 if (typeof callback === 'function') {
-                    callback(this.filter, this.currentPage);
+                    callback(i);
                 }
             });
             pageItem.appendChild(pageLink);
@@ -197,7 +132,7 @@ export class TableManager {
                 e.preventDefault();
                 this.currentPage = pagination.prev_page;
                 if (typeof callback === 'function') {
-                    callback(this.filter, this.currentPage);
+                    callback(this.currentPage);
                 }
             });
         }
@@ -207,7 +142,7 @@ export class TableManager {
                 e.preventDefault();
                 this.currentPage = pagination.next_page;
                 if (typeof callback === 'function') {
-                    callback(this.filter, this.currentPage);
+                    callback(this.currentPage);
                 }
             });
         }
@@ -221,7 +156,7 @@ export class TableManager {
         if (tableBody) {
             tableBody.innerHTML = `
                 <tr>
-                    <td colspan="6" class="text-center text-danger">
+                    <td colspan="5" class="text-center text-danger">
                         <i class="bi bi-exclamation-triangle"></i> 
                         ${message || 'Failed to load upcoming reviews. Please try again.'}
                     </td>

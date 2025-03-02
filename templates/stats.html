@@ -82,17 +82,12 @@
     </div>
 </div>
 
-<!-- New Upcoming Review Cards Table Section -->
+<!-- New Upcoming Review Cards Table Section - removed filter buttons -->
 <div class="row mt-4">
     <div class="col-12">
         <div class="card shadow-sm">
-            <div class="card-header d-flex justify-content-between align-items-center">
+            <div class="card-header">
                 <h5 class="mb-0">Upcoming Review Cards</h5>
-                <div class="btn-group">
-                    <button type="button" class="btn btn-sm btn-primary" id="showTodayBtn">Today</button>
-                    <button type="button" class="btn btn-sm btn-outline-primary" id="showWeekBtn">This Week</button>
-                    <button type="button" class="btn btn-sm btn-outline-primary" id="showAllBtn">All</button>
-                </div>
             </div>
             <div class="card-body">
                 <div class="table-responsive">
@@ -104,12 +99,11 @@
                                 <th>Due Date</th>
                                 <th>State</th>
                                 <th>Retention</th>
-                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody id="upcomingReviewsBody">
                             <tr>
-                                <td colspan="6" class="text-center">Loading upcoming reviews...</td>
+                                <td colspan="5" class="text-center">Loading upcoming reviews...</td>
                             </tr>
                         </tbody>
                     </table>
