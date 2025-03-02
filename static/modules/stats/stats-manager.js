@@ -78,8 +78,8 @@ export class StatsManager {
             this.chartManager.updateStateChart(stats.state_counts);
             this.chartManager.updateUpcomingChart(stats.upcoming_reviews);
             
-            // Load table data - always using 'all' filter now
-            await this.loadUpcomingReviews(1);
+            // Load table data with current page instead of resetting to page 1
+            await this.loadUpcomingReviews(this.tableManager.currentPage);
         } catch (error) {
             console.error('Error loading all stats:', error);
         }
