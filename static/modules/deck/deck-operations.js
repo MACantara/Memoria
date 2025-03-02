@@ -114,23 +114,154 @@ async function handleDelete(deckToDelete) {
 }
 
 function initializeMoveDeck() {
-    let deckToMoveId = null;
-    const moveModal = new bootstrap.Modal(document.getElementById('moveDeckModal'));
+    let currentDeckId = null;
+    let currentDeckName = null;
+    const moveDeckModal = document.getElementById('moveDeckModal');
+    if (!moveDeckModal) return;
     
-    window.showMoveDeckModal = async (deckId, deckName) => {
-        deckToMoveId = deckId;
-        document.getElementById('deckToMoveName').textContent = deckName;
-        document.getElementById('moveStatus').innerHTML = '';
+    const rootDeckOption = document.getElementById('rootDeck');
+    const subdeckOption = document.getElementById('subdeckOption');
+    const parentDeckSelect = document.getElementById('parentDeckSelect');
+    const parentDeckSelectContainer = document.getElementById('parentDeckSelectContainer');
+    const parentDeckInfo = document.getElementById('parentDeckInfo');
+    const parentDeckPath = document.getElementById('parentDeckPath');
+    const circularReferenceWarning = document.getElementById('circularReferenceWarning');
+    const deckToMoveName = document.getElementById('deckToMoveName');
+    const confirmMoveBtn = document.getElementById('confirmMoveBtn');
+    
+    // Set up radio button change handlers
+    rootDeckOption.addEventListener('change', function() {
+        if (this.checked) {
+            parentDeckSelect.disabled = true;
+            parentDeckSelectContainer.classList.add('d-none');
+            confirmMoveBtn.disabled = false;
+        }
+    });
+    
+    subdeckOption.addEventListener('change', function() {
+        if (this.checked) {
+            parentDeckSelect.disabled = false;
+            parentDeckSelectContainer.classList.remove('d-none');
+            
+            // Reevaluate the confirmation button state
+            checkMoveValidity();
+        }
+    });
+    
+    // Handle parent deck selection change
+    parentDeckSelect.addEventListener('change', function() {
+        const selectedDeckId = this.value;
         
-        // Load the deck tree
-        await loadDeckTree(deckId);
+        // Clear previous info
+        parentDeckInfo.classList.add('d-none');
+        circularReferenceWarning.classList.add('d-none');
         
-        moveModal.show();
+        if (selectedDeckId) {
+            // Check for circular reference
+            if (selectedDeckId === currentDeckId) {
+                circularReferenceWarning.classList.remove('d-none');
+                confirmMoveBtn.disabled = true;
+                return;
+            }
+            
+            // Show parent info if available
+            const selectedOption = this.options[this.selectedIndex];
+            const parentName = selectedOption.dataset.parent;
+            
+            if (parentName) {
+                parentDeckPath.textContent = `Parent deck: ${parentName} > ${selectedOption.text}`;
+                parentDeckInfo.classList.remove('d-none');
+            } else {
+                parentDeckPath.textContent = `This is a top-level deck`;
+                parentDeckInfo.classList.remove('d-none');
+            }
+            
+            // Enable move button
+            confirmMoveBtn.disabled = false;
+        } else {
+            // No selection, disable move button
+            confirmMoveBtn.disabled = true;
+        }
+    });
+    
+    // Prepare the modal when it's shown
+    moveDeckModal.addEventListener('show.bs.modal', function(event) {
+        // Only try to get data from relatedTarget if it exists
+        // This fixes the undefined getAttribute error
+        if (event.relatedTarget) {
+            currentDeckId = event.relatedTarget.getAttribute('data-deck-id');
+            currentDeckName = event.relatedTarget.getAttribute('data-deck-name');
+        }
+        
+        // Set the deck name (use the stored values that might have been set by showMoveDeckModal)
+        if (currentDeckName) {
+            deckToMoveName.textContent = currentDeckName;
+        }
+        
+        // Reset the modal
+        rootDeckOption.checked = true;
+        parentDeckSelect.disabled = true;
+        parentDeckSelectContainer.classList.add('d-none');
+        parentDeckInfo.classList.add('d-none');
+        circularReferenceWarning.classList.add('d-none');
+        confirmMoveBtn.disabled = false;
+        
+        // Remove the current deck and its children from options
+        for (let i = 0; i < parentDeckSelect.options.length; i++) {
+            const option = parentDeckSelect.options[i];
+            
+            // Skip placeholder option
+            if (option.disabled && option.selected) continue;
+            
+            // Check if this is the current deck or a child of it
+            // For now, a simple check if it's the same deck
+            if (option.value === currentDeckId) {
+                option.disabled = true;
+                option.style.display = 'none';
+            } else {
+                option.disabled = false;
+                option.style.display = '';
+            }
+        }
+        
+        // Reset the selection
+        parentDeckSelect.selectedIndex = 0;
+    });
+    
+    // Add move confirmation handler
+    confirmMoveBtn.addEventListener('click', function() {
+        handleMoveConfirm(currentDeckId);
+    });
+    
+    // Make showMoveDeckModal available globally for button handling
+    window.showMoveDeckModal = (deckId, deckName) => {
+        // Store the deck ID and name for use in the modal
+        currentDeckId = deckId;
+        currentDeckName = deckName;
+        
+        // Get the modal element
+        const modalElement = document.getElementById('moveDeckModal');
+        if (!modalElement) return;
+        
+        // Update the deck name directly here
+        const deckNameElement = document.getElementById('deckToMoveName');
+        if (deckNameElement) {
+            deckNameElement.textContent = deckName;
+        }
+        
+        // Show the modal
+        const bsModal = new bootstrap.Modal(modalElement);
+        bsModal.show();
     };
     
-    document.getElementById('confirmMoveBtn')?.addEventListener('click', async () => {
-        handleMoveConfirm(deckToMoveId);
-    });
+    // Helper function to check if the move is valid
+    function checkMoveValidity() {
+        if (subdeckOption.checked && (!parentDeckSelect.value || parentDeckSelect.value === currentDeckId)) {
+            confirmMoveBtn.disabled = true;
+        } else {
+            confirmMoveBtn.disabled = false;
+        }
+    }
 }
 
 async function loadDeckTree(currentDeckId) {
@@ -200,18 +331,15 @@ async function handleMoveConfirm(deckId) {
     const loadingState = button.querySelector('.loading-state');
     const statusDiv = document.getElementById('moveStatus');
     
-    // Get selected destination
-    const selectedRadio = document.querySelector('input[name="destinationDeck"]:checked');
-    if (!selectedRadio) {
-        statusDiv.innerHTML = `
-            <div class="alert alert-warning">
-                <i class="bi bi-exclamation-triangle"></i> Please select a destination
-            </div>
-        `;
-        return;
-    }
+    // Determine new parent ID based on radio button selection
+    const rootDeckOption = document.getElementById('rootDeck');
+    const parentDeckSelect = document.getElementById('parentDeckSelect');
     
-    const newParentId = selectedRadio.value || null;  // Empty string means root level
+    let newParentId = null;
+    
+    if (!rootDeckOption.checked) {
+        newParentId = parentDeckSelect.value;
+    }
     
     button.disabled = true;
     normalState.classList.add('d-none');
@@ -223,17 +351,17 @@ async function handleMoveConfirm(deckId) {
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ 
-                new_parent_id: newParentId === '' ? null : newParentId
-            })
+            body: JSON.stringify({
+                new_parent_id: newParentId
+            }),
         });
         
         const data = await response.json();
         
         if (response.ok) {
             statusDiv.innerHTML = `
-                <div class="alert alert-success">
-                    <i class="bi bi-check-circle"></i> ${data.message}
+                <div class="alert alert-success mt-3">
+                    <i class="bi bi-check-circle-fill"></i> ${data.message}
                 </div>
             `;
             setTimeout(() => location.reload(), 1000);
@@ -242,8 +370,8 @@ async function handleMoveConfirm(deckId) {
         }
     } catch (error) {
         statusDiv.innerHTML = `
-            <div class="alert alert-danger">
-                <i class="bi bi-exclamation-triangle"></i> ${error.message}
+            <div class="alert alert-danger mt-3">
+                <i class="bi bi-exclamation-circle-fill"></i> ${error.message}
             </div>
         `;
         button.disabled = false;
