@@ -110,7 +110,7 @@ export class TableManager {
     }
     
     /**
-     * Update the pagination controls
+     * Update the pagination controls with dropdown page selector
      */
     updatePagination(pagination, callback) {
         const paginationElement = document.querySelector('#upcomingPagination .pagination');
@@ -128,28 +128,49 @@ export class TableManager {
         const prevLink = document.createElement('a');
         prevLink.className = 'page-link';
         prevLink.href = '#';
-        prevLink.innerHTML = '&laquo;';
+        prevLink.setAttribute('aria-label', 'Previous');
+        prevLink.innerHTML = '<i class="bi bi-chevron-left"></i>';
         prevItem.appendChild(prevLink);
         paginationElement.appendChild(prevItem);
         
-        // Page numbers
+        // Page dropdown
+        const pageDropdownItem = document.createElement('li');
+        pageDropdownItem.className = 'page-item dropdown';
+        
+        // Create dropdown toggle button
+        const dropdownButton = document.createElement('a');
+        dropdownButton.className = 'page-link dropdown-toggle';
+        dropdownButton.href = '#';
+        dropdownButton.setAttribute('data-bs-toggle', 'dropdown');
+        dropdownButton.setAttribute('aria-expanded', 'false');
+        dropdownButton.setAttribute('role', 'button');
+        dropdownButton.innerHTML = `Page ${pagination.page} of ${pagination.pages}`;
+        pageDropdownItem.appendChild(dropdownButton);
+        
+        // Create dropdown menu
+        const dropdownMenu = document.createElement('ul');
+        dropdownMenu.className = 'dropdown-menu';
+        
+        // Add dropdown items for each page
         for (let i = 1; i <= pagination.pages; i++) {
-            const pageItem = document.createElement('li');
-            pageItem.className = `page-item ${i === pagination.page ? 'active' : ''}`;
-            const pageLink = document.createElement('a');
-            pageLink.className = 'page-link';
-            pageLink.href = '#';
-            pageLink.textContent = i;
-            pageLink.addEventListener('click', (e) => {
+            const dropdownItem = document.createElement('li');
+            const dropdownLink = document.createElement('a');
+            dropdownLink.className = `dropdown-item ${i === pagination.page ? 'active' : ''}`;
+            dropdownLink.href = '#';
+            dropdownLink.textContent = `Page ${i}`;
+            dropdownLink.addEventListener('click', (e) => {
                 e.preventDefault();
                 this.currentPage = i;
                 if (typeof callback === 'function') {
                     callback(i);
                 }
             });
-            pageItem.appendChild(pageLink);
-            paginationElement.appendChild(pageItem);
+            dropdownItem.appendChild(dropdownLink);
+            dropdownMenu.appendChild(dropdownItem);
         }
+        
+        pageDropdownItem.appendChild(dropdownMenu);
+        paginationElement.appendChild(pageDropdownItem);
         
         // Next button
         const nextItem = document.createElement('li');
@@ -157,7 +178,8 @@ export class TableManager {
         const nextLink = document.createElement('a');
         nextLink.className = 'page-link';
         nextLink.href = '#';
-        nextLink.innerHTML = '&raquo;';
+        nextLink.setAttribute('aria-label', 'Next');
+        nextLink.innerHTML = '<i class="bi bi-chevron-right"></i>';
         nextItem.appendChild(nextLink);
         paginationElement.appendChild(nextItem);
         
