@@ -65,8 +65,19 @@ Study {{ deck.name }} (All Cards)
          data-incorrect="{{ flashcard.incorrect_answers }}"
          data-state="{{ flashcard.state or 0 }}"
          data-retrievability="{{ flashcard.retrievability or 0 }}"
+         {% if deck_info and flashcard.flashcard_id in deck_info %}
+         data-subdeck-id="{{ deck_info[flashcard.flashcard_id]['deck_id'] }}"
+         data-subdeck-name="{{ deck_info[flashcard.flashcard_id]['deck_name'] }}"
+         {% endif %}
          style="display: none;">
         <div class="card-body">
+            <!-- Add subdeck indication if this card is from a subdeck -->
+            {% if deck_info and flashcard.flashcard_id in deck_info %}
+            <div class="card-subtitle mb-2 text-muted small">
+                <i class="bi bi-folder"></i> From: {{ deck_info[flashcard.flashcard_id]['deck_name'] }}
+            </div>
+            {% endif %}
+            
             <div class="card-title h4" data-question="{{ flashcard.question }}">
                 {{ flashcard.question }}
             </div>
