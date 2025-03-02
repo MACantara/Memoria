@@ -1,13 +1,16 @@
 .stats-card {
-    transition: transform 0.2s;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .stats-card:hover {
     transform: translateY(-5px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.15);
 }
 
 .chart-container {
-    height: 300px;
+    height: 250px;
+    position: relative;
+    width: 100%;
 }
 
 /* Theme-adaptive cards that work in both light and dark mode */
@@ -23,8 +26,9 @@
 
 /* Chart styles */
 .chart-container {
-    height: 300px;
+    height: 250px;
     position: relative;
+    width: 100%;
 }
 
 /* Theme-specific card styles */
@@ -71,4 +75,55 @@
 [data-bs-theme="dark"] .card .card-header {
     background-color: #2d2d2d;
     border-bottom: 1px solid #3d3d3d;
+}
+
+/* Upcoming reviews table styling */
+#upcomingReviewsTable {
+    table-layout: fixed;
+}
+
+#upcomingReviewsTable thead th {
+    position: sticky;
+    top: 0;
+    background-color: var(--bs-body-bg);
+    z-index: 1;
+}
+
+/* Column widths for better layout */
+#upcomingReviewsTable th:nth-child(1) { width: 30%; } /* Question */
+#upcomingReviewsTable th:nth-child(2) { width: 20%; } /* Last Reviewed */
+#upcomingReviewsTable th:nth-child(3) { width: 20%; } /* Due Date */
+#upcomingReviewsTable th:nth-child(4) { width: 10%; } /* State */
+#upcomingReviewsTable th:nth-child(5) { width: 10%; } /* Retention */
+#upcomingReviewsTable th:nth-child(6) { width: 10%; }  /* Actions */
+
+/* Text truncation for long questions */
+#upcomingReviewsTable .text-truncate {
+    max-width: 100%;
+}
+
+/* Responsive table scrolling */
+.table-responsive {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+/* Button group styling */
+.btn-group .btn-sm {
+    padding: 0.25rem 0.5rem;
+}
+
+/* Make pagination compact */
+.pagination-sm .page-link {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+/* Add dark mode support for table */
+[data-bs-theme="dark"] #upcomingReviewsTable thead th {
+    background-color: var(--bs-dark);
+}
+
+[data-bs-theme="dark"] .table-striped>tbody>tr:nth-of-type(odd)>* {
+    --bs-table-accent-bg: rgba(255, 255, 255, 0.05);
 }
