@@ -4,6 +4,12 @@
 export class TableManager {
     constructor() {
         this.currentPage = 1;
+        
+        // Initialize the count display with a more informative loading state
+        const reviewCountElem = document.getElementById('reviewCount');
+        if (reviewCountElem) {
+            reviewCountElem.innerHTML = '<i class="bi bi-hourglass"></i> Loading...';
+        }
     }
     
     /**
@@ -16,6 +22,9 @@ export class TableManager {
         // Clear existing table content
         tableBody.innerHTML = '';
         
+        // Update the count display with a more meaningful message
+        this.updateCountDisplay(data);
+        
         // Check if we have any cards to display
         if (!data.cards || data.cards.length === 0) {
             tableBody.innerHTML = `
@@ -26,13 +35,6 @@ export class TableManager {
                 </tr>
             `;
             return;
-        }
-        
-        // Update the count display
-        const reviewCountElem = document.getElementById('reviewCount');
-        if (reviewCountElem) {
-            reviewCountElem.textContent = 
-                `Showing ${data.cards.length} of ${data.pagination.total} cards`;
         }
         
         // Populate the table with card data
@@ -71,7 +73,40 @@ export class TableManager {
             
             tableBody.appendChild(row);
         });
+    }
+    
+    /**
+     * Update the count display with a more meaningful message
+     */
+    updateCountDisplay(data) {
+        const reviewCountElem = document.getElementById('reviewCount');
+        if (!reviewCountElem) return;
         
+        if (!data || !data.pagination) {
+            reviewCountElem.innerHTML = '<i class="bi bi-x-circle"></i> No data available';
+            return;
+        }
+        
+        const { total, page, per_page } = data.pagination;
+        const currentCards = data.cards ? data.cards.length : 0;
+        
+        if (total === 0) {
+            // No cards at all
+            reviewCountElem.innerHTML = '<i class="bi bi-card-list"></i> No upcoming reviews scheduled';
+        } else if (currentCards === 0) {
+            // No cards on this page (should rarely happen)
+            reviewCountElem.innerHTML = `<i class="bi bi-card-list"></i> No cards on this page (of ${total} total)`;
+        } else {
+            // Calculate the range of cards being shown
+            const startCard = (page - 1) * per_page + 1;
+            const endCard = Math.min(startCard + currentCards - 1, total);
+            
+            // Show range of cards: "Showing 1-20 of 57 cards"
+            reviewCountElem.innerHTML = `
+                <i class="bi bi-card-list"></i> 
+                Showing ${startCard}-${endCard} of ${total} ${total === 1 ? 'card' : 'cards'}
+            `;
+        }
     }
     
     /**
@@ -162,6 +197,12 @@ export class TableManager {
                     </td>
                 </tr>
             `;
+        }
+        
+        // Update the count display to show error
+        const reviewCountElem = document.getElementById('reviewCount');
+        if (reviewCountElem) {
+            reviewCountElem.innerHTML = '<i class="bi bi-exclamation-triangle text-danger"></i> Error loading data';
         }
     }
 }
