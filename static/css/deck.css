@@ -50,11 +50,6 @@
     align-items: center;
 }
 
-/* Add hover effects for the dropdown items */
-.dropdown-item:hover {
-    background-color: var(--bs-light);
-}
-
 /* Styling for disabled dropdown items */
 .dropdown-item.disabled {
     color: #adb5bd;
