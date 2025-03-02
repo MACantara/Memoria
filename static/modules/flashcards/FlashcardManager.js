@@ -16,13 +16,22 @@ export class FlashcardManager {
     initialize() {
         if (!this.container) return;
         this.flashcardsArray = Array.from(document.querySelectorAll('.flashcard'));
+        
+        // Debug info to help diagnose issues
+        console.log(`Found ${this.flashcardsArray.length} flashcards in DOM`);
+        
         this.flashcardsArray.forEach(card => this.initializeFlashcard(card));
         
         // Count due cards - these are cards that aren't already mastered (state !== 2)
-        this.totalDueCards = this.flashcardsArray.filter(card => {
-            const state = parseInt(card.dataset.state || 0);
-            return state !== 2;  // Not mastered
-        }).length;
+        // IMPORTANT FIX: When in "Study All" mode, consider all cards as due regardless of state
+        const isDueOnly = new URLSearchParams(window.location.search).get('due_only') === 'true';
+        
+        // In "Study All" mode, all cards are considered due for review
+        this.totalDueCards = isDueOnly ? 
+            this.flashcardsArray.filter(card => parseInt(card.dataset.state || 0) !== 2).length :
+            this.flashcardsArray.length;
+        
+        console.log(`Total due cards: ${this.totalDueCards} out of ${this.flashcardsArray.length}`);
         
         // Initialize with 0 completed cards
         this.score = 0;
@@ -122,6 +131,9 @@ export class FlashcardManager {
             this.completedCards.add(flashcard.dataset.id);
             this.score++;
             
+            // Debug info
+            console.log(`Card ${flashcard.dataset.id} completed. Score: ${this.score}/${this.totalDueCards}`);
+            
             // Update the progress display
             this.ui.updateScore(this.score, this.totalDueCards);
         }
@@ -138,6 +150,7 @@ export class FlashcardManager {
             
             // If all cards are completed, show completion screen
             if (this.completedCards.size >= this.totalDueCards) {
+                console.log("All cards completed. Showing completion screen.");
                 this.ui.showCompletion(this.score, this.totalDueCards);
             } else {
                 // Otherwise move to the next card
@@ -240,18 +253,27 @@ export class FlashcardManager {
     }
 
     moveToNextCard() {
+        // Debug info
+        console.log("Moving to next card. Completed cards:", this.completedCards.size);
+        
+        // FIX: In "Study All" mode, we should show all cards regardless of state
+        const isDueOnly = new URLSearchParams(window.location.search).get('due_only') === 'true';
+        
         // First look for cards that haven't been completed in this session
         for (let i = 0; i < this.flashcardsArray.length; i++) {
             // Skip current card
             if (i === this.currentCardIndex) continue;
             
             const card = this.flashcardsArray[i];
+            const cardState = parseInt(card.dataset.state || 0);
             
-            // If card is not mastered and not completed in this session, show it
+            // In "Study All" mode, show any card that hasn't been completed in this session
+            // In "Due Only" mode, only show cards that aren't mastered and haven't been completed
             if (!this.completedCards.has(card.dataset.id) && 
-                parseInt(card.dataset.state || 0) !== 2) {
+                (isDueOnly ? cardState !== 2 : true)) {
                 
                 this.currentCardIndex = i;
+                console.log(`Moving to card ${i+1}/${this.flashcardsArray.length} with ID ${card.dataset.id}`);
                 
                 // Reset card if it's been attempted before
                 if (card.dataset.attempted === 'true') {
@@ -264,6 +286,8 @@ export class FlashcardManager {
         }
         
         // If we reach here, all cards have been completed in this session
+        console.log("No more cards to show. All completed.");
+        
         // Make sure score reflects completion
         this.score = this.totalDueCards;
         this.ui.updateScore(this.score, this.totalDueCards);
