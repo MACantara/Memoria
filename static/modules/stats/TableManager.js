@@ -55,20 +55,20 @@ export class TableManager {
             // Format retrievability as percentage
             const retrievability = (card.retrievability * 100).toFixed(0) + '%';
             
-            // Create table row
+            // Create table row with data-label attributes for responsive display
             const row = document.createElement('tr');
             row.innerHTML = `
-                <td class="align-middle">
+                <td class="align-middle" data-label="Question">
                     <div class="text-truncate" style="max-width: 250px;" title="${card.question}">
                         ${card.question}
                     </div>
                 </td>
-                <td class="align-middle">${lastReviewed}</td>
-                <td class="align-middle">${dueDate}</td>
-                <td class="align-middle">
+                <td class="align-middle" data-label="Last Reviewed">${lastReviewed}</td>
+                <td class="align-middle" data-label="Due Date">${dueDate}</td>
+                <td class="align-middle" data-label="State">
                     <span class="badge ${stateBadgeClass}">${card.state}</span>
                 </td>
-                <td class="align-middle">${card.state_value > 0 ? retrievability : 'N/A'}</td>
+                <td class="align-middle" data-label="Retention">${card.state_value > 0 ? retrievability : 'N/A'}</td>
             `;
             
             tableBody.appendChild(row);
@@ -184,16 +184,23 @@ export class TableManager {
     }
     
     /**
-     * Show error in the table
+     * Show error in the table - improved for mobile
      */
     showError(message) {
         const tableBody = document.getElementById('upcomingReviewsBody');
         if (tableBody) {
             tableBody.innerHTML = `
                 <tr>
-                    <td colspan="5" class="text-center text-danger">
-                        <i class="bi bi-exclamation-triangle"></i> 
-                        ${message || 'Failed to load upcoming reviews. Please try again.'}
+                    <td colspan="5" class="text-center">
+                        <div class="py-4">
+                            <i class="bi bi-exclamation-triangle text-danger" style="font-size: 2rem;"></i>
+                            <p class="mt-3">
+                                ${message || 'Failed to load upcoming reviews. Please try again.'}
+                            </p>
+                            <button class="btn btn-sm btn-outline-primary mt-2" onclick="window.location.reload()">
+                                <i class="bi bi-arrow-clockwise"></i> Retry
+                            </button>
+                        </div>
                     </td>
                 </tr>
             `;

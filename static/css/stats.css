@@ -80,6 +80,7 @@
 /* Upcoming reviews table styling */
 #upcomingReviewsTable {
     table-layout: fixed;
+    width: 100%;
 }
 
 #upcomingReviewsTable thead th {
@@ -89,23 +90,104 @@
     z-index: 1;
 }
 
-/* Column widths for better layout */
-#upcomingReviewsTable th:nth-child(1) { width: 30%; } /* Question */
-#upcomingReviewsTable th:nth-child(2) { width: 20%; } /* Last Reviewed */
-#upcomingReviewsTable th:nth-child(3) { width: 20%; } /* Due Date */
-#upcomingReviewsTable th:nth-child(4) { width: 10%; } /* State */
-#upcomingReviewsTable th:nth-child(5) { width: 10%; } /* Retention */
-#upcomingReviewsTable th:nth-child(6) { width: 10%; }  /* Actions */
-
-/* Text truncation for long questions */
-#upcomingReviewsTable .text-truncate {
-    max-width: 100%;
+/* Responsive column widths using media queries */
+@media (min-width: 992px) {
+    /* Desktop layout */
+    #upcomingReviewsTable th:nth-child(1) { width: 30%; } /* Question */
+    #upcomingReviewsTable th:nth-child(2) { width: 20%; } /* Last Reviewed */
+    #upcomingReviewsTable th:nth-child(3) { width: 20%; } /* Due Date */
+    #upcomingReviewsTable th:nth-child(4) { width: 15%; } /* State */
+    #upcomingReviewsTable th:nth-child(5) { width: 15%; } /* Retention */
 }
 
-/* Responsive table scrolling */
+@media (max-width: 991.98px) {
+    /* Tablet layout */
+    #upcomingReviewsTable th:nth-child(1) { width: 35%; } /* Question */
+    #upcomingReviewsTable th:nth-child(2) { width: 18%; } /* Last Reviewed */
+    #upcomingReviewsTable th:nth-child(3) { width: 18%; } /* Due Date */
+    #upcomingReviewsTable th:nth-child(4) { width: 14%; } /* State */
+    #upcomingReviewsTable th:nth-child(5) { width: 15%; } /* Retention */
+}
+
+/* For small devices (mobile phones) - switch to card view */
+@media (max-width: 767.98px) {
+    /* Hide table header for card view */
+    #upcomingReviewsTable thead {
+        display: none;
+    }
+    
+    /* Convert table rows to cards */
+    #upcomingReviewsTable tbody tr {
+        display: block;
+        margin-bottom: 1rem;
+        border-radius: 0.25rem;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        background-color: var(--bs-body-bg);
+        padding: 0.5rem;
+    }
+    
+    /* Make cells block-level and full width */
+    #upcomingReviewsTable tbody td {
+        display: block;
+        width: 100%;
+        text-align: left;
+        padding: 0.5rem;
+        border: none;
+    }
+    
+    /* Add labels for each cell */
+    #upcomingReviewsTable tbody td::before {
+        content: attr(data-label);
+        float: left;
+        font-weight: bold;
+        margin-right: 0.5rem;
+        min-width: 120px;
+    }
+    
+    /* Improve spacing */
+    #upcomingReviewsTable td.align-middle {
+        padding-top: 0.5rem;
+        padding-bottom: 0.5rem;
+    }
+    
+    /* Make question text full width */
+    #upcomingReviewsTable td .text-truncate {
+        max-width: 100%;
+    }
+}
+
+/* Make sure the table container scrolls horizontally on medium screens */
 .table-responsive {
     max-height: 400px;
     overflow-y: auto;
+    overflow-x: auto;
+}
+
+/* Card styling for mobile view */
+@media (max-width: 767.98px) {
+    .table-responsive {
+        border: none;
+        box-shadow: none;
+    }
+}
+
+/* Make pagination controls responsive */
+#upcomingPagination {
+    flex-direction: column;
+}
+
+@media (min-width: 576px) {
+    #upcomingPagination {
+        flex-direction: row;
+    }
+}
+
+/* Ensure pagination is centered on mobile */
+@media (max-width: 575.98px) {
+    #upcomingPagination .pagination {
+        justify-content: center;
+        margin-top: 1rem;
+    }
 }
 
 /* Button group styling */

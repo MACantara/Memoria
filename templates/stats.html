@@ -82,16 +82,16 @@
     </div>
 </div>
 
-<!-- Upcoming Reviews Table -->
+<!-- Improved responsive table for upcoming reviews -->
 <div class="row mt-4">
     <div class="col-12">
         <div class="card shadow-sm">
             <div class="card-header">
                 <h5 class="mb-0">Upcoming Review Cards</h5>
             </div>
-            <div class="card-body">
+            <div class="card-body p-0 p-sm-3"> <!-- Reduced padding on mobile -->
                 <div class="table-responsive">
-                    <table class="table table-striped table-hover" id="upcomingReviewsTable">
+                    <table class="table table-striped table-hover mb-0" id="upcomingReviewsTable">
                         <thead>
                             <tr>
                                 <th>Question</th>
@@ -103,14 +103,23 @@
                         </thead>
                         <tbody id="upcomingReviewsBody">
                             <tr>
-                                <td colspan="5" class="text-center">Loading upcoming reviews...</td>
+                                <td colspan="5" class="text-center">
+                                    <div class="py-4">
+                                        <div class="spinner-border text-primary" role="status">
+                                            <span class="visually-hidden">Loading...</span>
+                                        </div>
+                                        <p class="mt-2">Loading upcoming reviews...</p>
+                                    </div>
+                                </td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
-                <div id="upcomingPagination" class="d-flex justify-content-between align-items-center mt-3">
-                    <div>
-                        <span id="reviewCount" class="text-muted">Showing 0 of 0 cards</span>
+                <div id="upcomingPagination" class="d-flex justify-content-between align-items-center p-3">
+                    <div class="mb-2 mb-sm-0">
+                        <span id="reviewCount" class="text-muted">
+                            <i class="bi bi-hourglass"></i> Loading...
+                        </span>
                     </div>
                     <div>
                         <ul class="pagination pagination-sm mb-0"></ul>
@@ -120,6 +129,7 @@
         </div>
     </div>
 </div>
+
 {% endblock %}
 
 {% block scripts %}
