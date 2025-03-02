@@ -81,6 +81,51 @@
         </div>
     </div>
 </div>
+
+<!-- New Upcoming Review Cards Table Section -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Upcoming Review Cards</h5>
+                <div class="btn-group">
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="showTodayBtn">Today</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="showWeekBtn">This Week</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="showAllBtn">All</button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover" id="upcomingReviewsTable">
+                        <thead>
+                            <tr>
+                                <th>Question</th>
+                                <th>Last Reviewed</th>
+                                <th>Due Date</th>
+                                <th>State</th>
+                                <th>Retention</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="upcomingReviewsBody">
+                            <tr>
+                                <td colspan="6" class="text-center">Loading upcoming reviews...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div id="upcomingPagination" class="d-flex justify-content-between align-items-center mt-3">
+                    <div>
+                        <span id="reviewCount" class="text-muted">Showing 0 of 0 cards</span>
+                    </div>
+                    <div>
+                        <ul class="pagination pagination-sm mb-0"></ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -91,6 +136,19 @@
     document.addEventListener('DOMContentLoaded', function() {
         const statsManager = new StatsManager({{ deck.flashcard_deck_id }});
         statsManager.initialize();
+        
+        // Set up filter buttons for upcoming reviews table
+        document.getElementById('showTodayBtn').addEventListener('click', () => {
+            statsManager.filterUpcomingReviews('today');
+        });
+        
+        document.getElementById('showWeekBtn').addEventListener('click', () => {
+            statsManager.filterUpcomingReviews('week');
+        });
+        
+        document.getElementById('showAllBtn').addEventListener('click', () => {
+            statsManager.filterUpcomingReviews('all');
+        });
         
         // Cleanup when page is unloaded
         window.addEventListener('beforeunload', () => {
