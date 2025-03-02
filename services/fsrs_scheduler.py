@@ -115,10 +115,18 @@ def get_due_cards(deck_id, due_only=False):
         )
     )
     
+    # Debug to check the CTE query
+    deck_ids = [row[0] for row in db.session.query(cte.c.id).all()]
+    print(f"Found {len(deck_ids)} decks in tree including deck {deck_id}")
+    
     # Start with a query for all cards in these decks
     query = Flashcards.query.filter(
         Flashcards.flashcard_deck_id.in_(db.session.query(cte.c.id))
     )
+    
+    # Debug
+    total_cards = query.count()
+    print(f"Total cards in all decks: {total_cards}")
     
     # If due_only is True, filter for only cards that are due today
     if due_only:
@@ -127,6 +135,7 @@ def get_due_cards(deck_id, due_only=False):
             (Flashcards.due_date <= current_time) | 
             (Flashcards.due_date == None)  # Include cards without due date
         )
+        print(f"Due cards: {query.count()} (out of {total_cards})")
     
     # Order by due date (earliest first), with None values at the beginning
     # Updated to use SQLAlchemy's newer case syntax
