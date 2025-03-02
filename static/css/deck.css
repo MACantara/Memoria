@@ -55,6 +55,19 @@
     background-color: var(--bs-light);
 }
 
+/* Styling for disabled dropdown items */
+.dropdown-item.disabled {
+    color: #adb5bd;
+    pointer-events: none;
+    background-color: transparent;
+}
+
+/* Styling for due count badges */
+.dropdown-item .badge {
+    margin-left: auto;
+    font-size: 0.75rem;
+}
+
 /* Updated dropdown styling for side-by-side layout */
 .card .dropdown {
     position: relative;
