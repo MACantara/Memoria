@@ -238,6 +238,30 @@ export class UIManager {
         });
     }
 
+    showBriefFeedback(flashcard, isCorrect) {
+        // Clear any previous feedback first
+        this.clearFeedback(flashcard);
+        
+        // Create a simple feedback container without navigation buttons
+        const feedbackContainer = document.createElement('div');
+        feedbackContainer.classList.add('feedback-container', 'mt-3');
+        
+        // Feedback message
+        const feedback = document.createElement('div');
+        feedback.classList.add('alert', isCorrect ? 'alert-success' : 'alert-danger', 'mb-2');
+        feedback.innerHTML = isCorrect ? 
+            '<i class="bi bi-check-circle-fill"></i> Correct! Moving to next card...' : 
+            '<i class="bi bi-x-circle-fill"></i> Incorrect';
+            
+        feedbackContainer.appendChild(feedback);
+        
+        // Add container to the card
+        const form = flashcard.querySelector('.answer-form');
+        form.appendChild(feedbackContainer);
+        
+        // No next button needed - will auto-advance
+    }
+
     showAnswerFeedback(flashcard, isCorrect, nextCardCallback) {
         // Clear any previous feedback first
         this.clearFeedback(flashcard);
