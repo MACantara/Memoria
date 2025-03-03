@@ -2,7 +2,7 @@
 from routes.main_routes import main_bp
 from routes.deck import deck_bp
 from routes.flashcard_routes import flashcard_bp
-from routes.generation_routes import generation_bp
+from routes.flashcard_generation_routes import generation_bp
 from routes.flashcard_stats_routes import stats_bp
 from routes.flashcard_import_routes import import_bp
 
