@@ -161,7 +161,7 @@ def get_upcoming_reviews(deck_id):
                 'deck_id': card.flashcard_deck_id
             })
         
-        # Build pagination URLs - removed filter parameter
+        # Update pagination URLs to use correct endpoint
         pagination_urls = {
             'current_url': url_for('stats.view_deck_stats', deck_id=deck_id, page=page),
             'base_url': url_for('stats.view_deck_stats', deck_id=deck_id),

@@ -6,6 +6,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
+                <!-- Update form action to use the correct endpoint -->
                 <form id="generateForm" method="POST" action="{{ url_for('generation.generate') }}">
                     <input type="hidden" name="deck_id" id="generateDeckId">
                     <input type="hidden" name="parent_deck_id" id="generateParentDeckId">

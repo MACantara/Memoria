@@ -6,8 +6,8 @@ import os
 import json
 import traceback
 from google import genai
-# Import functions from flashcard_generation_routes instead of duplicating them
-from routes.flashcard_generation_routes import (
+# Import functions from generation_routes using relative import
+from .generation_routes import (
     parse_flashcards, generate_prompt_template
 )
 from services.fsrs_scheduler import get_current_time
@@ -69,7 +69,7 @@ def upload_file():
         api_key = os.getenv("GOOGLE_GEMINI_API_KEY")
         client = genai.Client(api_key=api_key)
         
-        # Generate prompt using the existing function from flashcard_generation_routes
+        # Generate prompt using the existing function from generation_routes
         prompt = generate_prompt_template(f"content in file: {secure_filename(file.filename)}", batch_size)
         
         print(f"Processing file upload: '{file.filename}', content length: {len(file_text)} chars")
@@ -103,27 +103,12 @@ def upload_file():
             }
         )
         
-        print("\n==== RAW GEMINI API RESPONSE (FILE UPLOAD) ====")
-        print(response.text[:1000] + "..." if len(response.text) > 1000 else response.text)
-        print("===== END OF RAW RESPONSE =====\n")
-        
-        # Get parsed flashcards or fall back to manual parsing
+        # Try to parse the response as JSON
         try:
             # Try to parse the response as JSON
             flashcards_data = json.loads(response.text)
             current_app.logger.info(f"Successfully parsed JSON output: {len(flashcards_data)} cards")
             print(f"Successfully parsed JSON: {len(flashcards_data)} cards")
-            
-            # Print sample cards for debugging
-            if flashcards_data:
-                print("\n==== SAMPLE FLASHCARD DATA ====")
-                sample_count = min(2, len(flashcards_data))
-                for i in range(sample_count):
-                    print(f"Card {i+1}:")
-                    print(f"  Question: {flashcards_data[i].get('q')}")
-                    print(f"  Correct: {flashcards_data[i].get('ca')}")
-                    print(f"  Incorrect: {flashcards_data[i].get('ia')}")
-                print("============================\n")
             
         except json.JSONDecodeError as parse_error:
             # Fallback to manual parsing if JSON parsing fails
@@ -174,7 +159,8 @@ def upload_file():
         return jsonify({
             "success": True, 
             "message": f"Successfully generated {cards_added} flashcards",
-            "redirect_url": url_for('deck.get_deck_flashcards', deck_id=deck.flashcard_deck_id)
+            # Update URL to use the correct endpoint
+            "redirect_url": url_for('deck.deck_view.get_deck_flashcards', deck_id=deck.flashcard_deck_id)
         })
         
     except Exception as e:
@@ -211,21 +197,22 @@ def process_text():
         # Create a deck for the imported content
         deck = FlashcardDecks(
             name=deck_name,
-            description=f"Generated from text on {datetime.utcnow().strftime('%Y-%m-%d %H:%M')}",
+            description=f"Imported from text on {datetime.utcnow().strftime('%Y-%m-%d %H:%M')}",
             parent_deck_id=parent_deck_id if parent_deck_id else None
         )
         db.session.add(deck)
         db.session.commit()
         
-        # Use Gemini to process the text and generate flashcards
+        batch_size = 100
+        
+        # Process the text with Gemini
         api_key = os.getenv("GOOGLE_GEMINI_API_KEY")
         client = genai.Client(api_key=api_key)
         
-        print(f"Processing pasted text, content length: {len(text_content)} chars")
+        # Generate prompt using the existing function from generation_routes
+        prompt = generate_prompt_template(f"content: {deck_name}", batch_size)
         
-        # Generate prompt using the existing function from flashcard_generation_routes
-        batch_size = 100
-        prompt = generate_prompt_template("pasted text content", batch_size)
+        print(f"Processing text import: '{deck_name}', content length: {len(text_content)} chars")
         
         # Use schema with shorter field names for optimization
         schema = {
@@ -233,9 +220,9 @@ def process_text():
             "items": {
                 "type": "object",
                 "properties": {
-                    "q": {"type": "string"},  # short for question
-                    "ca": {"type": "string"}, # short for correct_answer
-                    "ia": {                   # short for incorrect_answers
+                    "q": {"type": "string"},
+                    "ca": {"type": "string"},
+                    "ia": {
                         "type": "array",
                         "items": {"type": "string"},
                         "minItems": 1,
@@ -246,41 +233,26 @@ def process_text():
             }
         }
         
+        # If text is too long, truncate it for the request
+        content_for_api = text_content[:4000] + "..." if len(text_content) > 4000 else text_content
+        
+        print("Sending request to Gemini API...")
         response = client.models.generate_content(
             model="gemini-2.0-flash-lite",
-            contents=f"{prompt}\n\nContent:\n{text_content}",
+            contents=f"{prompt}\n\nContent:\n{content_for_api}",
             config={
                 'response_mime_type': 'application/json',
                 'response_schema': schema
             }
         )
         
-        print("\n==== RAW GEMINI API RESPONSE (TEXT PASTE) ====")
-        print(response.text[:1000] + "..." if len(response.text) > 1000 else response.text)
-        print("===== END OF RAW RESPONSE =====\n")
-        
-        # Get parsed flashcards or fall back to manual parsing
+        # Try to parse the response as JSON
         try:
-            # Try to parse the response as JSON
             flashcards_data = json.loads(response.text)
-            current_app.logger.info(f"Successfully parsed JSON output: {len(flashcards_data)} cards")
             print(f"Successfully parsed JSON: {len(flashcards_data)} cards")
-            
-            # Print sample cards for debugging
-            if flashcards_data:
-                print("\n==== SAMPLE FLASHCARD DATA ====")
-                sample_count = min(2, len(flashcards_data))
-                for i in range(sample_count):
-                    print(f"Card {i+1}:")
-                    print(f"  Question: {flashcards_data[i].get('q', '')}")
-                    print(f"  Correct: {flashcards_data[i].get('ca', '')}")
-                    print(f"  Incorrect: {flashcards_data[i].get('ia', [])}") # Using .get() for safety
-                print("============================\n")
-            
         except json.JSONDecodeError as parse_error:
             # Fallback to manual parsing if JSON parsing fails
             print(f"JSON parsing failed: {parse_error}. Falling back to manual parsing.")
-            print(f"Response text type: {type(response.text)}")
             flashcards_data = parse_flashcards(response.text)
             print(f"Manual parsing result: {len(flashcards_data)} cards extracted")
         
@@ -290,48 +262,46 @@ def process_text():
         # Set current time for all cards to use same timestamp
         current_time = get_current_time()
         
-        # Save to database - same code as in upload_file
+        # Save to database
         cards_added = 0
         for card in flashcards_data:
-            # Convert to dict if it's a Pydantic model
             if hasattr(card, 'model_dump'):
                 card = card.model_dump()
-            
-            # Use the abbreviated field names (with fallback to old names)
+                
             question = card.get('q', card.get('question', ''))
             correct_answer = card.get('ca', card.get('correct_answer', ''))
             incorrect_answers = card.get('ia', card.get('incorrect_answers', []))[:3]
-            
+                
             # Pad with empty answers if needed
             while len(incorrect_answers) < 3:
                 incorrect_answers.append(f"Incorrect answer {len(incorrect_answers) + 1}")
-                
+            
             flashcard = Flashcards(
                 question=question,
                 correct_answer=correct_answer,
                 incorrect_answers=json.dumps(incorrect_answers),
                 flashcard_deck_id=deck.flashcard_deck_id,
-                due_date=current_time,  # Set due date to current time
-                state=0  # Explicitly set to NEW_STATE
+                due_date=current_time,
+                state=0
             )
             
             db.session.add(flashcard)
             cards_added += 1
         
         db.session.commit()
+        print(f"Successfully added {cards_added} flashcards to deck {deck_name}")
         
         # Return success response
         return jsonify({
             "success": True, 
             "message": f"Successfully generated {cards_added} flashcards",
-            "redirect_url": url_for('deck.get_deck_flashcards', deck_id=deck.flashcard_deck_id)
+            # Update URL to use the correct endpoint
+            "redirect_url": url_for('deck.deck_view.get_deck_flashcards', deck_id=deck.flashcard_deck_id)
         })
         
     except Exception as e:
-        current_app.logger.error(f"Error processing text content: {str(e)}")
-        current_app.logger.error(traceback.format_exc())
         print(f"Error in text processing: {str(e)}")
-        print(traceback.format_exc())  # Print full stack trace for debugging
+        print(traceback.format_exc())
         
         # Clean up any created deck
         try:

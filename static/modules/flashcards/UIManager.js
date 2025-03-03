@@ -133,6 +133,10 @@ export class UIManager {
         
         const container = document.getElementById('flashcardsContainer');
         
+        // Get the current path components
+        const pathParts = window.location.pathname.split('/');
+        const deckId = pathParts[2]; // Assuming URL pattern is /deck/{id}/study
+        
         // Completely separate templates for each mode
         if (this.isDueOnlyMode) {
             // DUE ONLY MODE COMPLETION
@@ -158,11 +162,11 @@ export class UIManager {
                         </div>
                         
                         <div class="d-flex justify-content-center gap-3 mt-4 flex-wrap">
-                            <a href="${window.location.pathname}" class="btn btn-primary">
+                            <a href="/deck/${deckId}/study" class="btn btn-primary">
                                 <i class="bi bi-collection"></i> Study All Cards
                             </a>
-                            <a href="/" class="btn btn-outline-secondary">
-                                <i class="bi bi-house-door"></i> Back to Decks
+                            <a href="/deck/${deckId}" class="btn btn-outline-secondary">
+                                <i class="bi bi-house-door"></i> Back to Deck
                             </a>
                         </div>
                     </div>
@@ -189,8 +193,8 @@ export class UIManager {
                             <a href="${window.location.href}" class="btn btn-primary">
                                 <i class="bi bi-arrow-repeat"></i> Study Again
                             </a>
-                            <a href="/" class="btn btn-outline-primary">
-                                <i class="bi bi-house-door"></i> Back to Decks
+                            <a href="/deck/${deckId}" class="btn btn-outline-secondary">
+                                <i class="bi bi-house-door"></i> Back to Deck
                             </a>
                         </div>
                     </div>
@@ -236,6 +240,30 @@ export class UIManager {
                 }
             });
         });
+    }
+
+    showBriefFeedback(flashcard, isCorrect) {
+        // Clear any previous feedback first
+        this.clearFeedback(flashcard);
+        
+        // Create a simple feedback container without navigation buttons
+        const feedbackContainer = document.createElement('div');
+        feedbackContainer.classList.add('feedback-container', 'mt-3');
+        
+        // Feedback message
+        const feedback = document.createElement('div');
+        feedback.classList.add('alert', isCorrect ? 'alert-success' : 'alert-danger', 'mb-2');
+        feedback.innerHTML = isCorrect ? 
+            '<i class="bi bi-check-circle-fill"></i> Correct! Moving to next card...' : 
+            '<i class="bi bi-x-circle-fill"></i> Incorrect';
+            
+        feedbackContainer.appendChild(feedback);
+        
+        // Add container to the card
+        const form = flashcard.querySelector('.answer-form');
+        form.appendChild(feedbackContainer);
+        
+        // No next button needed - will auto-advance
     }
 
     showAnswerFeedback(flashcard, isCorrect, nextCardCallback) {

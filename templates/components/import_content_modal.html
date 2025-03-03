@@ -24,6 +24,7 @@
                 <div class="tab-content" id="importTabContent">
                     <!-- File Upload Tab -->
                     <div class="tab-pane fade show active" id="file-content" role="tabpanel" aria-labelledby="file-tab">
+                        <!-- Update form action to use the correct endpoint -->
                         <form id="fileUploadForm" action="{{ url_for('import.upload_file') }}" method="POST" enctype="multipart/form-data">
                             <div class="mb-3">
                                 <label for="deckName" class="form-label">Deck Name</label>
@@ -77,6 +78,7 @@
                     
                     <!-- Text Input Tab -->
                     <div class="tab-pane fade" id="text-content" role="tabpanel" aria-labelledby="text-tab">
+                        <!-- The text form will use JavaScript to submit to the process-text endpoint -->
                         <form id="textForm">
                             <div class="mb-3">
                                 <label for="textDeckName" class="form-label">Deck Name</label>

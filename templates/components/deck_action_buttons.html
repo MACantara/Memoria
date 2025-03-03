@@ -27,16 +27,18 @@
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end">
                     <li>
+                        <!-- Update URL to use the correct endpoint -->
                         <a class="dropdown-item due-today-item {% if due_count == 0 %}disabled{% endif %} {% if deck.count_all_flashcards() == 0 %}no-cards{% endif %}" 
-                           href="{{ url_for('deck.study_deck', deck_id=deck.flashcard_deck_id, due_only='true') }}"
+                           href="{{ url_for('deck.deck_view.study_deck', deck_id=deck.flashcard_deck_id, due_only='true') }}"
                            data-deck-id="{{ deck.flashcard_deck_id }}">
                             <i class="bi bi-calendar-check me-2"></i>Due Today
                             <span class="ms-auto badge bg-secondary rounded-pill due-badge">{{ due_count }}</span>
                         </a>
                     </li>
                     <li>
+                        <!-- Update URL to use the correct endpoint -->
                         <a class="dropdown-item {% if deck.count_all_flashcards() == 0 %}no-cards{% endif %}" 
-                           href="{{ url_for('deck.study_deck', deck_id=deck.flashcard_deck_id) }}"
+                           href="{{ url_for('deck.deck_view.study_deck', deck_id=deck.flashcard_deck_id) }}"
                            data-deck-id="{{ deck.flashcard_deck_id }}">
                             <i class="bi bi-collection me-2"></i>All Cards
                             <span class="ms-auto badge bg-secondary rounded-pill">{{ deck.count_all_flashcards() }}</span>

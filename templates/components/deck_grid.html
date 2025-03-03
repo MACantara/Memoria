@@ -61,7 +61,7 @@
                     <!-- Row for View Deck and Study Now buttons -->
                     <div class="d-flex gap-2">
                         <!-- View Deck Button -->
-                        <a href="{{ url_for('deck.get_deck_flashcards', deck_id=deck.flashcard_deck_id) }}" 
+                        <a href="{{ url_for('deck.deck_view.get_deck_flashcards', deck_id=deck.flashcard_deck_id) }}" 
                            class="btn btn-primary flex-grow-1 d-flex align-items-center justify-content-center">
                            <i class="bi bi-folder2 me-1"></i> View Deck
                         </a>
@@ -79,7 +79,7 @@
                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="studyDropdownMenu{{ deck.flashcard_deck_id }}">
                                 <li>
                                     <a class="dropdown-item due-today-item {% if deck.count_all_flashcards() == 0 %}no-cards{% endif %}" 
-                                       href="{{ url_for('deck.study_deck', deck_id=deck.flashcard_deck_id, due_only='true') }}"
+                                       href="{{ url_for('deck.deck_view.study_deck', deck_id=deck.flashcard_deck_id, due_only='true') }}"
                                        data-deck-id="{{ deck.flashcard_deck_id }}"
                                        data-due="0">
                                         <i class="bi bi-calendar-check me-2"></i> Due Today
@@ -88,7 +88,7 @@
                                 </li>
                                 <li>
                                     <a class="dropdown-item {% if deck.count_all_flashcards() == 0 %}no-cards{% endif %}" 
-                                       href="{{ url_for('deck.study_deck', deck_id=deck.flashcard_deck_id) }}"
+                                       href="{{ url_for('deck.deck_view.study_deck', deck_id=deck.flashcard_deck_id) }}"
                                        data-deck-id="{{ deck.flashcard_deck_id }}">
                                         <i class="bi bi-collection me-2"></i> All Cards
                                         <span class="ms-auto badge bg-secondary rounded-pill">{{ deck.count_all_flashcards() }}</span>
