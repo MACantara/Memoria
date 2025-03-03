@@ -19,7 +19,7 @@ Study {{ deck.name }} (All Cards)
     <div class="card-body">
         <div class="row mb-3">
             <div class="col-3 text-start">
-                <a href="{{ url_for('deck.get_deck_flashcards', deck_id=deck.flashcard_deck_id) }}" class="btn btn-outline-primary">
+                <a href="{{ url_for('deck.deck_view.get_deck_flashcards', deck_id=deck.flashcard_deck_id) }}" class="btn btn-outline-primary">
                     <i class="bi bi-arrow-left"></i> Back to Deck
                 </a>
             </div>
