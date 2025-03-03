@@ -140,8 +140,8 @@ def generate():
         db.session.rollback()
     
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return jsonify({"success": True, "redirect_url": url_for('deck.get_deck_flashcards', deck_id=deck.flashcard_deck_id)})
-    return redirect(url_for('deck.get_deck_flashcards', deck_id=deck.flashcard_deck_id))
+        return jsonify({"success": True, "redirect_url": url_for('deck.deck_view.get_deck_flashcards', deck_id=deck.flashcard_deck_id)})
+    return redirect(url_for('deck.deck_view.get_deck_flashcards', deck_id=deck.flashcard_deck_id))
 
 
 def generate_prompt_template(topic, batch_size):

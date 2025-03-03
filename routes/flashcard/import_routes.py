@@ -6,8 +6,8 @@ import os
 import json
 import traceback
 from google import genai
-# Import functions from generation_routes instead of using an absolute path
-from routes.flashcard.generation_routes import (
+# Import functions from generation_routes using relative import
+from .generation_routes import (
     parse_flashcards, generate_prompt_template
 )
 from services.fsrs_scheduler import get_current_time
@@ -159,7 +159,8 @@ def upload_file():
         return jsonify({
             "success": True, 
             "message": f"Successfully generated {cards_added} flashcards",
-            "redirect_url": url_for('deck.get_deck_flashcards', deck_id=deck.flashcard_deck_id)
+            # Update URL to use the correct endpoint
+            "redirect_url": url_for('deck.deck_view.get_deck_flashcards', deck_id=deck.flashcard_deck_id)
         })
         
     except Exception as e:
@@ -294,7 +295,8 @@ def process_text():
         return jsonify({
             "success": True, 
             "message": f"Successfully generated {cards_added} flashcards",
-            "redirect_url": url_for('deck.get_deck_flashcards', deck_id=deck.flashcard_deck_id)
+            # Update URL to use the correct endpoint
+            "redirect_url": url_for('deck.deck_view.get_deck_flashcards', deck_id=deck.flashcard_deck_id)
         })
         
     except Exception as e:

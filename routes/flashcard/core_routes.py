@@ -3,6 +3,7 @@ from models import db, FlashcardDecks, Flashcards
 from services.fsrs_scheduler import process_review
 import traceback
 
+# Update blueprint name to be more specific since it's now part of flashcard package
 flashcard_bp = Blueprint('flashcard', __name__)
 
 @flashcard_bp.route("/deck/<int:deck_id>/view")
