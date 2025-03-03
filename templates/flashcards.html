@@ -97,12 +97,12 @@ Study {{ deck.name }} (All Cards)
         <p class="mb-0">
             {% if due_only %}
             There are no cards due for review today. Try studying all cards instead.
-            <a href="{{ url_for('deck.study_deck', deck_id=deck.flashcard_deck_id) }}" class="btn btn-sm btn-primary mt-2">
+            <a href="{{ url_for('deck.deck_view.study_deck', deck_id=deck.flashcard_deck_id) }}" class="btn btn-sm btn-primary mt-2">
                 <i class="bi bi-collection me-1"></i> Study All Cards
             </a>
             {% else %}
             This deck doesn't have any flashcards yet. Add some cards first.
-            <a href="{{ url_for('deck.get_deck_flashcards', deck_id=deck.flashcard_deck_id) }}" class="btn btn-sm btn-primary mt-2">
+            <a href="{{ url_for('deck.deck_view.get_deck_flashcards', deck_id=deck.flashcard_deck_id) }}" class="btn btn-sm btn-primary mt-2">
                 <i class="bi bi-arrow-left me-1"></i> Back to Deck
             </a>
             {% endif %}
