@@ -141,22 +141,38 @@ export class FlashcardManager {
         // Mark whether this card has been attempted (for resetting later)
         flashcard.dataset.attempted = 'true';
         
-        // Show feedback with next button instead of auto-advancing
-        this.ui.showAnswerFeedback(flashcard, isCorrect, () => {
-            // This callback is triggered when the user clicks "Next"
-            if (!isCorrect) {
-                this.moveCardToEnd(flashcard);
-            }
+        // MODIFIED BEHAVIOR: Show different feedback based on correctness
+        if (isCorrect) {
+            // For correct answers, show brief feedback then auto-advance
+            this.ui.showBriefFeedback(flashcard, true);
             
-            // If all cards are completed, show completion screen
-            if (this.completedCards.size >= this.totalDueCards) {
-                console.log("All cards completed. Showing completion screen.");
-                this.ui.showCompletion(this.score, this.totalDueCards);
-            } else {
-                // Otherwise move to the next card
-                this.moveToNextCard();
-            }
-        });
+            // Set a short timeout to auto-advance
+            setTimeout(() => {
+                // If all cards are completed, show completion screen
+                if (this.completedCards.size >= this.totalDueCards) {
+                    console.log("All cards completed. Showing completion screen.");
+                    this.ui.showCompletion(this.score, this.totalDueCards);
+                } else {
+                    // Otherwise move to the next card
+                    this.moveToNextCard();
+                }
+            }, 1000); // Show success for 1 second before advancing
+        } else {
+            // For incorrect answers, show feedback with "Next" button
+            this.ui.showAnswerFeedback(flashcard, false, () => {
+                // This callback is triggered when the user clicks "Next"
+                this.moveCardToEnd(flashcard);
+                
+                // If all cards are completed, show completion screen
+                if (this.completedCards.size >= this.totalDueCards) {
+                    console.log("All cards completed. Showing completion screen.");
+                    this.ui.showCompletion(this.score, this.totalDueCards);
+                } else {
+                    // Otherwise move to the next card
+                    this.moveToNextCard();
+                }
+            });
+        }
         
         // Reset processing flag
         this.isProcessingAnswer = false;
