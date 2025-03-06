@@ -160,7 +160,9 @@ class ImportScreen(BaseScreen):
         """Load available decks and refresh UI"""
         # Load available decks for both tabs
         decks = self.db_session.query(FlashcardDecks).all()
-        deck_options = [(deck.id, deck.name) for deck in decks]
+        
+        # Use the correct primary key attribute name
+        deck_options = [(deck.flashcard_deck_id, deck.name) for deck in decks]
         
         # Update file tab combobox
         self.deck_combo['values'] = [name for _, name in deck_options]
@@ -224,7 +226,8 @@ class ImportScreen(BaseScreen):
                 )
                 self.db_session.add(new_deck)
                 self.db_session.flush()  # Get ID without committing
-                return new_deck.id
+                # Use correct attribute name
+                return new_deck.flashcard_deck_id
             except Exception as e:
                 self.db_session.rollback()
                 messagebox.showerror("Error", f"Failed to create deck: {str(e)}")
@@ -289,15 +292,20 @@ class ImportScreen(BaseScreen):
                 self.file_status_var.set("No valid flashcards found in the file")
                 return
                 
-            # Create flashcards
+            # Create flashcards using the correct field names
             now = datetime.now()
             for front, back in flashcards:
                 card = Flashcards(
-                    front=front,
-                    back=back,
-                    deck_id=deck_id,
-                    created=now
+                    question=front,
+                    correct_answer=back,
+                    incorrect_answers=json.dumps([]),  # Empty JSON array for incorrect answers
+                    flashcard_deck_id=deck_id,
+                    created_at=now
                 )
+                # Initialize FSRS state for scheduling if available
+                if hasattr(card, 'init_fsrs_state'):
+                    card.init_fsrs_state()
+                    
                 self.db_session.add(card)
                 
             self.db_session.commit()
@@ -331,15 +339,20 @@ class ImportScreen(BaseScreen):
                 self.text_status_var.set("No valid flashcards found in the text")
                 return
                 
-            # Create flashcards
+            # Create flashcards with correct field names
             now = datetime.now()
             for front, back in flashcards:
                 card = Flashcards(
-                    front=front,
-                    back=back,
-                    deck_id=deck_id,
-                    created=now
+                    question=front,
+                    correct_answer=back,
+                    incorrect_answers=json.dumps([]),  # Empty JSON array for incorrect answers
+                    flashcard_deck_id=deck_id,
+                    created_at=now
                 )
+                # Initialize FSRS state for scheduling if available
+                if hasattr(card, 'init_fsrs_state'):
+                    card.init_fsrs_state()
+                    
                 self.db_session.add(card)
                 
             self.db_session.commit()
