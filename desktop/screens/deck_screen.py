@@ -81,7 +81,6 @@ class DeckScreen(BaseScreen):
             # Debug: print column names from first deck to identify primary key
             if decks:
                 first_deck = decks[0]
-                # Print deck attributes for debugging
                 print("Available attributes for FlashcardDecks:")
                 for key in first_deck.__dict__:
                     if not key.startswith('_'):
@@ -89,37 +88,27 @@ class DeckScreen(BaseScreen):
             
             # Insert into treeview
             for deck in decks:
-                # Get the deck primary key (could be 'id', 'deck_id', etc.)
-                # Try common primary key attribute names
-                deck_id = None
-                for attr in ['id', 'deck_id', 'flashcard_deck_id', 'pk']:
-                    if hasattr(deck, attr):
-                        deck_id = getattr(deck, attr)
-                        break
-                
-                if deck_id is None:
-                    print(f"Warning: Could not find primary key for deck {deck.name}")
-                    continue
-                
-                # Get card count for this deck
+                # Get card count for this deck - using correct field names
                 try:
-                    # Try querying using the correct foreign key in Flashcards
-                    card_count = self.db_session.query(db.func.count(Flashcards.id)) \
-                                    .filter(Flashcards.deck_id == deck_id) \
+                    card_count = self.db_session.query(db.func.count(Flashcards.flashcard_id)) \
+                                    .filter(Flashcards.flashcard_deck_id == deck.flashcard_deck_id) \
                                     .scalar() or 0
                 except Exception as e:
                     print(f"Error counting cards: {e}")
                     card_count = "Error"
                 
-                # Format last studied date
-                last_studied = deck.last_studied.strftime("%Y-%m-%d %H:%M") if deck.last_studied else "Never"
+                # Format last studied date - use last_reviewed instead of last_studied
+                # Also use created_at as fallback if we can't find last_reviewed
+                last_studied = "Never"
+                if hasattr(deck, 'last_reviewed') and deck.last_reviewed:
+                    last_studied = deck.last_reviewed.strftime("%Y-%m-%d %H:%M")
                 
                 self.deck_tree.insert("", "end", values=(
                     deck.name,
                     deck.description or "",
                     card_count,
                     last_studied
-                ), tags=(str(deck_id),))
+                ), tags=(str(deck.flashcard_deck_id),))
                 
         except Exception as e:
             messagebox.showerror("Error", f"Failed to load decks: {str(e)}")
@@ -199,17 +188,8 @@ class DeckScreen(BaseScreen):
                 new_desc = simpledialog.askstring("Edit Deck", "Description:", initialvalue=current_values[1] or "")
                 
                 try:
-                    # Find the primary key field
-                    deck = None
-                    for attr in ['id', 'deck_id', 'flashcard_deck_id', 'pk']:
-                        try:
-                            # Try different attribute names for the primary key
-                            deck = self.db_session.query(FlashcardDecks) \
-                                      .filter(getattr(FlashcardDecks, attr) == deck_id).first()
-                            if deck:
-                                break
-                        except:
-                            continue
+                    # Use the correct primary key field name
+                    deck = self.db_session.query(FlashcardDecks).filter_by(flashcard_deck_id=deck_id).first()
                     
                     if not deck:
                         raise ValueError(f"Could not find deck with ID {deck_id}")
@@ -243,8 +223,8 @@ class DeckScreen(BaseScreen):
                                     f"Are you sure you want to delete '{deck_name}'?\n\nThis will delete all flashcards in this deck and cannot be undone.")
         if confirm:
             try:
-                # Delete the deck from database
-                deck = self.db_session.query(FlashcardDecks).get(deck_id)
+                # Delete the deck from database using correct field name
+                deck = self.db_session.query(FlashcardDecks).filter_by(flashcard_deck_id=deck_id).first()
                 self.db_session.delete(deck)
                 self.db_session.commit()
                 self.refresh()
