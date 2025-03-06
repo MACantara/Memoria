@@ -550,9 +550,9 @@ class ImportScreen(BaseScreen):
                 current_card['ca'] = line.split(':', 1)[1].strip() if ':' in line else line
             elif current_card and line.lower().startswith('incorrect:'):
                 current_card['ia'].append(line.split(':', 1)[1].strip() if ':' in line else line)
-            
+        
         # Add the last card if it exists
         if current_card and current_card['q'] and current_card['ca']:
             cards.append(current_card)
-            
+                
         return cards
