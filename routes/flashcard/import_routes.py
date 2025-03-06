@@ -51,11 +51,38 @@ def generate_flashcards_with_gemini(content, topic, batch_size=None):
         config=Config.GEMINI_CONFIG
     )
     
-    # Parse response
+    # Parse JSON response
     try:
+        # Extract response as JSON
         flashcards_data = json.loads(response.text)
-        print(f"Successfully parsed JSON: {len(flashcards_data)} cards")
+            
+        # Format flashcards for compatibility with existing UI
+        formatted_flashcards = []
+            
+        # Convert the multiple-choice format to the legacy format for backward compatibility
+        for card in flashcards_data:
+            # Format: Q: [question] | A: [correct_answer] (+ incorrect answers as options)
+            options = [card['ca']] + card['ia']
+            options_formatted = ", ".join([f"{chr(65+i)}) {opt}" for i, opt in enumerate(options)])
+            formatted_card = f"Q: {card['q']} | A: {card['ca']}"
+            formatted_flashcards.append(formatted_card)
+                
+            # Also store the raw card for future use with a new UI
+            card['_raw'] = card.copy()
+        
+        formatted_response = {
+            'flashcards': formatted_flashcards,
+            'count': len(formatted_flashcards),
+            'mc_data': flashcards_data  # Include the raw multiple-choice data
+        }
+        
+        print(f"Successfully parsed JSON: {formatted_response['count']} cards")
+        
+        # Return the mc_data for compatibility with existing code
+        return formatted_response['mc_data']
+        
     except json.JSONDecodeError as parse_error:
+        # Fallback to manual parsing if JSON parsing fails
         print(f"JSON parsing failed: {parse_error}. Falling back to manual parsing.")
         flashcards_data = parse_flashcards(response.text)
         print(f"Manual parsing result: {len(flashcards_data)} cards extracted")
