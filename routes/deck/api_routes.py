@@ -1,11 +1,11 @@
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 from models import db, FlashcardDecks, Flashcards
 from services.fsrs_scheduler import get_current_time
 from routes.deck.utils import count_due_flashcards
 
-deck_api_bp = Blueprint('deck_api', __name__)
+deck_api_bp = Blueprint('deck_api', __name__, url_prefix='/api')
 
-@deck_api_bp.route("/api/decks/tree")
+@deck_api_bp.route("/decks/tree")
 def get_deck_tree():
     """Get the complete deck hierarchy as a tree structure"""
     # Get top-level decks
@@ -32,7 +32,7 @@ def build_deck_tree(deck):
     
     return deck_dict
 
-@deck_api_bp.route("/api/decks")
+@deck_api_bp.route("/decks")
 def get_decks_api():
     """Get all decks as a structured JSON for API use"""
     # Get top-level decks
@@ -62,7 +62,7 @@ def get_child_decks(parent_id):
     
     return result
 
-@deck_api_bp.route("/api/list", methods=["GET"])
+@deck_api_bp.route("/list", methods=["GET"])
 def api_list_decks():
     """Get all decks as a flat list for API usage"""
     decks = FlashcardDecks.query.order_by(FlashcardDecks.name).all()
@@ -78,14 +78,25 @@ def api_list_decks():
     
     return jsonify(result)
 
-@deck_api_bp.route("/api/due-counts")
+@deck_api_bp.route("/due-counts", methods=["GET"])
 def get_due_counts():
-    """Get counts of due flashcards for all decks"""
-    current_time = get_current_time()
-    decks = FlashcardDecks.query.all()
-    result = {}
-    
-    for deck in decks:
-        result[deck.flashcard_deck_id] = count_due_flashcards(deck.flashcard_deck_id, current_time)
-    
-    return jsonify(result)
+    """Get due flashcard counts for all decks"""
+    try:
+        # Get all decks
+        decks = FlashcardDecks.query.all()
+        
+        # Calculate due counts for each deck
+        result = {}
+        for deck in decks:
+            deck_id = deck.flashcard_deck_id
+            result[str(deck_id)] = count_due_flashcards(deck_id)
+        
+        return jsonify({
+            "success": True,
+            "counts": result
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
