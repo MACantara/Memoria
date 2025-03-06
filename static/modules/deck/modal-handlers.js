@@ -13,6 +13,7 @@ export function initializeModals() {
     modals.noCardsModal = createModal('noCardsModal');
     modals.emptyDeckModal = createModal('createEmptyDeckModal');
     modals.deleteModal = createModal('deleteDeckModal');
+    modals.importModal = createModal('importContentModal');  // Add import modal
 
     let currentDeckId = null;
 
@@ -86,6 +87,20 @@ export function initializeModals() {
             }
             modals.generateModal.show();
         });
+    }
+
+    // Add import content modal handler
+    if (modals.importModal) {
+        window.showImportModal = () => {
+            // Reset the form if needed
+            const importFileForm = document.getElementById('importFileForm');
+            if (importFileForm) {
+                importFileForm.reset();
+            }
+            
+            // Show the modal
+            modals.importModal.show();
+        };
     }
 
     // Make showGenerateModal available globally if needed
