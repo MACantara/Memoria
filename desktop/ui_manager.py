@@ -27,9 +27,25 @@ class UIManager:
         """Clear the current screen"""
         if self.current_screen:
             self.current_screen.hide()
-        
+    
+    def _ensure_connection(self):
+        """Ensure database connection is valid before operations"""
+        try:
+            # Try to refresh the session if needed
+            if hasattr(self.db_session, 'refresh'):
+                self.db_session.refresh()
+            return True
+        except Exception as e:
+            messagebox.showerror("Database Error", 
+                               "Cannot connect to database. Please check your connection and try again.")
+            print(f"Database connection error: {str(e)}")
+            return False
+    
     def show_decks(self):
         """Show the decks screen"""
+        if not self._ensure_connection():
+            return
+            
         self._clear_container()
         
         if 'decks' not in self.screens:
@@ -40,6 +56,9 @@ class UIManager:
         
     def show_flashcards(self, deck_id):
         """Show flashcards for a specific deck"""
+        if not self._ensure_connection():
+            return
+            
         self._clear_container()
         
         # Create a new flashcard screen instance for the specific deck
@@ -52,11 +71,17 @@ class UIManager:
         
     def create_deck(self):
         """Show create deck dialog"""
+        if not self._ensure_connection():
+            return
+            
         self.show_decks()  # Switch to decks view first
         self.screens['decks'].show_create_dialog()
         
     def show_study(self):
         """Show study screen"""
+        if not self._ensure_connection():
+            return
+            
         self._clear_container()
         
         if 'study' not in self.screens:
@@ -67,6 +92,9 @@ class UIManager:
         
     def show_import_screen(self):
         """Show import screen for flashcards"""
+        if not self._ensure_connection():
+            return
+            
         self._clear_container()
         
         if 'import' not in self.screens:
@@ -77,11 +105,17 @@ class UIManager:
         
     def show_export_screen(self):
         """Show export screen for flashcards"""
+        if not self._ensure_connection():
+            return
+            
         # Implement export functionality
         messagebox.showinfo("Export", "Export functionality will be implemented soon")
         
     def show_stats(self):
         """Show statistics screen"""
+        if not self._ensure_connection():
+            return
+            
         self._clear_container()
         
         if 'stats' not in self.screens:
@@ -92,6 +126,9 @@ class UIManager:
         
     def show_generation(self):
         """Show AI generation screen"""
+        if not self._ensure_connection():
+            return
+            
         self._clear_container()
         
         if 'generation' not in self.screens:
@@ -102,5 +139,5 @@ class UIManager:
         
     def refresh_current_screen(self):
         """Refresh the current screen"""
-        if self.current_screen:
+        if self._ensure_connection() and self.current_screen:
             self.current_screen.refresh()
