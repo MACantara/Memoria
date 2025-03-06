@@ -35,7 +35,7 @@ class MemoriaDesktopApp:
         connection_args = {
             'pool_size': 1,            # Use only one connection
             'max_overflow': 0,         # Don't allow additional connections
-            'pool_timeout': 30,        # Connection timeout in seconds
+            'pool_timeout': 300,        # Connection timeout in seconds
             'pool_recycle': 1800,      # Recycle connections after 30 minutes
             'pool_pre_ping': True      # Verify connection is still valid before using
         }
