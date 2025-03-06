@@ -5,8 +5,12 @@ from datetime import datetime
 import os
 import json
 import traceback
+import uuid
 from google import genai
-from .generation_routes import parse_flashcards
+
+from services.file_service import FileProcessor
+from services.storage_service import ProcessingState
+from utils import chunk_text, clean_flashcard_text
 from services.fsrs_scheduler import get_current_time
 from config import Config
 
@@ -16,280 +20,244 @@ def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in Config.ALLOWED_EXTENSIONS
 
-# Helper functions to reduce duplication
-def create_deck(name, description, parent_deck_id=None):
-    """Create a new flashcard deck"""
-    deck = FlashcardDecks(
-        name=name,
-        description=description,
-        parent_deck_id=parent_deck_id if parent_deck_id else None
-    )
-    db.session.add(deck)
-    db.session.commit()
-    return deck
-
-def generate_flashcards_with_gemini(content, topic, batch_size=None):
-    """Generate flashcards using Gemini API"""
-    if batch_size is None:
-        batch_size = Config.DEFAULT_BATCH_SIZE
-        
-    api_key = os.getenv("GOOGLE_GEMINI_API_KEY")
-    client = genai.Client(api_key=api_key)
-    
-    # Generate prompt using the Config class
-    prompt = Config.generate_prompt_template(topic, batch_size)
-    
-    print(f"Processing content: '{topic}', content length: {len(content)} chars")
-    print("Sending request to Gemini API...")
-    
-    # Use Config.CHUNK_SIZE instead of hard-coded value
-    content_for_api = content[:Config.CHUNK_SIZE] if len(content) > Config.CHUNK_SIZE else content
-    
-    try:
-        response = client.models.generate_content(
-            model=Config.GEMINI_MODEL,
-            contents=f"{prompt}\n\nContent:\n{content_for_api}",
-            config=Config.GEMINI_CONFIG
-        )
-        
-        # Log first 500 chars of response for debugging
-        print("\n==== RAW GEMINI API RESPONSE PREVIEW ====")
-        print(response.text[:500] + "..." if len(response.text) > 500 else response.text)
-        print("===== END OF RAW RESPONSE PREVIEW =====\n")
-        
-        # Parse JSON response
-        try:
-            # Try to clean up common JSON issues before parsing
-            cleaned_text = response.text
-            # Replace any unescaped backslashes
-            cleaned_text = cleaned_text.replace('\\', '\\\\').replace('\\"', '\\\\"')
-            # Replace unescaped newlines in strings (common JSON error)
-            cleaned_text = cleaned_text.replace('\n', '\\n')
-            
-            # Extract just the JSON array if there's extra text
-            if '[' in cleaned_text and ']' in cleaned_text:
-                start_idx = cleaned_text.find('[')
-                end_idx = cleaned_text.rfind(']') + 1
-                if start_idx >= 0 and end_idx > start_idx:
-                    cleaned_text = cleaned_text[start_idx:end_idx]
-            
-            # Try to parse the cleaned response as JSON
-            flashcards_data = json.loads(cleaned_text)
-            
-            # Format flashcards for compatibility with existing UI
-            formatted_flashcards = []
-            
-            # Convert the multiple-choice format to the legacy format for backward compatibility
-            for card in flashcards_data:
-                # Handle both short and long field names
-                question = card.get('q', card.get('question', ''))
-                correct_answer = card.get('ca', card.get('correct_answer', ''))
-                incorrect_answers = card.get('ia', card.get('incorrect_answers', []))
-                
-                if question and correct_answer and incorrect_answers:
-                    # Format: Q: [question] | A: [correct_answer] (+ incorrect answers as options)
-                    options = [correct_answer] + incorrect_answers
-                    options_formatted = ", ".join([f"{chr(65+i)}) {opt}" for i, opt in enumerate(options)])
-                    formatted_card = f"Q: {question} | A: {correct_answer}"
-                    formatted_flashcards.append(formatted_card)
-                    
-                    # Also store the raw card for future use with a new UI
-                    card['_raw'] = card.copy()
-            
-            formatted_response = {
-                'flashcards': formatted_flashcards,
-                'count': len(formatted_flashcards),
-                'mc_data': flashcards_data  # Include the raw multiple-choice data
-            }
-            
-            print(f"Successfully parsed JSON: {formatted_response['count']} cards")
-            
-            # Return the mc_data for compatibility with existing code
-            return formatted_response['mc_data']
-            
-        except json.JSONDecodeError as parse_error:
-            # More detailed logging of the parsing error
-            print(f"JSON parsing failed: {parse_error}")
-            print(f"Error position: line {parse_error.lineno}, column {parse_error.colno}, char {parse_error.pos}")
-            error_context = response.text[max(0, parse_error.pos-50):min(len(response.text), parse_error.pos+50)]
-            print(f"Error context: ...{error_context}...")
-            
-            # Fallback to improved manual parsing
-            print("Falling back to manual parsing.")
-            flashcards_data = parse_flashcards(response.text)
-            print(f"Manual parsing result: {len(flashcards_data)} cards extracted")
-            
-            # If manual parsing fails too, try one more method - regex extraction
-            if not flashcards_data:
-                print("Manual parsing failed. Attempting regex extraction...")
-                import re
-                # Look for patterns like "question": "...", "correct_answer": "...", etc.
-                questions = re.findall(r'"q(?:uestion)?"\s*:\s*"([^"]+)"', response.text)
-                answers = re.findall(r'"(?:ca|correct_answer)"\s*:\s*"([^"]+)"', response.text)
-                
-                # If we found matching questions and answers, create simple flashcards
-                if questions and answers and len(questions) == len(answers):
-                    print(f"Regex extraction found {len(questions)} question-answer pairs")
-                    flashcards_data = []
-                    for q, a in zip(questions, answers):
-                        flashcards_data.append({
-                            'q': q,
-                            'ca': a,
-                            'ia': ["No alternative available 1", 
-                                   "No alternative available 2", 
-                                   "No alternative available 3"]
-                        })
-        
-        if not flashcards_data:
-            # Try a different approach with a simpler prompt
-            print("Retrying with a simpler prompt...")
-            simple_prompt = f"Generate {batch_size} multiple-choice flashcards about '{topic}'. Format each as JSON with fields: q (question), ca (correct answer), ia (array of 3 incorrect answers)."
-            
-            response = client.models.generate_content(
-                model=Config.GEMINI_MODEL,
-                contents=simple_prompt,
-                config=Config.GEMINI_CONFIG
-            )
-            
-            try:
-                flashcards_data = json.loads(response.text)
-                print(f"Retry successful: {len(flashcards_data)} cards generated")
-            except:
-                print("Retry also failed to parse JSON")
-                # One last attempt with a very simple structure
-                try:
-                    response = client.models.generate_content(
-                        model=Config.GEMINI_MODEL,
-                        contents=f"Create 5 multiple choice questions about {topic} in JSON format"
-                    )
-                    flashcards_data = parse_flashcards(response.text)
-                except:
-                    print("All parsing attempts failed")
-        
-    except Exception as api_error:
-        print(f"API error: {str(api_error)}")
-        raise ValueError(f"Error communicating with AI service: {str(api_error)}")
-    
-    if not flashcards_data:
-        raise ValueError("No flashcards could be generated from this content. Please try with different content.")
-        
-    return flashcards_data
-
-def save_flashcards_to_database(flashcards_data, deck_id):
-    """Save generated flashcards to database"""
-    current_time = get_current_time()
-    cards_added = 0
-    
-    for card in flashcards_data:
-        # Convert to dict if it's a Pydantic model
-        if hasattr(card, 'model_dump'):
-            card = card.model_dump()
-        
-        # Use the abbreviated field names (with fallback to old names)
-        question = card.get('q', card.get('question', ''))
-        correct_answer = card.get('ca', card.get('correct_answer', ''))
-        incorrect_answers = card.get('ia', card.get('incorrect_answers', []))[:3]
-            
-        # Pad with empty answers if needed
-        while len(incorrect_answers) < 3:
-            incorrect_answers.append(f"Incorrect answer {len(incorrect_answers) + 1}")
-        
-        flashcard = Flashcards(
-            question=question,
-            correct_answer=correct_answer,
-            incorrect_answers=json.dumps(incorrect_answers),
-            flashcard_deck_id=deck_id,
-            due_date=current_time,
-            state=0
-        )
-        
-        db.session.add(flashcard)
-        cards_added += 1
-    
-    db.session.commit()
-    return cards_added
-
-def handle_error(error, deck=None):
-    """Handle errors in the import process"""
-    print(f"Error in processing: {str(error)}")
-    print(traceback.format_exc())
-    
-    # Clean up any created deck
-    try:
-        if deck:
-            db.session.delete(deck)
-            db.session.commit()
-    except:
-        db.session.rollback()
-        
-    return jsonify({"success": False, "error": str(error)}), 500
-
 @import_bp.route("/upload", methods=["POST"])
 def upload_file():
-    """Handle file upload and generate flashcards from content"""
-    # Check if the post request has the file part
-    if 'file' not in request.files:
-        return jsonify({"success": False, "error": "No file part"}), 400
-        
-    file = request.files['file']
-    
-    # If user does not select file, browser submits an empty part without filename
-    if file.filename == '':
-        return jsonify({"success": False, "error": "No selected file"}), 400
-        
-    # Check if the file type is allowed
-    if not allowed_file(file.filename):
-        return jsonify({
-            "success": False, 
-            "error": f"File type not allowed. Only {', '.join(Config.ALLOWED_EXTENSIONS).upper()} files are supported."
-        }), 400
-    
-    # Get form data
-    deck_name = request.form.get('deck_name', 'Imported Content')
-    parent_deck_id = request.form.get('parent_deck_id')
-    
+    """Handle file upload and initialize processing"""
     try:
-        # Read the text content directly from the uploaded file
-        file_text = file.read().decode('utf-8', errors='replace')
-        current_app.logger.info(f"Read {len(file_text)} characters from uploaded file")
-        
-        # Check if we have enough text to process
-        if len(file_text) < 100:
+        if 'file' not in request.files:
+            return jsonify({"success": False, "error": "No file part"}), 400
+            
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({"success": False, "error": "No selected file"}), 400
+            
+        if not allowed_file(file.filename):
             return jsonify({
                 "success": False, 
-                "error": "Not enough text in the file. Please provide a file with more content."
+                "error": f"File type not allowed. Only {', '.join(Config.ALLOWED_EXTENSIONS).upper()} files are supported."
             }), 400
+
+        # Create a safe filename and ensure upload directory exists
+        filename = secure_filename(file.filename)
+        deck_name = request.form.get('deck_name', 'Imported Content')
+        parent_deck_id = request.form.get('parent_deck_id')
         
-        # Create deck
-        deck = create_deck(
+        # Create a unique filename to prevent collisions
+        unique_filename = f"{uuid.uuid4()}_{filename}"
+        filepath = os.path.join(Config.UPLOAD_FOLDER, unique_filename)
+        
+        # Ensure upload directory exists
+        os.makedirs(Config.UPLOAD_FOLDER, exist_ok=True)
+        
+        # Save file safely
+        try:
+            file.save(filepath)
+        except Exception as e:
+            print(f"File save error: {str(e)}")
+            return jsonify({"success": False, "error": "Failed to save file"}), 500
+            
+        # Create a deck for the imported content
+        deck = FlashcardDecks(
             name=deck_name,
-            description=f"Imported from {secure_filename(file.filename)} on {datetime.utcnow().strftime('%Y-%m-%d %H:%M')}",
-            parent_deck_id=parent_deck_id
+            description=f"Imported from {filename} on {datetime.utcnow().strftime('%Y-%m-%d %H:%M')}",
+            parent_deck_id=parent_deck_id if parent_deck_id else None
         )
+        db.session.add(deck)
+        db.session.commit()
         
-        # Generate flashcards
-        topic = f"content in file: {secure_filename(file.filename)}"
-        flashcards_data = generate_flashcards_with_gemini(file_text, topic)
+        # Initialize processing state
+        file_key = ProcessingState.init_file_state(filepath)
+        state = ProcessingState.get_state(file_key)
         
-        # Save to database
-        cards_added = save_flashcards_to_database(flashcards_data, deck.flashcard_deck_id)
-        current_app.logger.info(f"Successfully added {cards_added} flashcards to deck {deck_name}")
+        # Store the deck ID in the state for later use
+        state['deck_id'] = deck.flashcard_deck_id
+        ProcessingState.update_state(file_key, state)
         
-        # Return success response
+        # Clean up old processing states
+        ProcessingState.cleanup_old_states()
+        
         return jsonify({
             "success": True, 
-            "message": f"Successfully generated {cards_added} flashcards",
-            "redirect_url": url_for('deck.deck_view.get_deck_flashcards', deck_id=deck.flashcard_deck_id)
+            "file_key": file_key, 
+            "filename": filename,
+            "deck_id": deck.flashcard_deck_id,
+            "total_chunks": state['total_chunks'],
+            "message": f"File uploaded successfully. Processing in {state['total_chunks']} chunks."
         })
         
     except Exception as e:
-        current_app.logger.error(f"Error processing uploaded file: {str(e)}")
-        current_app.logger.error(traceback.format_exc())
-        return handle_error(e, deck if 'deck' in locals() else None)
+        print(f"Upload error: {str(e)}")
+        print(traceback.format_exc())
+        
+        # Clean up any created deck
+        try:
+            if 'deck' in locals() and deck:
+                db.session.delete(deck)
+                db.session.commit()
+        except:
+            db.session.rollback()
+            
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@import_bp.route("/process-chunk", methods=["POST"])
+def process_chunk():
+    """Process a specific chunk of an uploaded file"""
+    data = request.json
+    file_key = data.get('file_key')
+    chunk_index = data.get('chunk_index')
+    
+    if not file_key:
+        return jsonify({"success": False, "error": "File key is required"}), 400
+    
+    state = ProcessingState.get_state(file_key)
+    if not state:
+        return jsonify({"success": False, "error": "Invalid file key"}), 400
+    
+    deck_id = state.get('deck_id')
+    if not deck_id:
+        return jsonify({"success": False, "error": "No associated deck found"}), 400
+    
+    if chunk_index is None:
+        chunk_index = state['current_index']
+    
+    if chunk_index >= state['total_chunks']:
+        return jsonify({
+            "success": True,
+            "message": "All chunks processed",
+            "is_complete": True,
+            "deck_id": deck_id
+        })
+    
+    try:
+        # Get chunk content
+        chunk = ProcessingState.get_chunk(file_key, chunk_index)
+        if not chunk:
+            return jsonify({"success": False, "error": f"Cannot read chunk {chunk_index}"}), 500
+        
+        # Process the chunk with Gemini
+        api_key = os.getenv("GOOGLE_GEMINI_API_KEY")
+        client = genai.Client(api_key=api_key)
+        
+        # Generate prompt for this chunk
+        prompt = Config.generate_prompt_template(f"content from chunk {chunk_index+1}", 
+                                                Config.DEFAULT_BATCH_SIZE)
+        
+        response = client.models.generate_content(
+            model=Config.GEMINI_MODEL,
+            contents=f"{prompt}\n\nContent:\n{chunk}",
+            config=Config.GEMINI_CONFIG
+        )
+        
+        chunk_flashcards = []
+        mc_data = []
+        
+        # Try to parse JSON response
+        try:
+            flashcards_data = json.loads(response.text)
+            
+            # Format flashcards for compatibility with existing UI
+            for card in flashcards_data:
+                # Format: Q: [question] | A: [correct_answer]
+                formatted_card = f"Q: {card['q']} | A: {card['ca']}"
+                chunk_flashcards.append(formatted_card)
+                mc_data.append(card)
+                
+        except json.JSONDecodeError:
+            # Fallback to legacy format if JSON parsing fails
+            raw_cards = response.text.split('\n')
+            for card in raw_cards:
+                if 'Q:' in card and '|' in card and 'A:' in card:
+                    cleaned = clean_flashcard_text(card)
+                    if cleaned:
+                        chunk_flashcards.append(cleaned)
+        
+        # Store the multiple-choice data if available
+        if mc_data:
+            ProcessingState.append_mc_flashcards(file_key, mc_data)
+            
+        # Also store the formatted cards for backward compatibility
+        ProcessingState.append_flashcards(file_key, chunk_flashcards)
+        
+        # Save to database
+        current_time = get_current_time()
+        cards_added = 0
+        
+        for card in mc_data:
+            # Use the abbreviated field names
+            question = card.get('q', '')
+            correct_answer = card.get('ca', '')
+            incorrect_answers = card.get('ia', [])[:3]
+                
+            # Pad with empty answers if needed
+            while len(incorrect_answers) < 3:
+                incorrect_answers.append(f"Incorrect answer {len(incorrect_answers) + 1}")
+            
+            flashcard = Flashcards(
+                question=question,
+                correct_answer=correct_answer,
+                incorrect_answers=json.dumps(incorrect_answers),
+                flashcard_deck_id=deck_id,
+                due_date=current_time,
+                state=0
+            )
+            
+            db.session.add(flashcard)
+            cards_added += 1
+        
+        db.session.commit()
+        
+        # Update processing state
+        state['processed_chunks'].append(chunk_index)
+        state['current_index'] = chunk_index + 1
+        
+        if len(state['processed_chunks']) == state['total_chunks']:
+            state['is_complete'] = True
+        
+        ProcessingState.update_state(file_key, state)
+        
+        return jsonify({
+            "success": True,
+            "chunk_index": chunk_index,
+            "cards_added": cards_added,
+            "total_chunks": state['total_chunks'],
+            "processed_chunks": len(state['processed_chunks']),
+            "is_complete": state['is_complete'],
+            "deck_id": deck_id
+        })
+        
+    except Exception as e:
+        print(f"Error processing chunk {chunk_index}: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@import_bp.route("/file-state", methods=["GET"])
+def file_state():
+    """Get current processing state for a file"""
+    file_key = request.args.get('file_key')
+    
+    if not file_key:
+        return jsonify({"success": False, "error": "File key is required"}), 400
+    
+    state = ProcessingState.get_state(file_key)
+    if not state:
+        return jsonify({"success": False, "error": "Invalid file key"}), 400
+    
+    all_flashcards = ProcessingState.get_all_flashcards(file_key)
+    
+    return jsonify({
+        "success": True,
+        "total_chunks": state['total_chunks'],
+        "processed_chunks": len(state['processed_chunks']),
+        "current_index": state['current_index'],
+        "flashcard_count": len(all_flashcards),
+        "is_complete": state['is_complete'],
+        "deck_id": state.get('deck_id'),
+        "next_chunk": state['current_index'] if state['current_index'] < state['total_chunks'] else None
+    })
 
 @import_bp.route("/process-text", methods=["POST"])
 def process_text():
-    """Process pasted text to generate flashcards"""
+    """Process pasted text"""
     data = request.json
     text_content = data.get('text', '')
     deck_name = data.get('deck_name', 'Text Import')
@@ -302,27 +270,82 @@ def process_text():
         }), 400
     
     try:
-        # Create deck
-        deck = create_deck(
+        # Create a deck for the imported content
+        deck = FlashcardDecks(
             name=deck_name,
             description=f"Imported from text on {datetime.utcnow().strftime('%Y-%m-%d %H:%M')}",
-            parent_deck_id=parent_deck_id
+            parent_deck_id=parent_deck_id if parent_deck_id else None
         )
+        db.session.add(deck)
+        db.session.commit()
         
-        # Generate flashcards
-        topic = f"content: {deck_name}"
-        flashcards_data = generate_flashcards_with_gemini(text_content, topic)
+        # Create a temporary file to store the text
+        temp_dir = Config.UPLOAD_FOLDER
+        os.makedirs(temp_dir, exist_ok=True)
         
-        # Save to database
-        cards_added = save_flashcards_to_database(flashcards_data, deck.flashcard_deck_id)
-        print(f"Successfully added {cards_added} flashcards to deck {deck_name}")
+        temp_file = os.path.join(temp_dir, f"{uuid.uuid4()}.txt")
+        with open(temp_file, 'w', encoding='utf-8') as f:
+            f.write(text_content)
         
-        # Return success response
+        # Initialize processing state
+        file_key = ProcessingState.init_file_state(temp_file)
+        state = ProcessingState.get_state(file_key)
+        
+        # Store the deck ID in the state
+        state['deck_id'] = deck.flashcard_deck_id
+        ProcessingState.update_state(file_key, state)
+        
         return jsonify({
-            "success": True, 
-            "message": f"Successfully generated {cards_added} flashcards",
-            "redirect_url": url_for('deck.deck_view.get_deck_flashcards', deck_id=deck.flashcard_deck_id)
+            "success": True,
+            "file_key": file_key,
+            "deck_id": deck.flashcard_deck_id,
+            "total_chunks": state['total_chunks'],
+            "message": f"Text imported successfully. Processing in {state['total_chunks']} chunks."
         })
         
     except Exception as e:
-        return handle_error(e, deck if 'deck' in locals() else None)
+        print(f"Error in text processing: {str(e)}")
+        print(traceback.format_exc())
+        
+        # Clean up any created deck
+        try:
+            if 'deck' in locals() and deck:
+                db.session.delete(deck)
+                db.session.commit()
+        except:
+            db.session.rollback()
+            
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@import_bp.route("/all-flashcards", methods=["GET"])
+def all_flashcards():
+    """Get all flashcards generated for a file"""
+    file_key = request.args.get('file_key')
+    format_type = request.args.get('format', 'standard')  # 'standard' or 'mc' (multiple-choice)
+    
+    if not file_key:
+        return jsonify({"success": False, "error": "File key is required"}), 400
+    
+    state = ProcessingState.get_state(file_key)
+    if not state:
+        return jsonify({"success": False, "error": "Invalid file key"}), 400
+    
+    if format_type == 'mc':
+        # Return multiple-choice format if requested
+        mc_flashcards = ProcessingState.get_mc_flashcards(file_key)
+        return jsonify({
+            "success": True,
+            "flashcards": ProcessingState.get_all_flashcards(file_key),  # For backward compatibility
+            "mc_flashcards": mc_flashcards,
+            "count": len(mc_flashcards),
+            "deck_id": state.get('deck_id')
+        })
+    else:
+        # Return standard format by default
+        all_flashcards = ProcessingState.get_all_flashcards(file_key)
+        return jsonify({
+            "success": True,
+            "flashcards": all_flashcards,
+            "count": len(all_flashcards),
+            "deck_id": state.get('deck_id')
+        })
