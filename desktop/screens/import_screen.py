@@ -472,13 +472,46 @@ class ImportScreen(BaseScreen):
     
     def _generate_prompt_template(self, topic, batch_size):
         """Generate a prompt template for AI flashcard generation"""
-        return (
-            f"Generate {batch_size} flashcards about {topic}. "
-            f"Create flashcards that cover key concepts, definitions, facts, and applications. "
-            f"Each flashcard should have a question, correct answer, and 1-3 incorrect answers. "
-            f"Structure your response as a JSON array of objects with keys: q (question), ca (correct_answer), ia (array of incorrect_answers)."
-        )
-    
+        return f"""You are an expert educator creating flashcards about {topic}.
+        Generate comprehensive, accurate, and engaging flashcards following these strict guidelines:
+
+        1. Each flashcard must have:
+           - A clear, concise question that tests understanding
+           - One definitively correct answer
+           - Three plausible but incorrect answers
+           - CRITICAL: All answers (correct and incorrect) MUST:
+             * Be similar in length (within 10-15 characters of each other)
+             * Use the same level of detail and complexity
+             * Follow the same grammatical structure
+             * Be equally specific/general
+        
+        2. Question types must be evenly distributed:
+           - Factual recall (25% of cards)
+           - Concept application (25% of cards)
+           - Problem-solving (25% of cards)
+           - Relationships between concepts (25% of cards)
+        
+        3. Ensure quality control:
+           - No duplicate questions or answers
+           - All content is factually accurate
+           - Clear, unambiguous wording
+           - Progressive difficulty (easy -> medium -> hard)
+           - Avoid answers that are obviously wrong
+           - Don't make the correct answer stand out by length or detail
+        
+        Format your response as a JSON array of objects, each with:
+        - 'q': the flashcard question (short for question)
+        - 'ca': the correct answer (short for correct_answer)
+        - 'ia': array of exactly three incorrect answers (short for incorrect_answers)
+
+        Generate {batch_size} unique flashcards covering different aspects of the topic.
+        Ensure comprehensive coverage by:
+        1. Breaking down the topic into key subtopics
+        2. Creating equal numbers of cards for each subtopic
+        3. Varying question types within each subtopic
+        4. Including both fundamental and advanced concepts
+        5. Maintaining consistent answer length and style throughout"""
+
     def _parse_flashcards(self, text):
         """Fallback parser for when structured output fails"""
         lines = text.split('\n')
