@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, simpledialog, messagebox
 from .base_screen import BaseScreen
-from models import Flashcards
+from models import FlashcardDecks, Flashcards
 
 class FlashcardScreen(BaseScreen):
     """Screen for managing flashcards in a deck"""
@@ -16,8 +16,22 @@ class FlashcardScreen(BaseScreen):
         top_frame.pack(fill=tk.X, padx=10, pady=10)
         
         # Get deck name for title
-        deck = self.db_session.query(self.db_session.query(self.deck_id).statement.froms[0]).get(self.deck_id)
-        deck_name = deck.name if deck else f"Deck {self.deck_id}"
+        try:
+            # Try different attribute names for the primary key
+            deck = None
+            for attr in ['id', 'deck_id', 'flashcard_deck_id', 'pk']:
+                try:
+                    deck = self.db_session.query(FlashcardDecks) \
+                              .filter(getattr(FlashcardDecks, attr) == self.deck_id).first()
+                    if deck:
+                        break
+                except:
+                    continue
+            
+            deck_name = deck.name if deck else f"Deck {self.deck_id}"
+        except Exception as e:
+            print(f"Error getting deck name: {e}")
+            deck_name = f"Deck {self.deck_id}"
         
         # Title
         title_label = ttk.Label(top_frame, text=f"Flashcards: {deck_name}", font=("TkDefaultFont", 16))
@@ -78,22 +92,28 @@ class FlashcardScreen(BaseScreen):
         # Clear existing items
         for item in self.flashcard_tree.get_children():
             self.flashcard_tree.delete(item)
-            
-        # Get all flashcards for this deck
-        flashcards = self.db_session.query(Flashcards).filter_by(deck_id=self.deck_id).all()
         
-        # Insert into treeview
-        for card in flashcards:
-            # Format dates
-            created = card.created.strftime("%Y-%m-%d %H:%M") if card.created else ""
-            due_date = card.due_date.strftime("%Y-%m-%d %H:%M") if card.due_date else ""
+        try:    
+            # Get all flashcards for this deck
+            flashcards = self.db_session.query(Flashcards).filter_by(deck_id=self.deck_id).all()
             
-            self.flashcard_tree.insert("", "end", values=(
-                card.front,
-                card.back,
-                created,
-                due_date
-            ), tags=(str(card.id),))
+            # Insert into treeview
+            for card in flashcards:
+                # Format dates
+                created = card.created.strftime("%Y-%m-%d %H:%M") if card.created else ""
+                due_date = card.due_date.strftime("%Y-%m-%d %H:%M") if card.due_date else ""
+                
+                # Get card ID safely
+                card_id = getattr(card, 'id', None) or getattr(card, 'flashcard_id', None) or 0
+                
+                self.flashcard_tree.insert("", "end", values=(
+                    card.front,
+                    card.back,
+                    created,
+                    due_date
+                ), tags=(str(card_id),))
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to load flashcards: {str(e)}")
     
     def add_flashcard(self):
         """Add a new flashcard"""

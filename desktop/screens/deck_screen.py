@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, simpledialog, messagebox
 from .base_screen import BaseScreen
-from models import FlashcardDecks, db
+from models import FlashcardDecks, Flashcards, db
 
 class DeckScreen(BaseScreen):
     """Screen for displaying and managing flashcard decks"""
@@ -74,23 +74,55 @@ class DeckScreen(BaseScreen):
         for item in self.deck_tree.get_children():
             self.deck_tree.delete(item)
             
-        # Get all decks from the database
-        decks = self.db_session.query(FlashcardDecks).all()
-        
-        # Insert into treeview
-        for deck in decks:
-            # Get card count for this deck
-            card_count = self.db_session.query(db.func.count()).filter_by(deck_id=deck.id).scalar()
+        try:
+            # Get all decks from the database
+            decks = self.db_session.query(FlashcardDecks).all()
             
-            # Format last studied date
-            last_studied = deck.last_studied.strftime("%Y-%m-%d %H:%M") if deck.last_studied else "Never"
+            # Debug: print column names from first deck to identify primary key
+            if decks:
+                first_deck = decks[0]
+                # Print deck attributes for debugging
+                print("Available attributes for FlashcardDecks:")
+                for key in first_deck.__dict__:
+                    if not key.startswith('_'):
+                        print(f"  - {key}: {getattr(first_deck, key)}")
             
-            self.deck_tree.insert("", "end", values=(
-                deck.name,
-                deck.description or "",
-                card_count,
-                last_studied
-            ), tags=(str(deck.id),))
+            # Insert into treeview
+            for deck in decks:
+                # Get the deck primary key (could be 'id', 'deck_id', etc.)
+                # Try common primary key attribute names
+                deck_id = None
+                for attr in ['id', 'deck_id', 'flashcard_deck_id', 'pk']:
+                    if hasattr(deck, attr):
+                        deck_id = getattr(deck, attr)
+                        break
+                
+                if deck_id is None:
+                    print(f"Warning: Could not find primary key for deck {deck.name}")
+                    continue
+                
+                # Get card count for this deck
+                try:
+                    # Try querying using the correct foreign key in Flashcards
+                    card_count = self.db_session.query(db.func.count(Flashcards.id)) \
+                                    .filter(Flashcards.deck_id == deck_id) \
+                                    .scalar() or 0
+                except Exception as e:
+                    print(f"Error counting cards: {e}")
+                    card_count = "Error"
+                
+                # Format last studied date
+                last_studied = deck.last_studied.strftime("%Y-%m-%d %H:%M") if deck.last_studied else "Never"
+                
+                self.deck_tree.insert("", "end", values=(
+                    deck.name,
+                    deck.description or "",
+                    card_count,
+                    last_studied
+                ), tags=(str(deck_id),))
+                
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to load decks: {str(e)}")
             
     def show_create_dialog(self):
         """Show dialog to create a new deck"""
@@ -125,10 +157,13 @@ class DeckScreen(BaseScreen):
             
         # Get deck ID from the item tags
         item_id = self.deck_tree.item(selected_item[0])
-        deck_id = int(item_id["tags"][0])
-        
-        # Show the flashcards screen for this deck
-        self.ui_manager.show_flashcards(deck_id)
+        try:
+            deck_id = int(item_id["tags"][0])
+            
+            # Show the flashcards screen for this deck
+            self.ui_manager.show_flashcards(deck_id)
+        except Exception as e:
+            messagebox.showerror("Error", f"Could not open deck: {str(e)}")
     
     def study_selected_deck(self):
         """Study the selected deck"""
@@ -154,25 +189,42 @@ class DeckScreen(BaseScreen):
             
         # Get deck ID and current values
         item_id = self.deck_tree.item(selected_item[0])
-        deck_id = int(item_id["tags"][0])
-        current_values = item_id["values"]
-        
-        # Get updated values from dialog
-        new_name = simpledialog.askstring("Edit Deck", "Deck name:", initialvalue=current_values[0])
-        if new_name:
-            new_desc = simpledialog.askstring("Edit Deck", "Description:", initialvalue=current_values[1] or "")
+        try:
+            deck_id = int(item_id["tags"][0])
+            current_values = item_id["values"]
             
-            try:
-                # Update deck in database
-                deck = self.db_session.query(FlashcardDecks).get(deck_id)
-                deck.name = new_name
-                deck.description = new_desc if new_desc else None
+            # Get updated values from dialog
+            new_name = simpledialog.askstring("Edit Deck", "Deck name:", initialvalue=current_values[0])
+            if new_name:
+                new_desc = simpledialog.askstring("Edit Deck", "Description:", initialvalue=current_values[1] or "")
                 
-                self.db_session.commit()
-                self.refresh()
-            except Exception as e:
-                self.db_session.rollback()
-                messagebox.showerror("Error", f"Failed to update deck: {str(e)}")
+                try:
+                    # Find the primary key field
+                    deck = None
+                    for attr in ['id', 'deck_id', 'flashcard_deck_id', 'pk']:
+                        try:
+                            # Try different attribute names for the primary key
+                            deck = self.db_session.query(FlashcardDecks) \
+                                      .filter(getattr(FlashcardDecks, attr) == deck_id).first()
+                            if deck:
+                                break
+                        except:
+                            continue
+                    
+                    if not deck:
+                        raise ValueError(f"Could not find deck with ID {deck_id}")
+                    
+                    # Update deck in database
+                    deck.name = new_name
+                    deck.description = new_desc if new_desc else None
+                    
+                    self.db_session.commit()
+                    self.refresh()
+                except Exception as e:
+                    self.db_session.rollback()
+                    messagebox.showerror("Error", f"Failed to update deck: {str(e)}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Could not edit deck: {str(e)}")
     
     def delete_selected_deck(self):
         """Delete the selected deck"""
