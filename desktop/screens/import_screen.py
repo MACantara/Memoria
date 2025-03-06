@@ -3,7 +3,11 @@ from tkinter import ttk, filedialog, messagebox
 from .base_screen import BaseScreen
 from models import FlashcardDecks, Flashcards
 import json
+import os
+import traceback
 from datetime import datetime
+from google import genai
+import threading
 
 class ImportScreen(BaseScreen):
     """Screen for importing flashcards"""
@@ -175,6 +179,13 @@ class ImportScreen(BaseScreen):
         # Reset status
         self.file_status_var.set("")
         self.text_status_var.set("")
+        
+        # Initialize API key if not already done
+        if not hasattr(self, 'api_key'):
+            self.api_key = os.getenv("GOOGLE_GEMINI_API_KEY")
+            if not self.api_key:
+                messagebox.showwarning("API Key Missing", 
+                                    "Google Gemini API key not found. AI-powered import will not work.")
     
     def browse_file(self):
         """Open file dialog to select a file"""
@@ -266,99 +277,246 @@ class ImportScreen(BaseScreen):
         return flashcards
     
     def import_file(self):
-        """Import flashcards from file"""
+        """Import flashcards from file using Gemini AI"""
         file_path = self.file_path_var.get()
         
         if not file_path:
             messagebox.showerror("Error", "Please select a file to import")
             return
+            
+        # Check if the file type is allowed (only txt for now)
+        allowed_extensions = {'txt'}
+        if not '.' in file_path or file_path.rsplit('.', 1)[1].lower() not in allowed_extensions:
+            messagebox.showerror("Error", "File type not allowed. Only TXT files are supported.")
+            return
         
         try:
             # Get or create deck
             deck_id = self._get_target_deck(self.new_deck_var, self.new_deck_name_var,
-                                        self.deck_combo, self.file_deck_ids)
+                                       self.deck_combo, self.file_deck_ids)
             
             if deck_id is None:
                 return
-            
-            # Read file content
-            with open(file_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-            
-            # Process content
-            flashcards = self._parse_content(content)
-            
-            if not flashcards:
-                self.file_status_var.set("No valid flashcards found in the file")
+                
+            # Read the text content
+            with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
+                file_text = f.read()
+                
+            # Check if we have enough text to process
+            if len(file_text) < 100:
+                messagebox.showerror("Error", "Not enough text in the file. Please provide a file with more content.")
                 return
                 
-            # Create flashcards using the correct field names
-            now = datetime.now()
-            for front, back in flashcards:
-                card = Flashcards(
-                    question=front,
-                    correct_answer=back,
-                    incorrect_answers=json.dumps([]),  # Empty JSON array for incorrect answers
-                    flashcard_deck_id=deck_id,
-                    created_at=now
-                )
-                # Initialize FSRS state for scheduling if available
-                if hasattr(card, 'init_fsrs_state'):
-                    card.init_fsrs_state()
-                    
-                self.db_session.add(card)
+            # Update status
+            self.file_status_var.set("Processing... This may take a minute.")
+            self.frame.update()  # Force UI update
+            
+            # Use threading to avoid freezing the UI
+            threading.Thread(
+                target=self._process_with_ai,
+                args=(file_text, deck_id, os.path.basename(file_path), "file"),
+                daemon=True
+            ).start()
                 
-            self.db_session.commit()
-            self.file_status_var.set(f"Successfully imported {len(flashcards)} flashcards")
-            self.refresh()
         except Exception as e:
             self.db_session.rollback()
             self.file_status_var.set(f"Error: {str(e)}")
             messagebox.showerror("Import Error", str(e))
     
     def import_text(self):
-        """Import flashcards from pasted text"""
+        """Import flashcards from pasted text using Gemini AI"""
         content = self.text_area.get(1.0, tk.END)
         
-        if not content.strip():
-            messagebox.showerror("Error", "Please enter or paste some text to import")
+        if not content.strip() or len(content.strip()) < 50:
+            messagebox.showerror("Error", "Text content is too short. Please provide more content.")
             return
         
         try:
             # Get or create deck
             deck_id = self._get_target_deck(self.new_text_deck_var, self.new_text_deck_name_var,
-                                        self.text_deck_combo, self.text_deck_ids)
+                                       self.text_deck_combo, self.text_deck_ids)
             
             if deck_id is None:
                 return
-            
-            # Process content
-            flashcards = self._parse_content(content)
-            
-            if not flashcards:
-                self.text_status_var.set("No valid flashcards found in the text")
-                return
                 
-            # Create flashcards with correct field names
-            now = datetime.now()
-            for front, back in flashcards:
-                card = Flashcards(
-                    question=front,
-                    correct_answer=back,
-                    incorrect_answers=json.dumps([]),  # Empty JSON array for incorrect answers
-                    flashcard_deck_id=deck_id,
-                    created_at=now
-                )
-                # Initialize FSRS state for scheduling if available
-                if hasattr(card, 'init_fsrs_state'):
-                    card.init_fsrs_state()
-                    
-                self.db_session.add(card)
+            # Update status
+            self.text_status_var.set("Processing... This may take a minute.")
+            self.frame.update()  # Force UI update
+            
+            # Use threading to avoid freezing the UI
+            threading.Thread(
+                target=self._process_with_ai,
+                args=(content, deck_id, "Pasted Text", "text"),
+                daemon=True
+            ).start()
                 
-            self.db_session.commit()
-            self.text_status_var.set(f"Successfully imported {len(flashcards)} flashcards")
-            self.refresh()
         except Exception as e:
             self.db_session.rollback()
             self.text_status_var.set(f"Error: {str(e)}")
             messagebox.showerror("Import Error", str(e))
+    
+    def _process_with_ai(self, content, deck_id, content_name, source_type):
+        """Process content with Gemini AI and create flashcards"""
+        try:
+            # Check if API key is available
+            if not self.api_key:
+                raise ValueError("Google Gemini API key is not configured")
+                
+            # Initialize the API client
+            client = genai.Client(api_key=self.api_key)
+            
+            # Generate prompt template
+            deck = self.db_session.query(FlashcardDecks).filter_by(flashcard_deck_id=deck_id).first()
+            prompt = self._generate_prompt_template(f"content: {deck.name}", 100)
+            
+            # Truncate content if it's too long
+            content_for_api = content[:4000] + "..." if len(content) > 4000 else content
+            
+            # Use schema with shorter field names for optimization
+            schema = {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "q": {"type": "string"},  # short for question
+                        "ca": {"type": "string"}, # short for correct_answer
+                        "ia": {                   # short for incorrect_answers
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "minItems": 1,
+                            "maxItems": 3
+                        }
+                    },
+                    "required": ["q", "ca", "ia"]
+                }
+            }
+            
+            # Send request to Gemini
+            response = client.models.generate_content(
+                model="gemini-2.0-flash-lite",
+                contents=f"{prompt}\n\nContent:\n{content_for_api}",
+                config={
+                    'response_mime_type': 'application/json',
+                    'response_schema': schema
+                }
+            )
+            
+            # Try to parse the response as JSON
+            try:
+                flashcards_data = json.loads(response.text)
+            except json.JSONDecodeError:
+                # Fallback to manual parsing
+                flashcards_data = self._parse_flashcards(response.text)
+            
+            if not flashcards_data:
+                raise ValueError("No flashcards could be generated from this content")
+            
+            # Save to database
+            now = datetime.now()
+            cards_added = 0
+            
+            for card in flashcards_data:
+                if hasattr(card, 'model_dump'):
+                    card = card.model_dump()
+                    
+                # Use the abbreviated field names (with fallback to old names)
+                question = card.get('q', card.get('question', ''))
+                correct_answer = card.get('ca', card.get('correct_answer', ''))
+                incorrect_answers = card.get('ia', card.get('incorrect_answers', []))[:3]
+                
+                # Pad with empty answers if needed
+                while len(incorrect_answers) < 3:
+                    incorrect_answers.append(f"Incorrect answer {len(incorrect_answers) + 1}")
+                
+                flashcard = Flashcards(
+                    question=question,
+                    correct_answer=correct_answer,
+                    incorrect_answers=json.dumps(incorrect_answers),
+                    flashcard_deck_id=deck_id,
+                    created_at=now,
+                    state=0  # Explicitly set to NEW_STATE
+                )
+                
+                # Initialize FSRS state if available
+                if hasattr(flashcard, 'init_fsrs_state'):
+                    flashcard.init_fsrs_state()
+                
+                self.db_session.add(flashcard)
+                cards_added += 1
+            
+            self.db_session.commit()
+            
+            # Update UI on the main thread
+            if source_type == "file":
+                self.frame.after(0, lambda: self.file_status_var.set(
+                    f"Successfully generated {cards_added} flashcards"))
+            else:
+                self.frame.after(0, lambda: self.text_status_var.set(
+                    f"Successfully generated {cards_added} flashcards"))
+                
+        except Exception as e:
+            # Clean up and show error
+            self.db_session.rollback()
+            
+            error_message = f"Error: {str(e)}"
+            if source_type == "file":
+                self.frame.after(0, lambda: self.file_status_var.set(error_message))
+            else:
+                self.frame.after(0, lambda: self.text_status_var.set(error_message))
+                
+            print(f"Import error: {str(e)}")
+            print(traceback.format_exc())
+    
+    def _generate_prompt_template(self, topic, batch_size):
+        """Generate a prompt template for AI flashcard generation"""
+        return (
+            f"Generate {batch_size} flashcards about {topic}. "
+            f"Create flashcards that cover key concepts, definitions, facts, and applications. "
+            f"Each flashcard should have a question, correct answer, and 1-3 incorrect answers. "
+            f"Structure your response as a JSON array of objects with keys: q (question), ca (correct_answer), ia (array of incorrect_answers)."
+        )
+    
+    def _parse_flashcards(self, text):
+        """Fallback parser for when structured output fails"""
+        lines = text.split('\n')
+        cards = []
+        current_card = None
+        
+        for line in lines:
+            line = line.strip()
+            
+            if not line:
+                continue
+                
+            # Look for patterns that might indicate JSON structure
+            if line.startswith('{') and '"q"' in line:
+                try:
+                    # Try to parse a single JSON object
+                    card = json.loads(line)
+                    if 'q' in card and 'ca' in card:
+                        cards.append(card)
+                        continue
+                except:
+                    pass
+            
+            # Look for numbered items like "1. Question: What is..."
+            if (line[0].isdigit() and line[1] in ['.', ')']) or line.lower().startswith('question:'):
+                if current_card:
+                    cards.append(current_card)
+                
+                question = line.split(':', 1)[1].strip() if ':' in line else line
+                current_card = {
+                    'q': question,
+                    'ca': '',
+                    'ia': []
+                }
+            elif current_card and (line.lower().startswith('answer:') or line.lower().startswith('correct:')):
+                current_card['ca'] = line.split(':', 1)[1].strip() if ':' in line else line
+            elif current_card and line.lower().startswith('incorrect:'):
+                current_card['ia'].append(line.split(':', 1)[1].strip() if ':' in line else line)
+            
+        # Add the last card if it exists
+        if current_card and current_card['q'] and current_card['ca']:
+            cards.append(current_card)
+            
+        return cards
