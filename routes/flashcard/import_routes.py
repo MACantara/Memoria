@@ -42,8 +42,8 @@ def generate_flashcards_with_gemini(content, topic, batch_size=None):
     print(f"Processing content: '{topic}', content length: {len(content)} chars")
     print("Sending request to Gemini API...")
     
-    # Truncate long content for the API request
-    content_for_api = content[:4000] + "..." if len(content) > 4000 else content
+    # Use Config.CHUNK_SIZE instead of hard-coded value
+    content_for_api = content[:Config.CHUNK_SIZE] if len(content) > Config.CHUNK_SIZE else content
     
     response = client.models.generate_content(
         model=Config.GEMINI_MODEL,
