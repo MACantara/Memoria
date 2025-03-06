@@ -3,6 +3,8 @@ import json
 from models import db
 from config import Config
 from routes import register_blueprints
+from google import genai
+import os
 
 def create_app(config_class=Config):
     app = Flask(__name__)
@@ -10,6 +12,10 @@ def create_app(config_class=Config):
     
     # Initialize database
     db.init_app(app)
+    
+    # Initialize Gemini AI client if API key is available
+    if Config.GEMINI_API_KEY:
+        app.gemini_client = genai.Client(api_key=Config.GEMINI_API_KEY)
     
     @app.template_filter('fromjson')
     def fromjson_filter(value):
