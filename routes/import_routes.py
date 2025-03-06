@@ -160,20 +160,24 @@ def save_to_deck():
         # Save each flashcard to the database
         cards_added = 0
         for card in mc_flashcards:
+            # Create a new flashcard using the Flashcard model
             new_card = Flashcards(
                 question=card['q'],
                 correct_answer=card['ca'],
                 incorrect_answers=card['ia'],
-                flashcard_deck_id=deck_id
+                flashcard_deck_id=int(deck_id)  # Ensure deck_id is an integer
             )
             
             # Initialize FSRS state for the new card
             new_card.init_fsrs_state()
             
+            # Add to session
             db.session.add(new_card)
             cards_added += 1
-            
+        
+        # Commit all changes at once
         db.session.commit()
+        current_app.logger.info(f"Added {cards_added} flashcards to deck {deck_id}")
         
         return jsonify({
             'success': True,
@@ -184,4 +188,4 @@ def save_to_deck():
     except Exception as e:
         current_app.logger.error(f"Error saving flashcards to deck: {str(e)}")
         db.session.rollback()
-        return jsonify({'error': 'Failed to save flashcards to deck'}), 500
+        return jsonify({'error': f'Failed to save flashcards to deck: {str(e)}'}), 500
