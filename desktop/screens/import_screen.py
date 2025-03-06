@@ -8,6 +8,9 @@ import traceback
 from datetime import datetime
 from google import genai
 import threading
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class ImportScreen(BaseScreen):
     """Screen for importing flashcards"""
