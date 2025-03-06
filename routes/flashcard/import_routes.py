@@ -8,9 +8,10 @@ import traceback
 from google import genai
 # Import functions from generation_routes using relative import
 from .generation_routes import (
-    parse_flashcards, generate_prompt_template
+    parse_flashcards
 )
 from services.fsrs_scheduler import get_current_time
+from config import Config
 
 import_bp = Blueprint('import', __name__)
 
@@ -63,44 +64,22 @@ def upload_file():
         db.session.add(deck)
         db.session.commit()
         
-        batch_size = 100
+        batch_size = Config.DEFAULT_BATCH_SIZE
         
         # Process the text with Gemini
         api_key = os.getenv("GOOGLE_GEMINI_API_KEY")
         client = genai.Client(api_key=api_key)
         
-        # Generate prompt using the existing function from generation_routes
-        prompt = generate_prompt_template(f"content in file: {secure_filename(file.filename)}", batch_size)
+        # Generate prompt using the Config class
+        prompt = Config.generate_prompt_template(f"content in file: {secure_filename(file.filename)}", batch_size)
         
         print(f"Processing file upload: '{file.filename}', content length: {len(file_text)} chars")
         
-        # Use schema with shorter field names for optimization
-        schema = {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "q": {"type": "string"},  # short for question
-                    "ca": {"type": "string"}, # short for correct_answer
-                    "ia": {                   # short for incorrect_answers
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "minItems": 1,
-                        "maxItems": 3
-                    }
-                },
-                "required": ["q", "ca", "ia"]
-            }
-        }
-        
         print("Sending request to Gemini API...")
         response = client.models.generate_content(
-            model="gemini-2.0-flash-lite",
+            model=Config.GEMINI_MODEL,
             contents=f"{prompt}\n\nContent:\n{file_text[:1000]}..." if len(file_text) > 1000 else f"{prompt}\n\nContent:\n{file_text}",
-            config={
-                'response_mime_type': 'application/json',
-                'response_schema': schema
-            }
+            config=Config.GEMINI_CONFIG
         )
         
         # Try to parse the response as JSON
@@ -203,7 +182,7 @@ def process_text():
         db.session.add(deck)
         db.session.commit()
         
-        batch_size = 100
+        batch_size = Config.DEFAULT_BATCH_SIZE
         
         # Process the text with Gemini
         api_key = os.getenv("GOOGLE_GEMINI_API_KEY")
@@ -214,27 +193,7 @@ def process_text():
         
         print(f"Processing text import: '{deck_name}', content length: {len(text_content)} chars")
         
-        # Use schema with shorter field names for optimization
-        schema = {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "q": {"type": "string"},
-                    "ca": {"type": "string"},
-                    "ia": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "minItems": 1,
-                        "maxItems": 3
-                    }
-                },
-                "required": ["q", "ca", "ia"]
-            }
-        }
-        
-        # If text is too long, truncate it for the request
-        content_for_api = text_content[:4000] + "..." if len(text_content) > 4000 else text_content
+        content_for_api = text_content
         
         print("Sending request to Gemini API...")
         response = client.models.generate_content(

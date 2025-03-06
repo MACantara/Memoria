@@ -5,6 +5,7 @@ from google import genai
 import json
 import os
 from services.fsrs_scheduler import get_current_time
+from config import Config
 
 generation_bp = Blueprint('generation', __name__)
 
@@ -15,7 +16,7 @@ def generate():
     """Generate flashcards using AI"""
     topic = request.form["topic"]
     parent_deck_id = request.form.get("parent_deck_id")
-    batch_size = 100
+    batch_size = Config.DEFAULT_BATCH_SIZE
     
     if parent_deck_id:
         parent_deck = FlashcardDecks.query.get_or_404(parent_deck_id)
@@ -35,37 +36,15 @@ def generate():
     db.session.commit()
 
     client = genai.Client(api_key=api_key)
-    prompt_template = generate_prompt_template(deck.name, batch_size)
+    prompt_template = Config.generate_prompt_template(deck.name, batch_size)
     print(f"Generating flashcards for topic: '{deck.name}', batch size: {batch_size}")
 
     try:
-        # Use schema with shorter field names for optimization
-        schema = {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "q": {"type": "string"},  # short for question
-                    "ca": {"type": "string"}, # short for correct_answer
-                    "ia": {                   # short for incorrect_answers
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "minItems": 1,
-                        "maxItems": 3
-                    }
-                },
-                "required": ["q", "ca", "ia"]
-            }
-        }
-        
         print("Sending request to Gemini API...")
         response = client.models.generate_content(
-            model="gemini-2.0-flash-lite",
+            model=Config.GEMINI_MODEL,
             contents=prompt_template,
-            config={
-                'response_mime_type': 'application/json',
-                'response_schema': schema
-            }
+            config=Config.GEMINI_CONFIG
         )
         
         print("\n==== RAW GEMINI API RESPONSE ====")
@@ -142,50 +121,6 @@ def generate():
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return jsonify({"success": True, "redirect_url": url_for('deck.deck_view.get_deck_flashcards', deck_id=deck.flashcard_deck_id)})
     return redirect(url_for('deck.deck_view.get_deck_flashcards', deck_id=deck.flashcard_deck_id))
-
-
-def generate_prompt_template(topic, batch_size):
-    """Generate a prompt template for AI flashcard generation"""
-    return f"""You are an expert educator creating flashcards about {topic}.
-    Generate comprehensive, accurate, and engaging flashcards following these strict guidelines:
-
-    1. Each flashcard must have:
-       - A clear, concise question that tests understanding
-       - One definitively correct answer
-       - Three plausible but incorrect answers
-       - CRITICAL: All answers (correct and incorrect) MUST:
-         * Be similar in length (within 10-15 characters of each other)
-         * Use the same level of detail and complexity
-         * Follow the same grammatical structure
-         * Be equally specific/general
-    
-    2. Question types must be evenly distributed:
-       - Factual recall (25% of cards)
-       - Concept application (25% of cards)
-       - Problem-solving (25% of cards)
-       - Relationships between concepts (25% of cards)
-    
-    3. Ensure quality control:
-       - No duplicate questions or answers
-       - All content is factually accurate
-       - Clear, unambiguous wording
-       - Progressive difficulty (easy -> medium -> hard)
-       - Avoid answers that are obviously wrong
-       - Don't make the correct answer stand out by length or detail
-    
-    Format your response as a JSON array of objects, each with:
-    - 'q': the flashcard question (short for question)
-    - 'ca': the correct answer (short for correct_answer)
-    - 'ia': array of exactly three incorrect answers (short for incorrect_answers)
-
-    Generate {batch_size} unique flashcards covering different aspects of the topic.
-    Ensure comprehensive coverage by:
-    1. Breaking down the topic into key subtopics
-    2. Creating equal numbers of cards for each subtopic
-    3. Varying question types within each subtopic
-    4. Including both fundamental and advanced concepts
-    5. Maintaining consistent answer length and style throughout"""
-
 
 def parse_flashcards(text):
     """Fallback parser for when structured output fails"""
