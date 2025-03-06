@@ -1,14 +1,17 @@
-# Import all blueprint modules
-from routes.main_routes import main_bp
-from routes.deck import deck_bp
-from routes.flashcard import register_flashcard_blueprints
+from flask import Flask
 
-# Register blueprints function
-def register_blueprints(app):
-    """Register all blueprints with the Flask application"""
-    # Register main and deck blueprints directly
-    app.register_blueprint(main_bp, url_prefix='/')
-    app.register_blueprint(deck_bp, url_prefix='/deck')
+def register_blueprints(app: Flask):
+    """Register all application blueprints"""
+    # Import blueprints
+    from routes.main_routes import main_bp
+    from routes.import_routes import import_bp
+    from routes.deck.__init__ import deck_bp
+    from routes.flashcard.__init__ import register_flashcard_blueprints
     
-    # Register all flashcard-related blueprints using the central registration function
+    # Register blueprints
+    app.register_blueprint(main_bp)
+    app.register_blueprint(import_bp)
+    app.register_blueprint(deck_bp)
+    
+    # Register all flashcard blueprints
     register_flashcard_blueprints(app)
