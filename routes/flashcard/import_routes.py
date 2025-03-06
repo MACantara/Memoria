@@ -15,12 +15,9 @@ from config import Config
 
 import_bp = Blueprint('import', __name__)
 
-# Configuration - only txt files are allowed
-ALLOWED_EXTENSIONS = {'txt'}
-
 def allowed_file(filename):
     return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+           filename.rsplit('.', 1)[1].lower() in Config.ALLOWED_EXTENSIONS
 
 @import_bp.route("/upload", methods=["POST"])
 def upload_file():
@@ -35,9 +32,12 @@ def upload_file():
     if file.filename == '':
         return jsonify({"success": False, "error": "No selected file"}), 400
         
-    # Check if the file type is allowed (only txt now)
+    # Check if the file type is allowed (use Config.ALLOWED_EXTENSIONS)
     if not allowed_file(file.filename):
-        return jsonify({"success": False, "error": "File type not allowed. Only TXT files are supported."}), 400
+        return jsonify({
+            "success": False, 
+            "error": f"File type not allowed. Only {', '.join(Config.ALLOWED_EXTENSIONS).upper()} files are supported."
+        }), 400
     
     # Get form data
     deck_name = request.form.get('deck_name', 'Imported Content')
