@@ -112,11 +112,15 @@
         function loadDecks() {
             deckSelector.closest('.select-container').classList.add('select-loading');
             
-            fetch('/decks/list')
+            fetch('/deck/api/list')
                 .then(response => response.json())
                 .then(data => {
                     deckSelector.innerHTML = '<option value="" selected disabled>Choose a deck...</option>';
-                    data.decks.forEach(deck => {
+                    
+                    // Make sure we have an array of decks
+                    const decks = Array.isArray(data) ? data : (data.decks || []);
+                    
+                    decks.forEach(deck => {
                         const option = document.createElement('option');
                         option.value = deck.id;
                         option.textContent = deck.name;
