@@ -45,20 +45,15 @@ class Config:
         }
     }
     
-    # Gemini API configuration
-    GEMINI_CONFIG = {
-        'response_mime_type': 'application/json',
-        'response_schema': FLASHCARD_SCHEMA
-    }
-    
-    GEMINI_MODEL = "gemini-2.0-flash-lite"
-    FLASHCARD_CONFIG = types.GenerateContentConfig(
+    # Gemini API configuration - merged with FLASHCARD_CONFIG settings
+    GEMINI_CONFIG = types.GenerateContentConfig(
         temperature=0.7,
         top_p=0.95,
         top_k=20,
         candidate_count=1,
         max_output_tokens=8192,
         response_mime_type="application/json",  # Ensure JSON response
+        response_schema=FLASHCARD_SCHEMA,       # Include the schema
         stop_sequences=['###'],
         system_instruction=(
             "You are a professional educator creating multiple-choice flashcards. "
@@ -66,6 +61,8 @@ class Config:
             "Your responses must strictly follow the JSON schema provided."
         )
     )
+    
+    GEMINI_MODEL = "gemini-2.0-flash-lite"
     
     @staticmethod
     def generate_prompt_template(topic, batch_size=None):
