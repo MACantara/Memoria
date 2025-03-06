@@ -45,50 +45,133 @@ def generate_flashcards_with_gemini(content, topic, batch_size=None):
     # Use Config.CHUNK_SIZE instead of hard-coded value
     content_for_api = content[:Config.CHUNK_SIZE] if len(content) > Config.CHUNK_SIZE else content
     
-    response = client.models.generate_content(
-        model=Config.GEMINI_MODEL,
-        contents=f"{prompt}\n\nContent:\n{content_for_api}",
-        config=Config.GEMINI_CONFIG
-    )
-    
-    # Parse JSON response
     try:
-        # Extract response as JSON
-        flashcards_data = json.loads(response.text)
+        response = client.models.generate_content(
+            model=Config.GEMINI_MODEL,
+            contents=f"{prompt}\n\nContent:\n{content_for_api}",
+            config=Config.GEMINI_CONFIG
+        )
+        
+        # Log first 500 chars of response for debugging
+        print("\n==== RAW GEMINI API RESPONSE PREVIEW ====")
+        print(response.text[:500] + "..." if len(response.text) > 500 else response.text)
+        print("===== END OF RAW RESPONSE PREVIEW =====\n")
+        
+        # Parse JSON response
+        try:
+            # Try to clean up common JSON issues before parsing
+            cleaned_text = response.text
+            # Replace any unescaped backslashes
+            cleaned_text = cleaned_text.replace('\\', '\\\\').replace('\\"', '\\\\"')
+            # Replace unescaped newlines in strings (common JSON error)
+            cleaned_text = cleaned_text.replace('\n', '\\n')
             
-        # Format flashcards for compatibility with existing UI
-        formatted_flashcards = []
+            # Extract just the JSON array if there's extra text
+            if '[' in cleaned_text and ']' in cleaned_text:
+                start_idx = cleaned_text.find('[')
+                end_idx = cleaned_text.rfind(']') + 1
+                if start_idx >= 0 and end_idx > start_idx:
+                    cleaned_text = cleaned_text[start_idx:end_idx]
             
-        # Convert the multiple-choice format to the legacy format for backward compatibility
-        for card in flashcards_data:
-            # Format: Q: [question] | A: [correct_answer] (+ incorrect answers as options)
-            options = [card['ca']] + card['ia']
-            options_formatted = ", ".join([f"{chr(65+i)}) {opt}" for i, opt in enumerate(options)])
-            formatted_card = f"Q: {card['q']} | A: {card['ca']}"
-            formatted_flashcards.append(formatted_card)
+            # Try to parse the cleaned response as JSON
+            flashcards_data = json.loads(cleaned_text)
+            
+            # Format flashcards for compatibility with existing UI
+            formatted_flashcards = []
+            
+            # Convert the multiple-choice format to the legacy format for backward compatibility
+            for card in flashcards_data:
+                # Handle both short and long field names
+                question = card.get('q', card.get('question', ''))
+                correct_answer = card.get('ca', card.get('correct_answer', ''))
+                incorrect_answers = card.get('ia', card.get('incorrect_answers', []))
                 
-            # Also store the raw card for future use with a new UI
-            card['_raw'] = card.copy()
+                if question and correct_answer and incorrect_answers:
+                    # Format: Q: [question] | A: [correct_answer] (+ incorrect answers as options)
+                    options = [correct_answer] + incorrect_answers
+                    options_formatted = ", ".join([f"{chr(65+i)}) {opt}" for i, opt in enumerate(options)])
+                    formatted_card = f"Q: {question} | A: {correct_answer}"
+                    formatted_flashcards.append(formatted_card)
+                    
+                    # Also store the raw card for future use with a new UI
+                    card['_raw'] = card.copy()
+            
+            formatted_response = {
+                'flashcards': formatted_flashcards,
+                'count': len(formatted_flashcards),
+                'mc_data': flashcards_data  # Include the raw multiple-choice data
+            }
+            
+            print(f"Successfully parsed JSON: {formatted_response['count']} cards")
+            
+            # Return the mc_data for compatibility with existing code
+            return formatted_response['mc_data']
+            
+        except json.JSONDecodeError as parse_error:
+            # More detailed logging of the parsing error
+            print(f"JSON parsing failed: {parse_error}")
+            print(f"Error position: line {parse_error.lineno}, column {parse_error.colno}, char {parse_error.pos}")
+            error_context = response.text[max(0, parse_error.pos-50):min(len(response.text), parse_error.pos+50)]
+            print(f"Error context: ...{error_context}...")
+            
+            # Fallback to improved manual parsing
+            print("Falling back to manual parsing.")
+            flashcards_data = parse_flashcards(response.text)
+            print(f"Manual parsing result: {len(flashcards_data)} cards extracted")
+            
+            # If manual parsing fails too, try one more method - regex extraction
+            if not flashcards_data:
+                print("Manual parsing failed. Attempting regex extraction...")
+                import re
+                # Look for patterns like "question": "...", "correct_answer": "...", etc.
+                questions = re.findall(r'"q(?:uestion)?"\s*:\s*"([^"]+)"', response.text)
+                answers = re.findall(r'"(?:ca|correct_answer)"\s*:\s*"([^"]+)"', response.text)
+                
+                # If we found matching questions and answers, create simple flashcards
+                if questions and answers and len(questions) == len(answers):
+                    print(f"Regex extraction found {len(questions)} question-answer pairs")
+                    flashcards_data = []
+                    for q, a in zip(questions, answers):
+                        flashcards_data.append({
+                            'q': q,
+                            'ca': a,
+                            'ia': ["No alternative available 1", 
+                                   "No alternative available 2", 
+                                   "No alternative available 3"]
+                        })
         
-        formatted_response = {
-            'flashcards': formatted_flashcards,
-            'count': len(formatted_flashcards),
-            'mc_data': flashcards_data  # Include the raw multiple-choice data
-        }
+        if not flashcards_data:
+            # Try a different approach with a simpler prompt
+            print("Retrying with a simpler prompt...")
+            simple_prompt = f"Generate {batch_size} multiple-choice flashcards about '{topic}'. Format each as JSON with fields: q (question), ca (correct answer), ia (array of 3 incorrect answers)."
+            
+            response = client.models.generate_content(
+                model=Config.GEMINI_MODEL,
+                contents=simple_prompt,
+                config=Config.GEMINI_CONFIG
+            )
+            
+            try:
+                flashcards_data = json.loads(response.text)
+                print(f"Retry successful: {len(flashcards_data)} cards generated")
+            except:
+                print("Retry also failed to parse JSON")
+                # One last attempt with a very simple structure
+                try:
+                    response = client.models.generate_content(
+                        model=Config.GEMINI_MODEL,
+                        contents=f"Create 5 multiple choice questions about {topic} in JSON format"
+                    )
+                    flashcards_data = parse_flashcards(response.text)
+                except:
+                    print("All parsing attempts failed")
         
-        print(f"Successfully parsed JSON: {formatted_response['count']} cards")
-        
-        # Return the mc_data for compatibility with existing code
-        return formatted_response['mc_data']
-        
-    except json.JSONDecodeError as parse_error:
-        # Fallback to manual parsing if JSON parsing fails
-        print(f"JSON parsing failed: {parse_error}. Falling back to manual parsing.")
-        flashcards_data = parse_flashcards(response.text)
-        print(f"Manual parsing result: {len(flashcards_data)} cards extracted")
+    except Exception as api_error:
+        print(f"API error: {str(api_error)}")
+        raise ValueError(f"Error communicating with AI service: {str(api_error)}")
     
     if not flashcards_data:
-        raise ValueError("No flashcards could be generated from this content")
+        raise ValueError("No flashcards could be generated from this content. Please try with different content.")
         
     return flashcards_data
 
