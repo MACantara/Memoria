@@ -37,29 +37,7 @@
     {% endif %}
 </div>
 
-<!-- Create Empty Deck Modal -->
-{% include 'components/create_empty_deck_modal.html' %}
-
-<!-- Generate Cards Modal -->
-{% include 'components/generate_cards_modal_index.html' %}
-
-<!-- Rename Deck Modal -->
-{% include 'components/rename_deck_modal.html' %}
-
-<!-- Delete Confirmation Modal -->
-{% include 'components/delete_deck_modal.html' %}
-
-<!-- Move Deck Modal -->
-{% include 'components/move_deck_modal.html' %}
-
-<!-- Import Content Modal -->
-{% include 'components/import_content_modal.html' %}
-
-<!-- Add these new modals for deck selection -->
-{% with decks=all_decks %}
-{% include 'components/select_deck_to_study_modal.html' %}
-{% include 'components/select_deck_for_stats_modal.html' %}
-{% endwith %}
+<!-- Modal includes have been moved to base.html -->
 
 {% endblock %}
 
