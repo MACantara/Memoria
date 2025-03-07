@@ -160,6 +160,12 @@ def save_to_deck():
         # Save each flashcard to the database
         cards_added = 0
         for card in mc_flashcards:
+            print("Adding flashcard to deck")
+            print(card['q'])
+            print(card['ca'])
+            print(card['ia'])
+            print(deck_id)
+            
             # Create a new flashcard using the Flashcard model
             new_card = Flashcards(
                 question=card['q'],
