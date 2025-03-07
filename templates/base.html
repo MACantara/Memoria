@@ -106,31 +106,41 @@
         import { initializeFormHandlers } from "{{ url_for('static', filename='modules/deck/form-handlers.js') }}";
         import { initializeDeckOperations } from "{{ url_for('static', filename='modules/deck/deck-operations.js') }}";
         
-        // Set up basic global utility functions for modals
-        window.showImportModal = function() {
-            console.log("Import modal requested");
-            const modal = document.getElementById('importContentModal');
-            if (modal) {
-                const bsModal = new bootstrap.Modal(modal);
-                bsModal.show();
-            }
-        };
-        
-        window.showGenerateModal = function() {
-            console.log("Generate modal requested");
-            const modal = document.getElementById('generateModal');
-            if (modal) {
-                const bsModal = new bootstrap.Modal(modal);
-                bsModal.show();
-            }
-        };
-        
-        document.addEventListener('DOMContentLoaded', () => {
-            // Initialize modals and handlers
-            const modals = initializeModals();
-            initializeFormHandlers(modals);
-            initializeDeckOperations();
-        });
+        // Use a single initialization point with a flag to prevent duplicates
+        if (!window.memoria_initialized) {
+            console.log("Initializing Memoria components");
+            
+            // Set up basic global utility functions for modals
+            window.showImportModal = function() {
+                console.log("Import modal requested");
+                const modal = document.getElementById('importContentModal');
+                if (modal) {
+                    const bsModal = new bootstrap.Modal(modal);
+                    bsModal.show();
+                }
+            };
+            
+            window.showGenerateModal = function() {
+                console.log("Generate modal requested");
+                const modal = document.getElementById('generateModal');
+                if (modal) {
+                    const bsModal = new bootstrap.Modal(modal);
+                    bsModal.show();
+                }
+            };
+            
+            document.addEventListener('DOMContentLoaded', () => {
+                // Initialize modals and handlers
+                const modals = initializeModals();
+                initializeFormHandlers(modals);
+                initializeDeckOperations();
+                
+                // Mark as initialized
+                window.memoria_initialized = true;
+            });
+        } else {
+            console.log("Memoria components already initialized, skipping");
+        }
     </script>
     
     <script>

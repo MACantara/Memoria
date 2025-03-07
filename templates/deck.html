@@ -63,25 +63,14 @@
 
 {% block scripts %}
 <script type="module">
-    import { initializeModals } from "{{ url_for('static', filename='modules/deck/modal-handlers.js') }}";
-    import { initializeFormHandlers } from "{{ url_for('static', filename='modules/deck/form-handlers.js') }}";
-    import { initializeDeckOperations } from "{{ url_for('static', filename='modules/deck/deck-operations.js') }}";
+    // Import but don't reinitialize - components are already initialized in base.html
     import { deleteDeck, renameDeck } from "{{ url_for('static', filename='modules/utils.js') }}";
     
     // Make these functions available globally for HTML onclick handlers
     window.deleteDeck = deleteDeck;
     window.renameDeck = renameDeck;
     
-    document.addEventListener('DOMContentLoaded', () => {
-        // Initialize ALL modals without destructuring
-        const modals = initializeModals();
-        
-        // Initialize handlers with the complete modals object
-        initializeFormHandlers(modals);
-        initializeDeckOperations();
-        
-        // Display debug info to help diagnose issues
-        console.log("Available modals:", Object.keys(modals));
-    });
+    // Log for debugging
+    console.log("Deck view script loaded");
 </script>
 {% endblock %}
