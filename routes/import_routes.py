@@ -158,19 +158,38 @@ def save_to_deck():
             
         # Save each flashcard to the database
         cards_added = 0
+        # Get current time for all cards to use same timestamp
+        from services.fsrs_scheduler import get_current_time
+        current_time = get_current_time()
+        
         for card in mc_flashcards:
-            print("Adding flashcard to deck")
-            print(card['q'])
-            print(card['ca'])
-            print(card['ia'])
-            print(deck_id)
+            # Extract and validate required fields
+            question = card.get('q', '')
+            correct_answer = card.get('ca', '')
+            incorrect_answers = card.get('ia', [])
             
-            # Create a new flashcard using the Flashcard model
+            # Skip incomplete cards
+            if not question or not correct_answer:
+                current_app.logger.warning(f"Skipping incomplete card: {card}")
+                continue
+            
+            # Ensure incorrect_answers is a list and limit to 3 items
+            if not isinstance(incorrect_answers, list):
+                incorrect_answers = [str(incorrect_answers)]
+            incorrect_answers = incorrect_answers[:3]
+            
+            # Pad with empty answers if needed
+            while len(incorrect_answers) < 3:
+                incorrect_answers.append(f"Incorrect answer {len(incorrect_answers) + 1}")
+            
+            # Create a new flashcard
             new_card = Flashcards(
-                question=card['q'],
-                correct_answer=card['ca'],
-                incorrect_answers=card['ia'],
-                flashcard_deck_id=int(deck_id)  # Ensure deck_id is an integer
+                question=question,
+                correct_answer=correct_answer,
+                incorrect_answers=incorrect_answers,
+                flashcard_deck_id=int(deck_id),
+                due_date=current_time,
+                state=0
             )
             
             # Initialize FSRS state for the new card
