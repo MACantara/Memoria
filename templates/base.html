@@ -45,128 +45,16 @@
     <div class="d-block d-md-none" style="height: 20px;"></div>
     
     <!-- Mobile Bottom Navigation -->
-    <div class="mobile-bottom-nav">
-        <a href="{{ url_for('main.index') }}" class="mobile-nav-item">
-            <i class="bi bi-collection"></i>
-            <span>Decks</span>
-        </a>
-        
-        <!-- Study button - uses existing modal -->
-        <button class="mobile-nav-item" data-bs-toggle="modal" data-bs-target="#selectDeckToStudyModal">
-            <i class="bi bi-book"></i>
-            <span>Study</span>
-        </button>
-        
-        <!-- Add button - context-aware implementation -->
-        <button class="mobile-nav-item" id="mobileAddButton">
-            <i class="bi bi-plus-circle"></i>
-            <span>Add</span>
-        </button>
-        
-        <!-- Stats button - uses existing modal -->
-        <button class="mobile-nav-item" data-bs-toggle="modal" data-bs-target="#selectDeckForStatsModal">
-            <i class="bi bi-graph-up"></i>
-            <span>Stats</span>
-        </button>
-        
-        <!-- Theme toggle button for mobile -->
-        <button class="mobile-nav-item" id="mobileThemeToggle">
-            <i class="bi bi-circle-half"></i>
-            <span>Theme</span>
-        </button>
-    </div>
+    {% include 'nav/mobile_bottom_nav.html' %}
 
     <!-- Mobile Theme Menu (hidden by default) -->
-    <div class="mobile-theme-menu" id="mobileThemeMenu">
-        <div class="mobile-theme-menu-backdrop" id="mobileThemeMenuBackdrop"></div>
-        <div class="mobile-theme-menu-content">
-            <div class="list-group">
-                <button type="button" class="list-group-item list-group-item-action mobile-theme-option" data-theme="light">
-                    <i class="bi bi-sun-fill me-2"></i> Light Mode
-                    <i class="bi bi-check-lg check-icon"></i>
-                </button>
-                <button type="button" class="list-group-item list-group-item-action mobile-theme-option" data-theme="dark">
-                    <i class="bi bi-moon-stars-fill me-2"></i> Dark Mode
-                    <i class="bi bi-check-lg check-icon"></i>
-                </button>
-                <button type="button" class="list-group-item list-group-item-action mobile-theme-option" data-theme="auto">
-                    <i class="bi bi-circle-half me-2"></i> System Preference
-                    <i class="bi bi-check-lg check-icon"></i>
-                </button>
-            </div>
-        </div>
-    </div>
+    {% include 'menus/mobile_theme_menu.html' %}
     
     <!-- Mobile Add Actions Menu (hidden by default) -->
-    <div class="mobile-add-menu" id="mobileAddMenu">
-        <div class="mobile-add-menu-backdrop" id="mobileAddMenuBackdrop"></div>
-        <div class="mobile-add-menu-content">
-            <div class="list-group">
-                <!-- Context-aware add cards option -->
-                {% if request.path.startswith('/deck/') and request.path.split('/')[-1].isdigit() %}
-                    <!-- In deck view - Add cards to this specific deck -->
-                    <button type="button" class="list-group-item list-group-item-action" 
-                            onclick="document.querySelector('.add-cards-btn')?.click(); return false;">
-                        <i class="bi bi-card-text me-2"></i> Add Cards
-                    </button>
-                    
-                    <!-- In deck view - Add sub-deck to this deck -->
-                    <button type="button" class="list-group-item list-group-item-action" 
-                            onclick="document.getElementById('createDeckBtn')?.click(); return false;">
-                        <i class="bi bi-folder-symlink me-2"></i> New Sub-deck
-                    </button>
-                {% else %}
-                    <!-- In home view - Generate cards (will prompt for deck) -->
-                    <button type="button" class="list-group-item list-group-item-action" 
-                            onclick="showGenerateModal(); return false;">
-                        <i class="bi bi-card-text me-2"></i> Add Cards
-                    </button>
-                    
-                    <!-- In home view - Create new empty deck -->
-                    <button type="button" class="list-group-item list-group-item-action" 
-                            onclick="document.getElementById('createEmptyDeckBtn')?.click(); return false;">
-                        <i class="bi bi-folder me-2"></i> New Deck
-                    </button>
-                {% endif %}
-                
-                <!-- Import content - available in all contexts -->
-                <button type="button" class="list-group-item list-group-item-action" 
-                        onclick="showImportModal(); return false;">
-                    <i class="bi bi-file-earmark-arrow-up me-2"></i> Import Content
-                </button>
-            </div>
-            <button type="button" class="btn btn-outline-secondary w-100 mt-2" id="mobileAddMenuClose">
-                Cancel
-            </button>
-        </div>
-    </div>
+    {% include 'menus/mobile_add_actions_menu.html' %}
     
     <!-- Theme Toggle with Popup Menu -->
-    <div class="theme-backdrop" id="themeBackdrop"></div>
-    <div class="theme-toggle-container">
-        <div class="theme-menu" id="themeMenu">
-            <button class="theme-menu-item" data-theme="light">
-                <i class="bi bi-sun-fill theme-icon"></i>
-                Light Mode
-                <i class="bi bi-check-lg check-icon"></i>
-            </button>
-            <button class="theme-menu-item" data-theme="dark">
-                <i class="bi bi-moon-stars-fill theme-icon"></i>
-                Dark Mode
-                <i class="bi bi-check-lg check-icon"></i>
-            </button>
-            <div class="theme-menu-divider"></div>
-            <button class="theme-menu-item" data-theme="auto">
-                <i class="bi bi-circle-half theme-icon"></i>
-                System Preference
-                <i class="bi bi-check-lg check-icon"></i>
-            </button>
-        </div>
-        
-        <button class="theme-toggle-btn" id="themeToggle" aria-label="Change theme">
-            <i class="bi bi-palette"></i>
-        </button>
-    </div>
+    {% include 'menus/theme_toggle_popup_menu.html' %}
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script> 
     <script>
