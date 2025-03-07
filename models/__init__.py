@@ -4,8 +4,9 @@ db = SQLAlchemy()
 
 from .flashcard_deck import FlashcardDecks
 from .flashcard import Flashcards, FlashcardSet, FlashcardGenerator
+from .user import User
 
-__all__ = ['db', 'FlashcardDecks', 'Flashcards']
+__all__ = ['db', 'FlashcardDecks', 'Flashcards', 'User']
 
 # Add to FlashcardDecks class
 def to_dict(self):
