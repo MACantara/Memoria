@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify, current_app
 import os
 import uuid
 from werkzeug.utils import secure_filename
+from flask_login import login_required, current_user
 
 from config import Config
 from utils import allowed_file
@@ -14,6 +15,7 @@ from services.chunk_service import process_file_chunk_batch, get_file_state
 import_bp = Blueprint('import', __name__, url_prefix='/import')
 
 @import_bp.route('/upload-file', methods=['POST'])
+@login_required  # Add login requirement
 def upload_file():
     try:
         if 'file' not in request.files:
@@ -137,6 +139,7 @@ def all_file_flashcards():
         })
 
 @import_bp.route('/save-to-deck', methods=['POST'])
+@login_required  # Add login requirement
 def save_to_deck():
     """Save generated flashcards to a deck"""
     try:
