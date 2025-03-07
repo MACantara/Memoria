@@ -253,9 +253,6 @@ export class UIManager {
                                     style="width: 100%" aria-valuenow="100" aria-valuemin="0" 
                                     aria-valuemax="100">100%</div>
                             </div>
-                            <p class="card-text fs-4 text-success fw-bold">
-                                <i class="bi bi-trophy-fill"></i> Session Score: ${score}/${totalDue}
-                            </p>
                             
                             <div class="alert alert-info mt-4">
                                 <i class="bi bi-info-circle me-2"></i>
@@ -287,9 +284,6 @@ export class UIManager {
                                     style="width: 100%" aria-valuenow="100" aria-valuemin="0" 
                                     aria-valuemax="100">100%</div>
                             </div>
-                            <p class="card-text fs-4 text-success fw-bold">
-                                <i class="bi bi-trophy-fill"></i> Session Score: ${score}/${totalDue}
-                            </p>
                             
                             <div class="alert alert-info mt-4">
                                 <i class="bi bi-info-circle me-2"></i>
