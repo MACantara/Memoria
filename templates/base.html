@@ -36,36 +36,25 @@
     {% block styles %}{% endblock %}
 </head>
 <body>
+    <!-- Add a spacer div at the bottom of the body for extra padding on mobile -->
     <div class="container py-4">
         {% block content %}{% endblock %}
     </div>
     
+    <!-- Mobile-only spacer -->
+    <div class="d-block d-md-none" style="height: 20px;"></div>
+    
+    <!-- Mobile Bottom Navigation -->
+    {% include 'nav/mobile_bottom_nav.html' %}
+
+    <!-- Mobile Theme Menu (hidden by default) -->
+    {% include 'menus/mobile_theme_menu.html' %}
+    
+    <!-- Mobile Add Actions Menu (hidden by default) -->
+    {% include 'menus/mobile_add_actions_menu.html' %}
+    
     <!-- Theme Toggle with Popup Menu -->
-    <div class="theme-backdrop" id="themeBackdrop"></div>
-    <div class="theme-toggle-container">
-        <div class="theme-menu" id="themeMenu">
-            <button class="theme-menu-item" data-theme="light">
-                <i class="bi bi-sun-fill theme-icon"></i>
-                Light Mode
-                <i class="bi bi-check-lg check-icon"></i>
-            </button>
-            <button class="theme-menu-item" data-theme="dark">
-                <i class="bi bi-moon-stars-fill theme-icon"></i>
-                Dark Mode
-                <i class="bi bi-check-lg check-icon"></i>
-            </button>
-            <div class="theme-menu-divider"></div>
-            <button class="theme-menu-item" data-theme="auto">
-                <i class="bi bi-circle-half theme-icon"></i>
-                System Preference
-                <i class="bi bi-check-lg check-icon"></i>
-            </button>
-        </div>
-        
-        <button class="theme-toggle-btn" id="themeToggle" aria-label="Change theme">
-            <i class="bi bi-palette"></i>
-        </button>
-    </div>
+    {% include 'menus/theme_toggle_popup_menu.html' %}
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script> 
     <script>
@@ -169,6 +158,179 @@
                     updateToggleIcon();
                 }
             });
+        });
+        
+        // Mobile Add Menu functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const mobileAddButton = document.getElementById('mobileAddButton');
+            const mobileAddMenu = document.getElementById('mobileAddMenu');
+            const mobileAddMenuClose = document.getElementById('mobileAddMenuClose');
+            const mobileAddMenuBackdrop = document.getElementById('mobileAddMenuBackdrop');
+            
+            if (mobileAddButton && mobileAddMenu) {
+                // Toggle menu when add button is clicked
+                mobileAddButton.addEventListener('click', function() {
+                    mobileAddMenu.classList.toggle('active');
+                });
+                
+                // Close menu when cancel button is clicked
+                if (mobileAddMenuClose) {
+                    mobileAddMenuClose.addEventListener('click', function() {
+                        mobileAddMenu.classList.remove('active');
+                    });
+                }
+                
+                // Close menu when backdrop is clicked
+                if (mobileAddMenuBackdrop) {
+                    mobileAddMenuBackdrop.addEventListener('click', function() {
+                        mobileAddMenu.classList.remove('active');
+                    });
+                }
+                
+                // Close menu when an action is selected
+                mobileAddMenu.querySelectorAll('.list-group-item').forEach(item => {
+                    item.addEventListener('click', function() {
+                        setTimeout(() => {
+                            mobileAddMenu.classList.remove('active');
+                        }, 100);
+                    });
+                });
+                
+                // Highlight active section based on current URL
+                const currentPath = window.location.pathname;
+                const navItems = document.querySelectorAll('.mobile-nav-item');
+                
+                if (currentPath === '/' || currentPath === '/index') {
+                    navItems[0].classList.add('active'); // Decks
+                } else if (currentPath.includes('/deck/') && !currentPath.includes('/study') && !currentPath.includes('/stats')) {
+                    navItems[0].classList.add('active'); // Decks - still active when in deck view
+                } else if (currentPath.includes('/study')) {
+                    navItems[1].classList.add('active'); // Study
+                } else if (currentPath.includes('/stats')) {
+                    navItems[3].classList.add('active'); // Stats
+                }
+            }
+            
+            // Mobile theme toggle functionality - UPDATED
+            const mobileThemeToggle = document.getElementById('mobileThemeToggle');
+            const mobileThemeMenu = document.getElementById('mobileThemeMenu');
+            const mobileThemeMenuBackdrop = document.getElementById('mobileThemeMenuBackdrop');
+            const mobileThemeOptions = document.querySelectorAll('.mobile-theme-option');
+            
+            // Set initial icon based on current theme
+            if (mobileThemeToggle) {
+                updateMobileThemeIcon(mobileThemeToggle);
+                
+                // Changed to toggle the theme menu instead of cycling through themes
+                mobileThemeToggle.addEventListener('click', function() {
+                    mobileThemeMenu.classList.toggle('active');
+                    updateActiveThemeOption(); // Update checkmarks
+                });
+                
+                // Close menu when backdrop is clicked
+                if (mobileThemeMenuBackdrop) {
+                    mobileThemeMenuBackdrop.addEventListener('click', function() {
+                        mobileThemeMenu.classList.remove('active');
+                    });
+                }
+                
+                // Handle theme option selection
+                mobileThemeOptions.forEach(option => {
+                    option.addEventListener('click', function() {
+                        const theme = this.getAttribute('data-theme');
+                        const htmlElement = document.documentElement;
+                        
+                        // Apply and save the theme
+                        localStorage.setItem('theme', theme);
+                        
+                        // Apply theme to document
+                        if (theme === 'dark') {
+                            htmlElement.setAttribute('data-bs-theme', 'dark');
+                        } else if (theme === 'light') {
+                            htmlElement.setAttribute('data-bs-theme', 'light');
+                        } else if (theme === 'auto') {
+                            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                            htmlElement.setAttribute('data-bs-theme', prefersDark ? 'dark' : 'light');
+                        }
+                        
+                        // Update the theme toggle icon
+                        updateMobileThemeIcon(mobileThemeToggle);
+                        
+                        // Show toast notification
+                        showThemeChangeToast(theme);
+                        
+                        // Close the menu
+                        mobileThemeMenu.classList.remove('active');
+                    });
+                });
+            }
+            
+            function updateMobileThemeIcon(buttonElement) {
+                const currentTheme = localStorage.getItem('theme') || 'auto';
+                const iconElement = buttonElement.querySelector('i');
+                const textElement = buttonElement.querySelector('span');
+                
+                // Remove all icon classes
+                iconElement.className = '';
+                
+                // Add appropriate icon and text based on theme
+                if (currentTheme === 'dark') {
+                    iconElement.className = 'bi bi-moon-stars-fill';
+                    textElement.textContent = 'Dark';
+                } else if (currentTheme === 'light') {
+                    iconElement.className = 'bi bi-sun-fill';
+                    textElement.textContent = 'Light';
+                } else { // auto
+                    iconElement.className = 'bi bi-circle-half';
+                    textElement.textContent = 'Theme';
+                }
+            }
+            
+            function showThemeChangeToast(theme) {
+                // Create toast element
+                const toast = document.createElement('div');
+                toast.className = 'theme-toast';
+                
+                let icon, text;
+                if (theme === 'dark') {
+                    icon = 'bi-moon-stars-fill';
+                    text = 'Dark Mode';
+                } else if (theme === 'light') {
+                    icon = 'bi-sun-fill';
+                    text = 'Light Mode';
+                } else { // auto
+                    icon = 'bi-circle-half';
+                    text = 'System Theme';
+                }
+                
+                toast.innerHTML = `<i class="bi ${icon}"></i> ${text}`;
+                document.body.appendChild(toast);
+                
+                // Animate in
+                setTimeout(() => {
+                    toast.classList.add('show');
+                }, 10);
+                
+                // Animate out and remove
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                    setTimeout(() => {
+                        document.body.removeChild(toast);
+                    }, 300);
+                }, 2000);
+            }
+            
+            function updateActiveThemeOption() {
+                const currentTheme = localStorage.getItem('theme') || 'auto';
+                mobileThemeOptions.forEach(option => {
+                    const optionTheme = option.getAttribute('data-theme');
+                    if (optionTheme === currentTheme) {
+                        option.classList.add('active');
+                    } else {
+                        option.classList.remove('active');
+                    }
+                });
+            }
         });
     </script>
     {% block scripts %}{% endblock %}

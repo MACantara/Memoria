@@ -1,0 +1,42 @@
+<div class="mobile-add-menu" id="mobileAddMenu">
+    <div class="mobile-add-menu-backdrop" id="mobileAddMenuBackdrop"></div>
+    <div class="mobile-add-menu-content">
+        <div class="list-group">
+            <!-- Context-aware add cards option -->
+            {% if request.path.startswith('/deck/') and request.path.split('/')[-1].isdigit() %}
+                <!-- In deck view - Add cards to this specific deck -->
+                <button type="button" class="list-group-item list-group-item-action" 
+                        onclick="document.querySelector('.add-cards-btn')?.click(); return false;">
+                    <i class="bi bi-card-text me-2"></i> Add Cards
+                </button>
+                
+                <!-- In deck view - Add sub-deck to this deck -->
+                <button type="button" class="list-group-item list-group-item-action" 
+                        onclick="document.getElementById('createDeckBtn')?.click(); return false;">
+                    <i class="bi bi-folder-symlink me-2"></i> New Sub-deck
+                </button>
+            {% else %}
+                <!-- In home view - Generate cards (will prompt for deck) -->
+                <button type="button" class="list-group-item list-group-item-action" 
+                        onclick="showGenerateModal(); return false;">
+                    <i class="bi bi-card-text me-2"></i> Add Cards
+                </button>
+                
+                <!-- In home view - Create new empty deck -->
+                <button type="button" class="list-group-item list-group-item-action" 
+                        onclick="document.getElementById('createEmptyDeckBtn')?.click(); return false;">
+                    <i class="bi bi-folder me-2"></i> New Deck
+                </button>
+            {% endif %}
+            
+            <!-- Import content - available in all contexts -->
+            <button type="button" class="list-group-item list-group-item-action" 
+                    onclick="showImportModal(); return false;">
+                <i class="bi bi-file-earmark-arrow-up me-2"></i> Import Content
+            </button>
+        </div>
+        <button type="button" class="btn btn-outline-secondary w-100 mt-2" id="mobileAddMenuClose">
+            Cancel
+        </button>
+    </div>
+</div>

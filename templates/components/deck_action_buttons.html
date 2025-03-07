@@ -11,12 +11,13 @@
      show_study=true,                <!-- Show study now dropdown -->
      show_stats=true,                <!-- Show stats button -->
      due_count=0                     <!-- Due count for study button -->
-   %}
-   {% include 'components/deck_action_buttons.html' %}
-   {% endwith %}
+   %} 
+   {% include 'components/deck_action_buttons.html' %} 
+   {% endwith %} 
 #}
 
-<div class="d-flex flex-wrap gap-2">
+<!-- Hide buttons on mobile, show on md screens and larger -->
+<div class="d-none d-md-flex flex-wrap gap-2">
     <!-- Study Button - Context-aware implementation -->
     {% if show_study %}
         {% if deck %}

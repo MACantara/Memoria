@@ -1,0 +1,30 @@
+<div class="mobile-bottom-nav">
+    <a href="{{ url_for('main.index') }}" class="mobile-nav-item">
+        <i class="bi bi-collection"></i>
+        <span>Decks</span>
+    </a>
+    
+    <!-- Study button - uses existing modal -->
+    <button class="mobile-nav-item" data-bs-toggle="modal" data-bs-target="#selectDeckToStudyModal">
+        <i class="bi bi-book"></i>
+        <span>Study</span>
+    </button>
+    
+    <!-- Add button - context-aware implementation -->
+    <button class="mobile-nav-item" id="mobileAddButton">
+        <i class="bi bi-plus-circle"></i>
+        <span>Add</span>
+    </button>
+    
+    <!-- Stats button - uses existing modal -->
+    <button class="mobile-nav-item" data-bs-toggle="modal" data-bs-target="#selectDeckForStatsModal">
+        <i class="bi bi-graph-up"></i>
+        <span>Stats</span>
+    </button>
+    
+    <!-- Theme toggle button for mobile -->
+    <button class="mobile-nav-item" id="mobileThemeToggle">
+        <i class="bi bi-circle-half"></i>
+        <span>Theme</span>
+    </button>
+</div>

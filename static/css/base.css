@@ -131,3 +131,297 @@
 .theme-toggle:hover + .theme-tooltip {
     opacity: 1;
 }
+
+/* Mobile Bottom Navigation */
+.mobile-bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: var(--bs-body-bg);
+    display: none;
+    justify-content: space-around;
+    align-items: center;
+    padding: 10px 5px;
+    border-top: 1px solid var(--bs-border-color);
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+    z-index: 1030;
+}
+
+.mobile-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--bs-secondary);
+    padding: 8px 4px;
+    font-size: 0.75rem;
+    background: none;
+    border: none;
+    border-radius: 8px;
+    text-decoration: none;
+    width: 20%; /* Changed from 25% to 20% to accommodate 5 buttons */
+    transition: all 0.2s ease;
+}
+
+.mobile-nav-item:hover, 
+.mobile-nav-item:active, 
+.mobile-nav-item:focus {
+    color: var(--bs-primary);
+    background-color: rgba(13, 110, 253, 0.1);
+    text-decoration: none;
+}
+
+.mobile-nav-item i {
+    font-size: 1.4rem;
+    margin-bottom: 4px;
+}
+
+/* Add a highlight to the active mobile nav item */
+.mobile-nav-item.active {
+    color: var(--bs-primary);
+}
+
+/* Mobile Add Menu */
+.mobile-add-menu {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1040;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.3s, visibility 0s 0.3s;
+}
+
+.mobile-add-menu.active {
+    visibility: visible;
+    opacity: 1;
+    transition: opacity 0.3s, visibility 0s;
+}
+
+.mobile-add-menu-backdrop {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1041;
+}
+
+.mobile-add-menu-content {
+    position: absolute;
+    bottom: 70px;
+    left: 10px;
+    right: 10px;
+    background-color: var(--bs-body-bg);
+    border-radius: 10px;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+    padding: 15px;
+    z-index: 1042;
+    transform: translateY(20px);
+    transition: transform 0.3s;
+}
+
+.mobile-add-menu.active .mobile-add-menu-content {
+    transform: translateY(0);
+}
+
+.mobile-add-menu .list-group-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 15px;
+}
+
+.mobile-add-menu .list-group-item i {
+    font-size: 1.2rem;
+    margin-right: 8px;
+}
+
+/* Add animation to the plus button when menu is active */
+.mobile-add-menu.active + .mobile-bottom-nav #mobileAddButton {
+    color: var(--bs-primary);
+    background-color: rgba(13, 110, 253, 0.1);
+}
+
+/* Ensure the mobile add button is above the mobile navigation */
+#mobileAddButton {
+    position: relative;
+    z-index: 1045;
+}
+
+/* Mobile Theme Menu */
+.mobile-theme-menu {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1040;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.3s, visibility 0s 0.3s;
+}
+
+.mobile-theme-menu.active {
+    visibility: visible;
+    opacity: 1;
+    transition: opacity 0.3s, visibility 0s;
+}
+
+.mobile-theme-menu-backdrop {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1041;
+}
+
+.mobile-theme-menu-content {
+    position: absolute;
+    bottom: 70px;
+    left: 10px;
+    right: 10px;
+    background-color: var(--bs-body-bg);
+    border-radius: 10px;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+    padding: 15px;
+    z-index: 1042;
+    transform: translateY(20px);
+    transition: transform 0.3s;
+}
+
+.mobile-theme-menu.active .mobile-theme-menu-content {
+    transform: translateY(0);
+}
+
+/* Theme options styling */
+.mobile-theme-option {
+    display: flex;
+    align-items: center;
+    padding: 12px 15px;
+    font-size: 1rem;
+}
+
+.mobile-theme-option .check-icon {
+    margin-left: auto;
+    color: var(--bs-primary);
+    opacity: 0;
+}
+
+.mobile-theme-option.active .check-icon {
+    opacity: 1;
+}
+
+/* Highlight active theme button */
+.mobile-theme-menu.active + .mobile-bottom-nav #mobileThemeToggle {
+    color: var(--bs-primary);
+    background-color: rgba(13, 110, 253, 0.1);
+}
+
+/* Add bottom padding to container on mobile to account for the nav bar */
+@media (max-width: 768px) {
+    .container {
+        padding-bottom: 90px !important; /* Increased from 70px to 90px for more space */
+    }
+    
+    /* Add bottom padding to additional containers that might be used */
+    .container-fluid, 
+    .container-sm, 
+    .container-md, 
+    .container-lg, 
+    .container-xl, 
+    .container-xxl {
+        padding-bottom: 90px !important;
+    }
+    
+    /* Add padding to other common bottom elements */
+    main, section:last-child, .card:last-child {
+        margin-bottom: 20px !important;
+    }
+    
+    /* Ensure the footer has sufficient padding if present */
+    footer {
+        margin-bottom: 90px !important;
+    }
+    
+    /* Make the bottom nav a bit more compact */
+    .mobile-bottom-nav {
+        display: flex;
+        padding: 8px 5px;
+    }
+    
+    /* Hide theme toggle on mobile - it's less important */
+    .theme-toggle-container {
+        display: none;
+    }
+    
+    /* Additional spacing for elements that might appear at bottom of page */
+    .modal-footer, .card-footer, .alert:last-child {
+        margin-bottom: 15px !important;
+    }
+    
+    /* Ensure modals aren't cut off at bottom */
+    .modal-dialog {
+        margin-bottom: 100px;
+    }
+    
+    /* Extra padding at bottom of page to prevent content hiding under navigation */
+    html {
+        scroll-padding-bottom: 100px;
+    }
+    
+    /* Improve interaction with mobile add menu */
+    .mobile-add-menu-content {
+        max-height: 80vh;
+        overflow-y: auto;
+    }
+    
+    .theme-toast {
+        bottom: 80px; /* Position higher on mobile to clear the bottom navigation */
+    }
+}
+
+/* For screens larger than mobile, we hide the mobile nav */
+@media (min-width: 769px) {
+    .mobile-bottom-nav {
+        display: none;
+    }
+}
+
+/* Theme toast for mobile theme switching */
+.theme-toast {
+    position: fixed;
+    bottom: 100px; /* Changed from top: 50% to bottom: 100px */
+    left: 50%;
+    transform: translateX(-50%); /* Simplified transform to just center horizontally */
+    background-color: rgba(0,0,0,0.8);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 50px;
+    font-size: 0.9rem;
+    z-index: 2000;
+    opacity: 0;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    pointer-events: none;
+}
+
+.theme-toast.show {
+    transform: translateX(-50%) translateY(-10px); /* Slight upward animation when showing */
+    opacity: 1;
+}
+
+.theme-toast i {
+    font-size: 1.1rem;
+}
+
+[data-bs-theme="dark"] .theme-toast {
+    background-color: rgba(255,255,255,0.8);
+    color: #121212;
+}
