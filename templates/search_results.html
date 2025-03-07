@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+
+{% block title %}Search Results{% if query %} - "{{ query }}"{% endif %}{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/search.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css') }}">
+{% endblock %}
+
+{% block content %}
+<!-- Search header -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-0">Search</h1>
+    </div>
+</div>
+
+<!-- Search form -->
+<div class="search-container mb-4">
+    <form action="{{ url_for('search.search') }}" method="GET" id="searchForm">
+        <div class="input-group">
+            <input type="text" name="q" id="searchQuery" class="form-control" 
+                   placeholder="Search decks and flashcards..." 
+                   value="{{ query }}" autofocus>
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-search"></i> Search
+            </button>
+        </div>
+        
+        <!-- Search filters (optional) -->
+        <div class="search-filters mt-2 text-muted small">
+            <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="scope" id="scopeAll" value="all" checked>
+                <label class="form-check-label" for="scopeAll">All</label>
+            </div>
+            <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="scope" id="scopeDecks" value="decks">
+                <label class="form-check-label" for="scopeDecks">Decks only</label>
+            </div>
+            <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="scope" id="scopeCards" value="cards">
+                <label class="form-check-label" for="scopeCards">Cards only</label>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Results section -->
+<div id="searchResults">
+    {% if query %}
+        {% if not deck_results and not card_results %}
+            <!-- No results found -->
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle me-2"></i>
+                No results found for "<strong>{{ query }}</strong>". Please try a different search term.
+            </div>
+        {% else %}
+            <!-- Show result counts -->
+            <div class="search-stats mb-3">
+                <p class="text-muted">
+                    Found <strong>{{ total_decks + total_cards }}</strong> results for "<strong>{{ query }}</strong>"
+                    ({{ total_decks }} decks, {{ total_cards }} flashcards)
+                </p>
+            </div>
+            
+            <!-- Deck results -->
+            {% if deck_results %}
+                <section class="mb-5">
+                    <h2 class="h4 mb-3">Deck Results ({{ total_decks }})</h2>
+                    
+                    <div class="row row-cols-1 row-cols-md-3 g-4">
+                        {% for deck in deck_results %}
+                        <div class="col">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h5 class="card-title">{{ deck.name }}</h5>
+                                    {% if deck.description %}
+                                        <p class="card-text text-muted">{{ deck.description }}</p>
+                                    {% endif %}
+                                    <p class="card-text small">
+                                        <i class="bi bi-card-text"></i> {{ deck.count_all_flashcards() }} flashcards
+                                    </p>
+                                </div>
+                                <div class="card-footer bg-transparent">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <a href="{{ url_for('deck.deck_view.get_deck_flashcards', deck_id=deck.flashcard_deck_id) }}" 
+                                           class="btn btn-sm btn-outline-primary">
+                                            View Deck
+                                        </a>
+                                        {% if deck.count_all_flashcards() > 0 %}
+                                        <a href="{{ url_for('deck.deck_view.study_deck', deck_id=deck.flashcard_deck_id, due_only='true') }}" 
+                                           class="btn btn-sm btn-success">
+                                            <i class="bi bi-book"></i> Study
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </section>
+            {% endif %}
+            
+            <!-- Flashcard results -->
+            {% if card_results %}
+                <section>
+                    <h2 class="h4 mb-3">Flashcard Results ({{ total_cards }})</h2>
+                    
+                    <div class="list-group">
+                        {% for card in card_results %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5 class="mb-1">{{ card.question }}</h5>
+                                <span class="badge bg-secondary rounded-pill">{{ card.get_state_name() }}</span>
+                            </div>
+                            <p class="mb-1">
+                                <strong>Answer:</strong> {{ card.correct_answer }}
+                            </p>
+                            <div class="mt-2 d-flex justify-content-between align-items-center text-muted small">
+                                <div>
+                                    <i class="bi bi-folder"></i> 
+                                    <a href="{{ url_for('deck.deck_view.get_deck_flashcards', deck_id=card.deck.flashcard_deck_id) }}" 
+                                       class="text-decoration-none">{{ card.deck.name }}</a>
+                                </div>
+                                <a href="{{ url_for('deck.deck_view.study_deck', deck_id=card.deck.flashcard_deck_id) }}" 
+                                   class="btn btn-sm btn-outline-success">
+                                    Study Deck
+                                </a>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </section>
+            {% endif %}
+        {% endif %}
+    {% else %}
+        <!-- No search query yet -->
+        <div class="search-empty-state text-center py-5">
+            <i class="bi bi-search display-1 text-secondary"></i>
+            <h2 class="h4 mt-3 mb-2">Search for decks and flashcards</h2>
+            <p class="text-muted">
+                Enter a search term to find decks by name or description,<br>
+                or find specific flashcards by question or answer.
+            </p>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Add pagination if needed -->
+{% if query and (total_decks > per_page or total_cards > per_page) %}
+<div class="mt-4">
+    <nav aria-label="Search result pages">
+        <ul class="pagination justify-content-center">
+            <!-- Previous page -->
+            <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                <a class="page-link" href="?q={{ query }}&page={{ page - 1 }}" aria-label="Previous">
+                    <span aria-hidden="true">&laquo;</span>
+                </a>
+            </li>
+            
+            <!-- Page numbers -->
+            {% set total_pages = ((total_decks + total_cards) / per_page) | round(0, 'ceil') | int %}
+            {% for p in range(1, min(total_pages + 1, 6)) %}
+                <li class="page-item {% if p == page %}active{% endif %}">
+                    <a class="page-link" href="?q={{ query }}&page={{ p }}">{{ p }}</a>
+                </li>
+            {% endfor %}
+            
+            <!-- If there are more pages -->
+            {% if total_pages > 5 %}
+                <!-- Ellipsis if needed -->
+                {% if page < total_pages - 2 %}
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
+                    </li>
+                {% endif %}
+                
+                <!-- Last page -->
+                <li class="page-item {% if page == total_pages %}active{% endif %}">
+                    <a class="page-link" href="?q={{ query }}&page={{ total_pages }}">{{ total_pages }}</a>
+                </li>
+            {% endif %}
+            
+            <!-- Next page -->
+            <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+                <a class="page-link" href="?q={{ query }}&page={{ page + 1 }}" aria-label="Next">
+                    <span aria-hidden="true">&raquo;</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchForm = document.getElementById('searchForm');
+        const searchQuery = document.getElementById('searchQuery');
+        
+        // Auto-focus search input and select text
+        if (searchQuery) {
+            searchQuery.focus();
+            searchQuery.select();
+        }
+        
+        // Set up radio button filters to auto-submit form
+        const radioButtons = document.querySelectorAll('input[name="scope"]');
+        radioButtons.forEach(radio => {
+            radio.addEventListener('change', () => {
+                searchForm.submit();
+            });
+        });
+    });
+</script>
+{% endblock %}
