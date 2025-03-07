@@ -1,6 +1,7 @@
-from flask import Blueprint, request, render_template, jsonify
+from flask import Blueprint, request, render_template, jsonify, g
 from models import db, FlashcardDecks, Flashcards
 from sqlalchemy import or_, and_
+from routes.deck.utils import count_due_flashcards
 
 search_bp = Blueprint('search', __name__, url_prefix='/search')
 
@@ -9,8 +10,11 @@ def search():
     """Handle search requests and render search results page"""
     query = request.args.get('q', '').strip()
     page = int(request.args.get('page', 1))
-    scope = request.args.get('scope', 'all')  # Add scope parameter with default 'all'
+    scope = request.args.get('scope', 'all')
     per_page = 20
+    
+    # Get all decks for the study/stats modals
+    g.all_decks = FlashcardDecks.query.all()
     
     # Empty query shows search page with no results
     if not query:
@@ -22,7 +26,8 @@ def search():
                               total_cards=0,
                               page=page,
                               per_page=per_page,
-                              scope=scope)  # Pass scope to template
+                              scope=scope,
+                              count_due_flashcards=count_due_flashcards)  # Pass the function
     
     # For AJAX requests, return JSON data
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -48,7 +53,8 @@ def search():
                           total_cards=total_cards,
                           page=page,
                           per_page=per_page,
-                          scope=scope)  # Pass scope to template
+                          scope=scope,
+                          count_due_flashcards=count_due_flashcards)  # Pass the function
 
 @search_bp.route('/api', methods=['GET'])
 def search_api():
