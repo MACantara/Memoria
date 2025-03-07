@@ -136,10 +136,22 @@ export class UIManager {
     updateCardCounter(index, total, score) {
         // Calculate cards left to review in this session
         const remaining = Math.max(0, total - score);
-        const currentIndex = index + 1;  // 1-based index for display
         
+        // Update the score and remaining counts
+        const scoreCountElement = document.getElementById('scoreCount');
+        const remainingCountElement = document.getElementById('remainingCount');
+        
+        if (scoreCountElement) {
+            scoreCountElement.textContent = score;
+        }
+        
+        if (remainingCountElement) {
+            remainingCountElement.textContent = remaining;
+        }
+        
+        // Update the full card counter text if it exists
         if (this.cardCounter) {
-            this.cardCounter.textContent = `Card ${currentIndex} of ${total} (${remaining} remaining)`;
+            this.cardCounter.innerHTML = `<span id="scoreCount">${score}</span> / ${total} completed (<span id="remainingCount">${remaining}</span> remaining)`;
         }
     }
 
