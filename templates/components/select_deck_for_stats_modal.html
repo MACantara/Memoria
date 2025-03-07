@@ -2,44 +2,77 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="selectDeckForStatsModalLabel">Select Deck for Statistics</h5>
+                <h5 class="modal-title" id="selectDeckForStatsModalLabel">Select Deck for Stats</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
+                <!-- Authentication notice -->
+                {% if not current_user.is_authenticated %}
+                <div class="alert alert-info mb-3">
+                    <i class="bi bi-info-circle-fill me-2"></i>
+                    You're viewing stats for public decks. <a href="{{ url_for('auth.login') }}">Log in</a> to see your own decks.
+                </div>
+                {% endif %}
+                
+                <p class="mb-3">Select a deck to view its spaced repetition statistics:</p>
+                
                 <div class="mb-3">
-                    <label for="statsDeckSelect" class="form-label">Choose a deck to view statistics:</label>
                     <select class="form-select deck-search-select" id="statsDeckSelect">
                         <option value="" disabled selected>Select a deck...</option>
                         
-                        <!-- Show all decks without indentation -->
-                        {% for deck in decks %}
-                            <option value="{{ deck.flashcard_deck_id }}" 
-                                    data-card-count="{{ deck.count_all_flashcards() }}"
-                                    data-has-cards="{{ 'true' if deck.count_all_flashcards() > 0 else 'false' }}"
-                                    data-parent="{{ deck.parent_deck.name if deck.parent_deck_id else '' }}">
-                                {{ deck.name }} ({{ deck.count_all_flashcards() }} cards)
-                            </option>
+                        <!-- Filter decks based on authentication - show only owned and public decks -->
+                        {% for deck in g.all_decks %}
+                            {% if deck.user_id == None or (current_user.is_authenticated and deck.user_id == current_user.id) %}
+                                <!-- Add deck info as data attributes for search component -->
+                                <option value="{{ deck.flashcard_deck_id }}" 
+                                        data-card-count="{{ deck.count_all_flashcards() }}"
+                                        {% if deck.user_id == current_user.id %}
+                                        data-owner="you"
+                                        {% else %}
+                                        data-owner="public"
+                                        {% endif %}
+                                >
+                                    {{ deck.name }}
+                                    {% if deck.user_id == current_user.id %}
+                                    (Your Deck)
+                                    {% elif deck.user_id %}
+                                    (Private)
+                                    {% else %}
+                                    (Public)
+                                    {% endif %}
+                                </option>
+                                
+                                <!-- Show subdeck hierarchy for visual clarity -->
+                                {% for child in deck.child_decks %}
+                                    {% if child.user_id == None or (current_user.is_authenticated and child.user_id == current_user.id) %}
+                                        <option value="{{ child.flashcard_deck_id }}" 
+                                                data-parent="{{ deck.name }}"
+                                                data-card-count="{{ child.count_all_flashcards() }}">
+                                            └─ {{ child.name }}
+                                        </option>
+                                    {% endif %}
+                                {% endfor %}
+                            {% endif %}
                         {% endfor %}
                     </select>
-                    <!-- Help text - will be added by the component -->
                 </div>
                 
-                <div id="statsDeckInfo" class="small text-muted mb-3 d-none">
-                    <i class="bi bi-folder2"></i> <span id="statsParentDeckName"></span>
-                </div>
-                
-                <div class="alert alert-warning d-none" id="noStatsDeckSelectedWarning">
-                    <i class="bi bi-exclamation-triangle me-2"></i> Please select a deck first.
-                </div>
-                
-                <div class="alert alert-info d-none" id="noStatsAvailableWarning">
-                    <i class="bi bi-info-circle me-2"></i> This deck has no cards or study history for statistics.
+                <div id="selected-deck-info" class="d-none">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title" id="selected-deck-name">Deck Name</h5>
+                            <h6 class="card-subtitle mb-2 text-muted" id="selected-deck-owner"></h6>
+                            <p class="card-text small">
+                                <span class="badge bg-primary" id="selected-deck-card-count">0 Cards</span>
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-success" id="viewStatsBtn">
-                    <i class="bi bi-graph-up"></i> View Statistics
+                <button type="button" class="btn btn-success" id="viewStatsBtn" disabled>
+                    <i class="bi bi-bar-chart"></i> View Stats
                 </button>
             </div>
         </div>

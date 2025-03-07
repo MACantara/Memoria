@@ -6,60 +6,89 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
+                <!-- Authentication notice -->
+                {% if not current_user.is_authenticated %}
+                <div class="alert alert-info mb-3">
+                    <i class="bi bi-info-circle-fill me-2"></i>
+                    You're studying public decks. <a href="{{ url_for('auth.login') }}">Log in</a> to track your progress.
+                </div>
+                {% endif %}
+                
+                <p class="mb-3">Select a deck to study:</p>
+                
                 <div class="mb-3">
-                    <label for="studyDeckSelect" class="form-label">Choose a deck to study:</label>
                     <select class="form-select deck-search-select" id="studyDeckSelect">
                         <option value="" disabled selected>Select a deck...</option>
                         
-                        <!-- Show all decks with due counts -->
-                        {% for deck in decks %}
-                            {% set due_count = count_due_flashcards(deck.flashcard_deck_id) %}
-                            <option value="{{ deck.flashcard_deck_id }}" 
-                                    data-card-count="{{ deck.count_all_flashcards() }}"
-                                    data-has-cards="{{ 'true' if deck.count_all_flashcards() > 0 else 'false' }}"
-                                    data-due-count="{{ due_count }}"
-                                    data-parent="{{ deck.parent_deck.name if deck.parent_deck_id else '' }}">
-                                {{ deck.name }} ({{ due_count }} due / {{ deck.count_all_flashcards() }} total)
-                            </option>
+                        <!-- Show only decks the user has access to -->
+                        {% for deck in g.all_decks %}
+                            {% if deck.user_id == None or (current_user.is_authenticated and deck.user_id == current_user.id) %}
+                                <!-- Add deck info as data attributes for search component and due count -->
+                                <option value="{{ deck.flashcard_deck_id }}" 
+                                        data-card-count="{{ deck.count_all_flashcards() }}"
+                                        data-due-count="0"
+                                        {% if deck.user_id == current_user.id %}
+                                        data-owner="you"
+                                        {% else %}
+                                        data-owner="public"
+                                        {% endif %}
+                                >
+                                    {{ deck.name }}
+                                    {% if deck.user_id == current_user.id %}
+                                    (Your Deck)
+                                    {% elif deck.user_id %}
+                                    (Private)
+                                    {% else %}
+                                    (Public)
+                                    {% endif %}
+                                </option>
+                                
+                                <!-- Show subdeck hierarchy -->
+                                {% for child in deck.child_decks %}
+                                    {% if child.user_id == None or (current_user.is_authenticated and child.user_id == current_user.id) %}
+                                        <option value="{{ child.flashcard_deck_id }}" 
+                                                data-parent="{{ deck.name }}"
+                                                data-card-count="{{ child.count_all_flashcards() }}"
+                                                data-due-count="0">
+                                            └─ {{ child.name }}
+                                        </option>
+                                    {% endif %}
+                                {% endfor %}
+                            {% endif %}
                         {% endfor %}
                     </select>
-                    <!-- Help text - will be added by the component -->
                 </div>
                 
-                <div class="d-flex justify-content-between mt-4">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="studyDueOnly" checked>
-                        <label class="form-check-label" for="studyDueOnly">
-                            Only show cards due today
-                        </label>
+                <div id="study-deck-info" class="d-none">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title" id="study-deck-name">Deck Name</h5>
+                            <h6 class="card-subtitle mb-2 text-muted" id="study-deck-owner"></h6>
+                            <p class="card-text">
+                                <span class="badge bg-secondary me-2" id="study-deck-card-count">0 Cards</span>
+                                <span class="badge bg-warning text-dark" id="study-deck-due-count">0 Due</span>
+                            </p>
+                        </div>
                     </div>
-                    <div class="text-muted">
-                        <span id="selectedDeckDueCount" class="badge bg-primary me-1">0 due</span>
-                        <span id="selectedDeckCardCount">0 total</span>
-                    </div>
-                </div>
-                
-                <div id="deckInfo" class="small text-muted mb-3 d-none">
-                    <i class="bi bi-folder2"></i> <span id="parentDeckName"></span>
-                </div>
-                
-                <div class="alert alert-warning d-none" id="noDeckSelectedWarning">
-                    <i class="bi bi-exclamation-triangle me-2"></i> Please select a deck first.
-                </div>
-                
-                <div class="alert alert-info d-none" id="noCardsWarning">
-                    <i class="bi bi-info-circle me-2"></i> This deck has no cards. Please add cards first.
-                </div>
-                
-                <div class="alert alert-info d-none" id="noDueCardsWarning">
-                    <i class="bi bi-info-circle me-2"></i> No cards are due for study today in this deck.
                 </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-success" id="startStudyingBtn">
-                    <i class="bi bi-book"></i> Start Studying
-                </button>
+                <div class="btn-group">
+                    <button type="button" class="btn btn-success" id="studyDueBtn" disabled>
+                        <i class="bi bi-calendar-check"></i> Study Due Cards
+                    </button>
+                    <button type="button" class="btn btn-success dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
+                        <span class="visually-hidden">Toggle Dropdown</span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li>
+                            <button class="dropdown-item" type="button" id="studyAllBtn">
+                                <i class="bi bi-collection"></i> Study All Cards
+                            </button>
+                        </li>
+                    </ul>
+                </div>
             </div>
         </div>
     </div>
