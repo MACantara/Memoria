@@ -70,8 +70,8 @@
                             
                             <div class="mb-3">
                                 <label for="importDeckSelect" class="form-label">Choose a deck:</label>
-                                <select class="form-select searchable-select deck-search-select" id="importDeckSelect" name="deck_id" required>
-                                    <option value="" disabled selected>Type to search decks...</option>
+                                <select class="form-select deck-search-select" id="importDeckSelect" name="deck_id" required>
+                                    <option value="" disabled selected>Select a deck...</option>
                                     {% for deck in g.all_decks if not deck.parent_deck_id %} <!-- Only top-level decks -->
                                         <option value="{{ deck.flashcard_deck_id }}">{{ deck.name }}</option>
                                         {% for subdeck in deck.child_decks %}
@@ -79,9 +79,7 @@
                                         {% endfor %}
                                     {% endfor %}
                                 </select>
-                                <div class="form-text">
-                                    <i class="bi bi-info-circle"></i> Type to search decks or use arrow keys to browse
-                                </div>
+                                <!-- Help text is automatically added by the component -->
                             </div>
 
                             <div class="d-grid">

@@ -25,8 +25,8 @@
                     
                     <div id="parentDeckSelectContainer" class="mb-3 d-none">
                         <label for="parentDeckSelect" class="form-label">Choose a new parent deck:</label>
-                        <select class="form-select searchable-select deck-search-select" id="parentDeckSelect" disabled>
-                            <option value="" disabled selected>Type to search decks...</option>
+                        <select class="form-select deck-search-select" id="parentDeckSelect" disabled>
+                            <option value="" disabled selected>Select a parent deck...</option>
                             
                             <!-- List of possible parent decks -->
                             {% for deck in g.all_decks %}
@@ -42,9 +42,7 @@
                                 {% endif %}
                             {% endfor %}
                         </select>
-                        <div class="form-text">
-                            <i class="bi bi-keyboard"></i> Type to search, press ESC to clear search
-                        </div>
+                        <!-- Parent info shown through the component -->
                     </div>
                         
                     <!-- Display information about the selected parent deck -->
