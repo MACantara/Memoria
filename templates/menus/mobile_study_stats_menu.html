@@ -1,0 +1,110 @@
+<div class="mobile-study-stats-menu">
+    <div class="mobile-study-stats-menu-backdrop" id="mobileStudyStatsMenuBackdrop"></div>
+    
+    <div class="mobile-study-stats-menu-content">
+        <div class="py-2">
+            <h5 class="modal-title text-center mb-3">Study & Stats</h5>
+            
+            <!-- Context-aware menu content -->
+            <div class="list-group list-group-flush">
+                {% if request.path.startswith('/deck/') and request.path.split('/')[-1].isdigit() %}
+                    <!-- In deck view - Link directly to study this deck with due cards -->
+                    {% set deck_id = request.path.split('/')[-1] %}
+                    <a href="{{ url_for('deck.deck_view.study_deck', deck_id=deck_id, due_only='true') }}" class="list-group-item list-group-item-action">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-calendar-check text-success me-3"></i>
+                            <div>
+                                <div class="fw-bold">Study Due Cards</div>
+                                <small class="text-muted">Review cards due today</small>
+                            </div>
+                        </div>
+                    </a>
+                    <a href="{{ url_for('deck.deck_view.study_deck', deck_id=deck_id) }}" class="list-group-item list-group-item-action">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-collection-play text-primary me-3"></i>
+                            <div>
+                                <div class="fw-bold">Study All Cards</div>
+                                <small class="text-muted">Review all cards in this deck</small>
+                            </div>
+                        </div>
+                    </a>
+                    <a href="{{ url_for('stats.view_deck_stats', deck_id=deck_id) }}" class="list-group-item list-group-item-action">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-graph-up text-info me-3"></i>
+                            <div>
+                                <div class="fw-bold">View Stats</div>
+                                <small class="text-muted">See progress for this deck</small>
+                            </div>
+                        </div>
+                    </a>
+                {% elif request.path.startswith('/stats/deck/') and request.path.split('/')[3].isdigit() %}
+                    <!-- In stats view - Link to study this deck -->
+                    {% set deck_id = request.path.split('/')[3] %}
+                    <a href="{{ url_for('deck.deck_view.study_deck', deck_id=deck_id, due_only='true') }}" class="list-group-item list-group-item-action">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-calendar-check text-success me-3"></i>
+                            <div>
+                                <div class="fw-bold">Study Due Cards</div>
+                                <small class="text-muted">Review cards due today</small>
+                            </div>
+                        </div>
+                    </a>
+                    <a href="{{ url_for('deck.deck_view.study_deck', deck_id=deck_id) }}" class="list-group-item list-group-item-action">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-collection-play text-primary me-3"></i>
+                            <div>
+                                <div class="fw-bold">Study All Cards</div>
+                                <small class="text-muted">Review all cards in this deck</small>
+                            </div>
+                        </div>
+                    </a>
+                    <a href="{{ url_for('deck.deck_view.get_deck_flashcards', deck_id=deck_id) }}" class="list-group-item list-group-item-action">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-folder text-secondary me-3"></i>
+                            <div>
+                                <div class="fw-bold">Back to Deck</div>
+                                <small class="text-muted">View deck contents</small>
+                            </div>
+                        </div>
+                    </a>
+                {% else %}
+                    <!-- In home/index view - Open modal to select a deck -->
+                    <button class="list-group-item list-group-item-action" data-bs-toggle="modal" data-bs-target="#selectDeckToStudyModal">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-calendar-check text-success me-3"></i>
+                            <div>
+                                <div class="fw-bold">Study Due Cards</div>
+                                <small class="text-muted">Review cards due today</small>
+                            </div>
+                        </div>
+                    </button>
+                    <button class="list-group-item list-group-item-action" data-bs-toggle="modal" data-bs-target="#selectDeckToStudyModal">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-collection-play text-primary me-3"></i>
+                            <div>
+                                <div class="fw-bold">Study All Cards</div>
+                                <small class="text-muted">Review cards from any deck</small>
+                            </div>
+                        </div>
+                    </button>
+                    <button class="list-group-item list-group-item-action" data-bs-toggle="modal" data-bs-target="#selectDeckForStatsModal">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-graph-up text-info me-3"></i>
+                            <div>
+                                <div class="fw-bold">View Stats</div>
+                                <small class="text-muted">See progress for any deck</small>
+                            </div>
+                        </div>
+                    </button>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Cancel button -->
+        <div class="d-flex justify-content-center mt-3">
+            <button type="button" class="btn btn-sm btn-secondary" id="mobileStudyStatsMenuClose">
+                <i class="bi bi-x"></i> Close
+            </button>
+        </div>
+    </div>
+</div>

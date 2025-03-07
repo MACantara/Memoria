@@ -4,65 +4,25 @@
         <span>Decks</span>
     </a>
     
-    <!-- Context-aware Study button -->
-    {% if request.path.startswith('/deck/') and request.path.split('/')[-1].isdigit() %}
-        <!-- In deck view - Link directly to study this deck with due cards -->
-        {% set deck_id = request.path.split('/')[-1] %}
-        <a href="{{ url_for('deck.deck_view.study_deck', deck_id=deck_id, due_only='true') }}" class="mobile-nav-item">
-            <i class="bi bi-book"></i>
-            <span>Study</span>
-        </a>
-    {% elif request.path.startswith('/stats/deck/') and request.path.split('/')[3].isdigit() %}
-        <!-- In stats view - Link directly to study this deck with due cards -->
-        {% set deck_id = request.path.split('/')[3] %}
-        <a href="{{ url_for('deck.deck_view.study_deck', deck_id=deck_id, due_only='true') }}" class="mobile-nav-item">
-            <i class="bi bi-book"></i>
-            <span>Study</span>
-        </a>
-    {% else %}
-        <!-- In home/index view - Open modal to select a deck -->
-        <button class="mobile-nav-item" data-bs-toggle="modal" data-bs-target="#selectDeckToStudyModal">
-            <i class="bi bi-book"></i>
-            <span>Study</span>
-        </button>
-    {% endif %}
+    <!-- Combined Study & Stats button that opens a menu -->
+    <button class="mobile-nav-item" id="mobileStudyStatsButton">
+        <i class="bi bi-book"></i>
+        <span>Study</span>
+    </button>
     
-    <!-- Add button - context-aware implementation -->
+    <!-- Add button -->
     <button class="mobile-nav-item" id="mobileAddButton">
         <i class="bi bi-plus-circle"></i>
         <span>Add</span>
     </button>
     
-    <!-- Add search button after Add button -->
+    <!-- Search button -->
     <a href="{{ url_for('search.search') }}" class="mobile-nav-item">
         <i class="bi bi-search"></i>
         <span>Search</span>
     </a>
     
-    <!-- Context-aware Stats button -->
-    {% if request.path.startswith('/deck/') and request.path.split('/')[-1].isdigit() %}
-        <!-- In deck view - Link directly to stats for this deck -->
-        {% set deck_id = request.path.split('/')[-1] %}
-        <a href="{{ url_for('stats.view_deck_stats', deck_id=deck_id) }}" class="mobile-nav-item">
-            <i class="bi bi-graph-up"></i>
-            <span>Stats</span>
-        </a>
-    {% elif request.path.startswith('/stats/deck/') and request.path.split('/')[3].isdigit() %}
-        <!-- Already in stats view - Link back to deck view -->
-        {% set deck_id = request.path.split('/')[3] %}
-        <a href="{{ url_for('deck.deck_view.get_deck_flashcards', deck_id=deck_id) }}" class="mobile-nav-item active">
-            <i class="bi bi-graph-up"></i>
-            <span>Stats</span>
-        </a>
-    {% else %}
-        <!-- In home/index view - Open modal to select a deck -->
-        <button class="mobile-nav-item" data-bs-toggle="modal" data-bs-target="#selectDeckForStatsModal">
-            <i class="bi bi-graph-up"></i>
-            <span>Stats</span>
-        </button>
-    {% endif %}
-    
-    <!-- Theme toggle button for mobile -->
+    <!-- Theme toggle button -->
     <button class="mobile-nav-item" id="mobileThemeToggle">
         <i class="bi bi-circle-half"></i>
         <span>Theme</span>
