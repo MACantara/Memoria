@@ -20,12 +20,39 @@ export class FlashcardManager {
         this.isLoading = false;
         this.currentCard = null;  // Store the current card data
         
+        // Initialize event system
+        this.eventListeners = {};
+        
         // Initialize navigation and event managers
         this.navigation = new NavigationManager(this);
         this.events = new EventManager(this, this.ui);
         
         // Make this instance available globally for event handlers
         window.flashcardManager = this;
+    }
+
+    // Add event listener system
+    addEventListener(eventName, callback) {
+        if (!this.eventListeners[eventName]) {
+            this.eventListeners[eventName] = [];
+        }
+        this.eventListeners[eventName].push(callback);
+    }
+
+    removeEventListener(eventName, callback) {
+        if (this.eventListeners[eventName]) {
+            this.eventListeners[eventName] = this.eventListeners[eventName].filter(
+                cb => cb !== callback
+            );
+        }
+    }
+
+    dispatchEvent(eventName, data) {
+        if (this.eventListeners[eventName]) {
+            this.eventListeners[eventName].forEach(callback => {
+                callback(data);
+            });
+        }
     }
 
     async initialize() {
@@ -43,6 +70,9 @@ export class FlashcardManager {
                 this.currentCard = this.flashcards[0];
                 this.ui.renderCard(this.currentCard);
                 this.updateCardCounter();
+                
+                // Dispatch event when first batch is loaded
+                this.dispatchEvent('firstBatchLoaded');
             }
         }
         
