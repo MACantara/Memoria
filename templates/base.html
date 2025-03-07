@@ -68,6 +68,12 @@
             <i class="bi bi-graph-up"></i>
             <span>Stats</span>
         </button>
+        
+        <!-- Theme toggle button for mobile -->
+        <button class="mobile-nav-item" id="mobileThemeToggle">
+            <i class="bi bi-circle-half"></i>
+            <span>Theme</span>
+        </button>
     </div>
     
     <!-- Mobile Add Actions Menu (hidden by default) -->
@@ -294,6 +300,104 @@
                 } else if (currentPath.includes('/stats')) {
                     navItems[3].classList.add('active'); // Stats
                 }
+            }
+            
+            // Mobile theme toggle functionality
+            const mobileThemeToggle = document.getElementById('mobileThemeToggle');
+            const currentTheme = localStorage.getItem('theme') || 'auto';
+            
+            // Set initial icon based on current theme
+            if (mobileThemeToggle) {
+                updateMobileThemeIcon(mobileThemeToggle);
+                
+                mobileThemeToggle.addEventListener('click', function() {
+                    const htmlElement = document.documentElement;
+                    const currentTheme = localStorage.getItem('theme') || 'auto';
+                    let newTheme;
+                    
+                    // Simple rotation between themes: light -> dark -> auto -> light
+                    if (currentTheme === 'light') {
+                        newTheme = 'dark';
+                    } else if (currentTheme === 'dark') {
+                        newTheme = 'auto';
+                    } else {
+                        newTheme = 'light';
+                    }
+                    
+                    // Apply the new theme
+                    localStorage.setItem('theme', newTheme);
+                    
+                    // Update theme on document
+                    if (newTheme === 'dark') {
+                        htmlElement.setAttribute('data-bs-theme', 'dark');
+                    } else if (newTheme === 'light') {
+                        htmlElement.setAttribute('data-bs-theme', 'light');
+                    } else if (newTheme === 'auto') {
+                        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                        htmlElement.setAttribute('data-bs-theme', prefersDark ? 'dark' : 'light');
+                    }
+                    
+                    // Update the icon
+                    updateMobileThemeIcon(mobileThemeToggle);
+                    
+                    // Show brief toast notification
+                    showThemeChangeToast(newTheme);
+                });
+            }
+            
+            function updateMobileThemeIcon(buttonElement) {
+                const currentTheme = localStorage.getItem('theme') || 'auto';
+                const iconElement = buttonElement.querySelector('i');
+                const textElement = buttonElement.querySelector('span');
+                
+                // Remove all icon classes
+                iconElement.className = '';
+                
+                // Add appropriate icon and text based on theme
+                if (currentTheme === 'dark') {
+                    iconElement.className = 'bi bi-moon-stars-fill';
+                    textElement.textContent = 'Dark';
+                } else if (currentTheme === 'light') {
+                    iconElement.className = 'bi bi-sun-fill';
+                    textElement.textContent = 'Light';
+                } else { // auto
+                    iconElement.className = 'bi bi-circle-half';
+                    textElement.textContent = 'Auto';
+                }
+            }
+            
+            function showThemeChangeToast(theme) {
+                // Create toast element
+                const toast = document.createElement('div');
+                toast.className = 'theme-toast';
+                
+                let icon, text;
+                if (theme === 'dark') {
+                    icon = 'bi-moon-stars-fill';
+                    text = 'Dark Mode';
+                } else if (theme === 'light') {
+                    icon = 'bi-sun-fill';
+                    text = 'Light Mode';
+                } else { // auto
+                    icon = 'bi-circle-half';
+                    text = 'System Theme';
+                }
+                
+                toast.innerHTML = `<i class="bi ${icon}"></i> ${text}`;
+                document.body.appendChild(toast);
+                
+                // Animate in
+                setTimeout(() => {
+                    toast.classList.add('show');
+                }, 10);
+                
+                // Animate out and remove
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                    setTimeout(() => {
+                        document.body.removeChild(toast);
+                    }, 300);
+                }, 2000);
             }
         });
     </script>
