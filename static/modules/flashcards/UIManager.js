@@ -112,9 +112,13 @@ export class UIManager {
                 `Complete (0 remaining)`;
         }
         
-        // Update the status badge to show completion
-        this.statusBadge.textContent = 'Completed';
-        this.statusBadge.className = 'badge fs-4 p-3 bg-success';
+        // Update the status badge to show completion - ADD NULL CHECK
+        if (this.statusBadge) {
+            this.statusBadge.textContent = 'Completed';
+            this.statusBadge.className = 'badge fs-4 p-3 bg-success';
+        } else {
+            console.log("Status badge element not found");
+        }
         
         const container = document.getElementById('flashcardsContainer');
         
@@ -432,7 +436,7 @@ export class UIManager {
             `;
         }
 
-        // Update badge to show completion status
+        // Update badge to show completion status - ADD NULL CHECK HERE TOO
         const statusBadge = document.getElementById('statusBadge');
         if (statusBadge) {
             statusBadge.textContent = 'Completed';
