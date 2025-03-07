@@ -251,6 +251,76 @@
     z-index: 1045;
 }
 
+/* Mobile Theme Menu */
+.mobile-theme-menu {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1040;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.3s, visibility 0s 0.3s;
+}
+
+.mobile-theme-menu.active {
+    visibility: visible;
+    opacity: 1;
+    transition: opacity 0.3s, visibility 0s;
+}
+
+.mobile-theme-menu-backdrop {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1041;
+}
+
+.mobile-theme-menu-content {
+    position: absolute;
+    bottom: 70px;
+    left: 10px;
+    right: 10px;
+    background-color: var(--bs-body-bg);
+    border-radius: 10px;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+    padding: 15px;
+    z-index: 1042;
+    transform: translateY(20px);
+    transition: transform 0.3s;
+}
+
+.mobile-theme-menu.active .mobile-theme-menu-content {
+    transform: translateY(0);
+}
+
+/* Theme options styling */
+.mobile-theme-option {
+    display: flex;
+    align-items: center;
+    padding: 12px 15px;
+    font-size: 1rem;
+}
+
+.mobile-theme-option .check-icon {
+    margin-left: auto;
+    color: var(--bs-primary);
+    opacity: 0;
+}
+
+.mobile-theme-option.active .check-icon {
+    opacity: 1;
+}
+
+/* Highlight active theme button */
+.mobile-theme-menu.active + .mobile-bottom-nav #mobileThemeToggle {
+    color: var(--bs-primary);
+    background-color: rgba(13, 110, 253, 0.1);
+}
+
 /* Add bottom padding to container on mobile to account for the nav bar */
 @media (max-width: 768px) {
     .container {

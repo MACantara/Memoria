@@ -75,6 +75,27 @@
             <span>Theme</span>
         </button>
     </div>
+
+    <!-- Mobile Theme Menu (hidden by default) -->
+    <div class="mobile-theme-menu" id="mobileThemeMenu">
+        <div class="mobile-theme-menu-backdrop" id="mobileThemeMenuBackdrop"></div>
+        <div class="mobile-theme-menu-content">
+            <div class="list-group">
+                <button type="button" class="list-group-item list-group-item-action mobile-theme-option" data-theme="light">
+                    <i class="bi bi-sun-fill me-2"></i> Light Mode
+                    <i class="bi bi-check-lg check-icon"></i>
+                </button>
+                <button type="button" class="list-group-item list-group-item-action mobile-theme-option" data-theme="dark">
+                    <i class="bi bi-moon-stars-fill me-2"></i> Dark Mode
+                    <i class="bi bi-check-lg check-icon"></i>
+                </button>
+                <button type="button" class="list-group-item list-group-item-action mobile-theme-option" data-theme="auto">
+                    <i class="bi bi-circle-half me-2"></i> System Preference
+                    <i class="bi bi-check-lg check-icon"></i>
+                </button>
+            </div>
+        </div>
+    </div>
     
     <!-- Mobile Add Actions Menu (hidden by default) -->
     <div class="mobile-add-menu" id="mobileAddMenu">
@@ -362,7 +383,7 @@
                     textElement.textContent = 'Light';
                 } else { // auto
                     iconElement.className = 'bi bi-circle-half';
-                    textElement.textContent = 'Auto';
+                    textElement.textContent = 'Theme';
                 }
             }
             
@@ -398,6 +419,68 @@
                         document.body.removeChild(toast);
                     }, 300);
                 }, 2000);
+            }
+            
+            // Mobile theme menu functionality
+            const mobileThemeMenu = document.getElementById('mobileThemeMenu');
+            const mobileThemeMenuBackdrop = document.getElementById('mobileThemeMenuBackdrop');
+            const mobileThemeOptions = document.querySelectorAll('.mobile-theme-option');
+            
+            // Toggle menu when theme button is clicked
+            if (mobileThemeToggle && mobileThemeMenu) {
+                mobileThemeToggle.addEventListener('click', function() {
+                    mobileThemeMenu.classList.toggle('active');
+                    updateActiveThemeOption(); // Update checkmarks
+                });
+                
+                // Close menu when backdrop is clicked
+                if (mobileThemeMenuBackdrop) {
+                    mobileThemeMenuBackdrop.addEventListener('click', function() {
+                        mobileThemeMenu.classList.remove('active');
+                    });
+                }
+                
+                // Handle theme option selection
+                mobileThemeOptions.forEach(option => {
+                    option.addEventListener('click', function() {
+                        const theme = this.getAttribute('data-theme');
+                        const htmlElement = document.documentElement;
+                        
+                        // Apply and save the theme
+                        localStorage.setItem('theme', theme);
+                        
+                        // Apply theme to document
+                        if (theme === 'dark') {
+                            htmlElement.setAttribute('data-bs-theme', 'dark');
+                        } else if (theme === 'light') {
+                            htmlElement.setAttribute('data-bs-theme', 'light');
+                        } else if (theme === 'auto') {
+                            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                            htmlElement.setAttribute('data-bs-theme', prefersDark ? 'dark' : 'light');
+                        }
+                        
+                        // Update the theme toggle icon
+                        updateMobileThemeIcon(mobileThemeToggle);
+                        
+                        // Show toast notification
+                        showThemeChangeToast(theme);
+                        
+                        // Close the menu
+                        mobileThemeMenu.classList.remove('active');
+                    });
+                });
+            }
+            
+            function updateActiveThemeOption() {
+                const currentTheme = localStorage.getItem('theme') || 'auto';
+                mobileThemeOptions.forEach(option => {
+                    const optionTheme = option.getAttribute('data-theme');
+                    if (optionTheme === currentTheme) {
+                        option.classList.add('active');
+                    } else {
+                        option.classList.remove('active');
+                    }
+                });
             }
         });
     </script>
