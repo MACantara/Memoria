@@ -491,3 +491,45 @@
     background-color: rgba(255,255,255,0.8);
     color: #121212;
 }
+
+/* Top Navigation Bar Styling */
+.navbar {
+    padding: 0.5rem 1rem;
+    transition: all 0.3s ease;
+}
+
+[data-bs-theme="dark"] .navbar {
+    background-color: var(--bs-dark) !important;
+    border-color: var(--bs-dark-border-subtle);
+}
+
+.navbar-brand {
+    font-size: 1.3rem;
+    padding: 0;
+}
+
+.navbar-brand i {
+    font-size: 1.2rem;
+}
+
+/* Make search bar responsive */
+@media (max-width: 991.98px) {
+    .navbar form.d-flex {
+        margin: 0.5rem 0;
+        width: 100%;
+    }
+
+    .navbar form.d-flex .input-group {
+        width: 100%;
+    }
+
+    .navbar form.d-flex input {
+        max-width: none !important;
+    }
+}
+
+/* Active nav item styling */
+.navbar .nav-link.active {
+    font-weight: 500;
+    color: var(--bs-primary);
+}
