@@ -1,5 +1,3 @@
-import { initializeDeckSearch } from './deck-search.js';
-
 // Define these functions globally so they can be called from HTML before initialization
 window.showImportModal = function() {
     console.log("Import modal requested");
@@ -18,6 +16,8 @@ window.showGenerateModal = function() {
         bsModal.show();
     }
 };
+
+import { initializeDeckSearch } from './deck-search.js';
 
 // Track if modals have been initialized to prevent duplicate handlers
 let modalsInitialized = false;
@@ -48,94 +48,76 @@ export function initializeModals() {
 
     let currentDeckId = null;
 
-    // Create deck button handler - use {once: true} to ensure it only runs once
-    const createDeckBtn = document.getElementById('createDeckBtn');
-    if (createDeckBtn && modals.deckModal) {
-        // Remove any existing click handlers first
-        createDeckBtn.removeEventListener('click', showCreateDeckModal);
-        createDeckBtn.addEventListener('click', showCreateDeckModal, {once: false});
-    }
-
-    function showCreateDeckModal() {
-        document.getElementById('createDeckForm').reset();
-        modals.deckModal.show();
-    }
+    // Create deck button handler
+    setupButtonClickHandler('createDeckBtn', () => {
+        console.log("Creating subdeck modal shown");
+        const form = document.getElementById('createDeckForm');
+        if (form) form.reset();
+        if (modals.deckModal) modals.deckModal.show();
+    });
 
     // Empty deck button handler
-    const createEmptyDeckBtn = document.getElementById('createEmptyDeckBtn');
-    if (createEmptyDeckBtn && modals.emptyDeckModal) {
-        // Remove any existing click handlers first
-        createEmptyDeckBtn.removeEventListener('click', showEmptyDeckModal);
-        createEmptyDeckBtn.addEventListener('click', showEmptyDeckModal, {once: false});
-    }
-
-    function showEmptyDeckModal() {
-        document.getElementById('createEmptyDeckForm').reset();
-        modals.emptyDeckModal.show();
-    }
+    setupButtonClickHandler('createEmptyDeckBtn', () => {
+        console.log("Creating empty deck modal shown");
+        const form = document.getElementById('createEmptyDeckForm');
+        if (form) form.reset();
+        if (modals.emptyDeckModal) modals.emptyDeckModal.show();
+    });
 
     // Add cards button handlers
-    if (modals.generateModal) {
-        document.querySelectorAll('.add-cards-btn').forEach(button => {
-            // Remove any existing handlers first
-            button.removeEventListener('click', handleAddCardsClick);
-            button.addEventListener('click', handleAddCardsClick, {once: false});
+    document.querySelectorAll('.add-cards-btn').forEach(button => {
+        button.addEventListener('click', () => {
+            const form = document.getElementById('generateForm');
+            if (form) form.reset();
+            
+            const parentDeckIdInput = document.getElementById('generateParentDeckId');
+            if (parentDeckIdInput) {
+                parentDeckIdInput.value = button.dataset.deckId;
+            }
+            
+            if (modals.generateModal) modals.generateModal.show();
         });
-    }
-
-    function handleAddCardsClick(event) {
-        const form = document.getElementById('generateForm');
-        form.reset();
-        const parentDeckIdInput = document.getElementById('generateParentDeckId');
-        if (parentDeckIdInput) {
-            parentDeckIdInput.value = event.currentTarget.dataset.deckId;
-        }
-        modals.generateModal.show();
-    }
+    });
 
     // No cards handlers
     if (modals.noCardsModal) {
         // Attach event to dropdown buttons with no-cards class
         document.querySelectorAll('.dropdown-toggle.no-cards').forEach(button => {
-            // Remove any existing handlers first
-            button.removeEventListener('click', handleNoCardsClick);
-            button.addEventListener('click', handleNoCardsClick, {once: false});
+            button.addEventListener('click', (e) => {
+                e.preventDefault();
+                currentDeckId = button.dataset.deckId;
+                modals.noCardsModal.show();
+                
+                // Prevent dropdown from opening
+                e.stopPropagation();
+            });
         });
         
         // Also attach to dropdown items with no-cards class
         document.querySelectorAll('.dropdown-item.no-cards').forEach(link => {
-            // Remove any existing handlers first
-            link.removeEventListener('click', handleNoCardsClick);
-            link.addEventListener('click', handleNoCardsClick, {once: false});
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                currentDeckId = link.dataset.deckId;
+                modals.noCardsModal.show();
+            });
         });
-    }
-
-    function handleNoCardsClick(event) {
-        event.preventDefault();
-        currentDeckId = event.currentTarget.dataset.deckId;
-        modals.noCardsModal.show();
-        
-        // Prevent dropdown from opening
-        event.stopPropagation();
     }
 
     // Generate from no cards handler
     const generateFromNoCards = document.getElementById('generateFromNoCards');
     if (generateFromNoCards && modals.noCardsModal && modals.generateModal) {
-        // Remove any existing handlers first
-        generateFromNoCards.removeEventListener('click', handleGenerateFromNoCards);
-        generateFromNoCards.addEventListener('click', handleGenerateFromNoCards, {once: false});
-    }
-
-    function handleGenerateFromNoCards() {
-        modals.noCardsModal.hide();
-        const form = document.getElementById('generateForm');
-        form.reset();
-        const parentDeckIdInput = document.getElementById('generateParentDeckId');
-        if (parentDeckIdInput) {
-            parentDeckIdInput.value = currentDeckId;
-        }
-        modals.generateModal.show();
+        generateFromNoCards.addEventListener('click', () => {
+            modals.noCardsModal.hide();
+            const form = document.getElementById('generateForm');
+            if (form) form.reset();
+            
+            const parentDeckIdInput = document.getElementById('generateParentDeckId');
+            if (parentDeckIdInput) {
+                parentDeckIdInput.value = currentDeckId;
+            }
+            
+            modals.generateModal.show();
+        });
     }
 
     // Override the global functions now that we have proper modal instances
@@ -154,7 +136,8 @@ export function initializeModals() {
 
     if (modals.generateModal) {
         window.showGenerateModal = () => {
-            document.getElementById('generateForm').reset();
+            const form = document.getElementById('generateForm');
+            if (form) form.reset();
             modals.generateModal.show();
         };
     }
@@ -184,4 +167,31 @@ export function initializeModals() {
     window._modalInstances = modals;
 
     return modals;
+}
+
+// Helper function to set up button click handlers
+function setupButtonClickHandler(buttonId, handler) {
+    const button = document.getElementById(buttonId);
+    if (button) {
+        // For mobile menu items that have the same ID, we need to handle them specially
+        if (buttonId === 'createEmptyDeckBtn' || buttonId === 'createDeckBtn') {
+            // Find all elements with this ID or data-target matching this ID
+            document.querySelectorAll(`#${buttonId}, [data-target="#${buttonId}"]`).forEach(element => {
+                element.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    console.log(`Button clicked: ${buttonId}`);
+                    handler();
+                });
+            });
+        } else {
+            // Regular button handling
+            button.addEventListener('click', (e) => {
+                e.preventDefault();
+                console.log(`Button clicked: ${buttonId}`);
+                handler();
+            });
+        }
+    } else {
+        console.log(`Button with ID ${buttonId} not found`);
+    }
 }
