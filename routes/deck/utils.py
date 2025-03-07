@@ -1,5 +1,8 @@
 from models import db, FlashcardDecks, Flashcards
 from services.fsrs_scheduler import get_current_time
+from flask_login import current_user
+from sqlalchemy import func
+from datetime import datetime
 
 def is_descendant(potential_descendant_id, ancestor_id):
     """Check if a deck is a descendant of another deck"""
@@ -26,11 +29,26 @@ def count_due_flashcards(deck_id, current_time=None):
     if current_time is None:
         current_time = get_current_time()
     
+    # Add filter for user-owned decks
+    from sqlalchemy import and_, or_
+    
+    # Security check - include ownership check when current_user is authenticated
+    ownership_filter = True  # Default for anonymous users
+    if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated:
+        # Either the deck has no owner (public) or belongs to current user
+        ownership_filter = or_(
+            FlashcardDecks.user_id == None,
+            FlashcardDecks.user_id == current_user.id
+        )
+    
     # Create recursive CTE to find all decks including this one and its sub-decks
     cte = db.session.query(
         FlashcardDecks.flashcard_deck_id.label('id')
     ).filter(
-        FlashcardDecks.flashcard_deck_id == deck_id
+        and_(
+            FlashcardDecks.flashcard_deck_id == deck_id,
+            ownership_filter
+        )
     ).cte(name='due_decks', recursive=True)
 
     cte = cte.union_all(
@@ -50,3 +68,27 @@ def count_due_flashcards(deck_id, current_time=None):
     ).count()
     
     return due_count
+
+def get_recursive_deck_ids(deck_id):
+    """
+    Get all deck IDs in a hierarchy including the root deck
+    """
+    # Add security filter for user-owned decks
+    ownership_filter = True  # Default for anonymous users
+    if hasattr(current_user, 'is_authenticated') and current_user.is_authenticated:
+        # Either the deck has no owner (public) or belongs to current user
+        ownership_filter = db.or_(
+            FlashcardDecks.user_id == None,
+            FlashcardDecks.user_id == current_user.id
+        )
+    
+    cte = db.session.query(
+        FlashcardDecks.flashcard_deck_id.label('id')
+    ).filter(
+        db.and_(
+            FlashcardDecks.flashcard_deck_id == deck_id,
+            ownership_filter
+        )
+    ).cte(name='cte', recursive=True)
+    
+    # ...existing code...
