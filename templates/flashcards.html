@@ -42,33 +42,17 @@ Study {{ deck.name }} (All Cards)
     </div>
 </div>
 
-
-<!-- Flashcards container -->
-<div id="flashcardsContainer">
-    {% for flashcard in flashcards %}
-    <div class="card flashcard mb-4" 
-         data-id="{{ flashcard.flashcard_id }}"
-         data-correct="{{ flashcard.correct_answer }}"
-         data-incorrect="{{ flashcard.incorrect_answers }}"
-         data-state="{{ flashcard.state or 0 }}"
-         data-retrievability="{{ flashcard.retrievability or 0 }}"
-         {% if deck_info and flashcard.flashcard_id in deck_info %}
-         data-subdeck-id="{{ deck_info[flashcard.flashcard_id]['deck_id'] }}"
-         data-subdeck-name="{{ deck_info[flashcard.flashcard_id]['deck_name'] }}"
-         {% endif %}
-         style="display: none;">
-        <div class="card-body">
-            <div class="card-title h4" data-question="{{ flashcard.question }}">
-                {{ flashcard.question }}
-            </div>
-            <form class="answer-form mt-4">
-                <!-- Answer options will be dynamically inserted here -->
-            </form>
-        </div>
+<!-- Flashcard counter and state badge -->
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <div id="cardCounter" class="text-muted small">Card 0 of 0 (0 remaining)</div>
+    <div>
+        <span id="statusBadge" class="badge bg-secondary">New</span>
     </div>
-    {% endfor %}
+</div>
 
-    {% if not flashcards %}
+<!-- Single Flashcard Container - Only one card visible at a time -->
+<div id="flashcardsContainer">
+    {% if not flashcards_count %}
     <div class="alert alert-info">
         <h3 class="h5"><i class="bi bi-info-circle me-2"></i>No Cards to Study</h3>
         <p class="mb-0">
@@ -85,11 +69,32 @@ Study {{ deck.name }} (All Cards)
             {% endif %}
         </p>
     </div>
+    {% else %}
+    <!-- Single card template that will be populated dynamically -->
+    <div id="currentFlashcard" class="card flashcard mb-4">
+        <div class="card-body">
+            <div id="questionContainer" class="card-title h4"></div>
+            <form id="answerForm" class="answer-form mt-4">
+                <!-- Answer options will be dynamically inserted here -->
+            </form>
+        </div>
+    </div>
+
+    <!-- Loading indicator for when cards are being fetched -->
+    <div id="loadingIndicator" class="text-center py-4 d-none">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2">Loading flashcards...</p>
+    </div>
     {% endif %}
 </div>
 
-<!-- Added a hidden flag to properly pass study mode to JavaScript -->
+<!-- Hidden metadata about the study session -->
 <input type="hidden" id="studyMode" value="{{ 'due_only' if due_only else 'all' }}">
+<input type="hidden" id="deckId" value="{{ deck.flashcard_deck_id }}">
+<input type="hidden" id="totalFlashcards" value="{{ flashcards_count }}">
+<input type="hidden" id="batchSize" value="{{ batch_size }}">
 {% endblock %}
 
 {% block scripts %}
@@ -98,7 +103,7 @@ Study {{ deck.name }} (All Cards)
     
     document.addEventListener('DOMContentLoaded', () => {
         console.log("Page loaded. Initializing FlashcardManager...");
-        console.log("Found " + document.querySelectorAll('.flashcard').length + " flashcards in DOM");
+        console.log("Total flashcards: {{ flashcards_count }}");
         
         const manager = new FlashcardManager();
         manager.initialize();
