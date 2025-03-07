@@ -10,6 +10,7 @@ class FlashcardDecks(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     description = db.Column(db.Text)
     parent_deck_id = db.Column(db.Integer, db.ForeignKey('flashcard_decks.flashcard_deck_id'), nullable=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     
     parent_deck = db.relationship('FlashcardDecks', 
                                 remote_side=[flashcard_deck_id],
