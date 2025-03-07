@@ -199,9 +199,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script type="module">
-    import { initializeModals } from "{{ url_for('static', filename='modules/deck/modal-handlers.js') }}";
-    
+<script>
     document.addEventListener('DOMContentLoaded', function() {
         const searchForm = document.getElementById('searchForm');
         const searchQuery = document.getElementById('searchQuery');
@@ -219,31 +217,6 @@
                 searchForm.submit();
             });
         });
-        
-        // Initialize modals for import and generate functionality
-        const modals = initializeModals();
     });
-</script>
-
-<!-- Define window functions before import to avoid race conditions -->
-<script>
-    // Define these functions to handle modal interactions
-    window.showImportModal = function() {
-        console.log("Import modal requested");
-        const modal = document.getElementById('importContentModal');
-        if (modal) {
-            const bsModal = new bootstrap.Modal(modal);
-            bsModal.show();
-        }
-    };
-
-    window.showGenerateModal = function() {
-        console.log("Generate modal requested");
-        const modal = document.getElementById('generateModal');
-        if (modal) {
-            const bsModal = new bootstrap.Modal(modal);
-            bsModal.show();
-        }
-    };
 </script>
 {% endblock %}
