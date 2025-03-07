@@ -166,13 +166,23 @@
         transform: translateY(-50%);
         z-index: 10;
         /* Ensure spinner rotates correctly */
-        animation: spinner-border 0.75s linear infinite;
+        animation: spinner-border-dropdown 0.75s linear infinite;
         border-radius: 50%;
     }
     
-    /* Ensure proper spinner animation */
-    @keyframes spinner-border {
-        to { transform: translateY(-50%) rotate(360deg); }
+    /* Ensure proper spinner animation for dropdown spinners */
+    @keyframes spinner-border-dropdown {
+        to { transform: rotate(360deg); }
+    }
+    
+    /* Add a separate animation for button spinners without translateY */
+    .btn .spinner-border {
+        animation: spinner-border-button 0.75s linear infinite;
+    }
+    
+    /* Button spinner animation - rotation only, no vertical translation */
+    @keyframes spinner-border-button {
+        to { transform: rotate(360deg); }
     }
     
     .select-container.select-loading .loading-spinner {
