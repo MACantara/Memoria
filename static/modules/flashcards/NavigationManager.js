@@ -57,13 +57,6 @@ export class NavigationManager {
                 }
                 break;
                 
-            case 'ArrowRight':
-            case 'n':
-            case 'N':
-                // These keys are now redundant for next question (any key works in feedback state)
-                // But we keep them for consistency in the UI hints
-                break;
-                
             // Number keys for quick answer selection (1-4)
             case '1':
             case '2':
