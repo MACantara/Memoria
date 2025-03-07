@@ -49,6 +49,10 @@ def create_app(test_config=None):
     # Register blueprints using the centralized function
     register_blueprints(app)
     
+    # Register auth blueprint
+    from routes.auth import auth_bp
+    app.register_blueprint(auth_bp)
+    
     return app
 
 if __name__ == '__main__':
