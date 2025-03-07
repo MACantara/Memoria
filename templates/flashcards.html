@@ -26,9 +26,6 @@ Study {{ deck.name }} (All Cards)
         <!-- Deck name with truncation -->
         <div class="text-center deck-title">
             <h2 class="h5 mb-0">{{ deck.name }}</h2>
-            {% if due_only %}
-            <span class="badge bg-info">Due</span>
-            {% endif %}
         </div>
         
         <!-- Empty space to balance layout -->
@@ -45,10 +42,6 @@ Study {{ deck.name }} (All Cards)
     </div>
 </div>
 
-<!-- Small status badge just above the flashcard -->
-<div class="text-center">
-    <span id="statusBadge" class="compact-status-badge badge bg-secondary">New</span>
-</div>
 
 <!-- Flashcards container -->
 <div id="flashcardsContainer">
