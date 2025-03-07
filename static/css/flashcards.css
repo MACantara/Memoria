@@ -238,3 +238,14 @@ body {
 #flashcardsContainer .card.flashcard {
     margin-top: 0.5rem;
 }
+
+/* Pulse animation for hint when trying to advance without answering */
+@keyframes pulse-hint {
+    0% { box-shadow: 0 0 0 0 rgba(var(--bs-primary-rgb), 0.4); }
+    70% { box-shadow: 0 0 0 10px rgba(var(--bs-primary-rgb), 0); }
+    100% { box-shadow: 0 0 0 0 rgba(var(--bs-primary-rgb), 0); }
+}
+
+.pulse-hint {
+    animation: pulse-hint 1s ease-out;
+}

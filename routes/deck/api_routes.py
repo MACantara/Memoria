@@ -100,3 +100,26 @@ def get_due_counts():
             "success": False,
             "error": str(e)
         }), 500
+
+@deck_api_bp.route("/due-count/<int:deck_id>")
+def get_due_count(deck_id):
+    """Get the count of due flashcards for a specific deck"""
+    try:
+        from routes.deck.utils import count_due_flashcards
+        
+        # Check if deck exists
+        deck = FlashcardDecks.query.get_or_404(deck_id)
+        
+        # Get due count for the deck
+        due_count = count_due_flashcards(deck_id)
+        
+        return jsonify({
+            "success": True,
+            "deck_id": deck_id,
+            "due_count": due_count
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500

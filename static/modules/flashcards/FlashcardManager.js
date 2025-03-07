@@ -1,196 +1,256 @@
 import { shuffleArray, updateProgress } from '../utils.js';
 import { UIManager } from './UIManager.js';
+import { NavigationManager } from './NavigationManager.js';
+import { EventManager } from './EventManager.js';
 
 export class FlashcardManager {
     constructor() {
         this.container = document.getElementById('flashcardsContainer');
         this.currentCardIndex = 0;
-        this.score = 0;  // This will now track cards completed in this session
-        this.flashcardsArray = [];
+        this.score = 0;  // Track cards completed in this session
+        this.flashcards = [];  // Store flashcard data, not DOM elements
         this.ui = new UIManager();
         this.completedCards = new Set();  // Track cards completed in this session
-        this.totalDueCards = 0;  // Track how many due cards we started with
-        this.statusBadge = document.getElementById('statusBadge');
+        this.totalDueCards = parseInt(document.getElementById('totalFlashcards')?.value || 0);
+        this.deckId = document.getElementById('deckId')?.value;
+        this.studyMode = document.getElementById('studyMode')?.value === 'due_only';
+        this.batchSize = parseInt(document.getElementById('batchSize')?.value || 20);
+        this.currentPage = 1;
+        this.hasMoreCards = true;
+        this.isLoading = false;
+        this.currentCard = null;  // Store the current card data
+        
+        // Initialize event system
+        this.eventListeners = {};
+        
+        // Initialize navigation and event managers
+        this.navigation = new NavigationManager(this);
+        this.events = new EventManager(this, this.ui);
+        
+        // Make this instance available globally for event handlers
+        window.flashcardManager = this;
     }
 
-    initialize() {
+    // Add event listener system
+    addEventListener(eventName, callback) {
+        if (!this.eventListeners[eventName]) {
+            this.eventListeners[eventName] = [];
+        }
+        this.eventListeners[eventName].push(callback);
+    }
+
+    removeEventListener(eventName, callback) {
+        if (this.eventListeners[eventName]) {
+            this.eventListeners[eventName] = this.eventListeners[eventName].filter(
+                cb => cb !== callback
+            );
+        }
+    }
+
+    dispatchEvent(eventName, data) {
+        if (this.eventListeners[eventName]) {
+            this.eventListeners[eventName].forEach(callback => {
+                callback(data);
+            });
+        }
+    }
+
+    async initialize() {
         if (!this.container) return;
-        this.flashcardsArray = Array.from(document.querySelectorAll('.flashcard'));
         
-        // Debug info to help diagnose issues
-        console.log(`Found ${this.flashcardsArray.length} flashcards in DOM`);
+        console.log(`Initializing flashcard manager. Total cards: ${this.totalDueCards}`);
         
-        this.flashcardsArray.forEach(card => this.initializeFlashcard(card));
-        
-        // Count due cards - these are cards that aren't already mastered (state !== 2)
-        // IMPORTANT FIX: When in "Study All" mode, consider all cards as due regardless of state
-        const isDueOnly = new URLSearchParams(window.location.search).get('due_only') === 'true';
-        
-        // In "Study All" mode, all cards are considered due for review
-        this.totalDueCards = isDueOnly ? 
-            this.flashcardsArray.filter(card => parseInt(card.dataset.state || 0) !== 2).length :
-            this.flashcardsArray.length;
-        
-        console.log(`Total due cards: ${this.totalDueCards} out of ${this.flashcardsArray.length}`);
-        
-        // Initialize with 0 completed cards
-        this.score = 0;
+        if (this.totalDueCards > 0) {
+            // Load the first batch of flashcards
+            await this.loadFlashcardBatch();
+            
+            // Show the first card if we loaded any
+            if (this.flashcards.length > 0) {
+                this.currentCardIndex = 0;
+                this.currentCard = this.flashcards[0];
+                this.ui.renderCard(this.currentCard);
+                this.updateCardCounter();
+                
+                // Dispatch event when first batch is loaded
+                this.dispatchEvent('firstBatchLoaded');
+            }
+        }
         
         // Update the initial score and progress display
         this.ui.updateScore(this.score, this.totalDueCards);
         
-        if (this.flashcardsArray.length > 0) {
-            this.ui.showCard(0, this.flashcardsArray, this.score);
+        // Setup event listeners
+        this.events.setupEventListeners();
+    }
+
+    async loadFlashcardBatch() {
+        try {
+            if (!this.hasMoreCards || this.isLoading) return;
+            
+            this.isLoading = true;
+            this.ui.showLoading(true);
+            
+            // Build the URL with parameters
+            const url = new URL(`/deck/${this.deckId}/study`, window.location.origin);
+            url.searchParams.append('page', this.currentPage);
+            url.searchParams.append('batch_size', this.batchSize);
+            if (this.studyMode) {
+                url.searchParams.append('due_only', 'true');
+            }
+            
+            console.log(`Loading flashcards batch page ${this.currentPage}`);
+            
+            const response = await fetch(url, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            
+            const data = await response.json();
+            
+            // Add new flashcards to our array
+            this.flashcards = [...this.flashcards, ...data.flashcards];
+            
+            // Update pagination info
+            this.hasMoreCards = data.has_more;
+            this.currentPage++;
+            
+            console.log(`Loaded ${data.flashcards.length} flashcards, has more: ${this.hasMoreCards}`);
+            
+        } catch (error) {
+            console.error("Error loading flashcards:", error);
+        } finally {
+            this.isLoading = false;
+            this.ui.showLoading(false);
         }
     }
 
-    initializeFlashcard(flashcard) {
-        // Reset any previous answer states first
-        this.resetAnswerFeedback(flashcard);
+    updateCardCounter() {
+        // Calculate cards left to review in this session
+        const remaining = Math.max(0, this.totalDueCards - this.score);
         
-        const answersForm = flashcard.querySelector('.answer-form');
-        const correctAnswer = flashcard.dataset.correct;
+        // Use getDisplayIndex to get the correct 1-based card number for display
+        const currentIndex = this.getDisplayIndex(this.currentCardIndex);
         
-        // Improved incorrect_answers parsing with error handling
-        let incorrectAnswers = [];
-        try {
-            const incorrectData = flashcard.dataset.incorrect;
+        // Update UI manager's counter with correct display index
+        this.ui.updateCardCounter(currentIndex - 1, this.totalDueCards, this.score);
+    }
+
+    async moveToNextCard() {
+        // Debug info
+        console.log("Moving to next card. Completed cards:", this.completedCards.size);
+        
+        // Check if we need to load more cards
+        if (this.currentCardIndex + 1 >= this.flashcards.length && this.hasMoreCards) {
+            await this.loadFlashcardBatch();
+        }
+        
+        // Find the next uncompleted card
+        for (let i = 0; i < this.flashcards.length; i++) {
+            // Skip current card
+            if (i === this.currentCardIndex) continue;
             
-            // Handle different formats: actual array, JSON string with double quotes, string with single quotes
-            if (typeof incorrectData === 'object') {
-                // Already an array
-                incorrectAnswers = incorrectData;
-            } else if (typeof incorrectData === 'string') {
-                if (incorrectData.trim().startsWith('[')) {
-                    try {
-                        // Attempt to parse as JSON
-                        incorrectAnswers = JSON.parse(incorrectData);
-                    } catch (e) {
-                        console.warn("Failed to parse incorrect answers as JSON:", e);
-                        // Try to handle if it's using single quotes instead of double quotes
-                        try {
-                            // Convert single quotes to double quotes and parse
-                            const fixedJson = incorrectData.replace(/'/g, '"');
-                            incorrectAnswers = JSON.parse(fixedJson);
-                        } catch (e2) {
-                            console.error("Failed to parse incorrect answers after fixing quotes:", e2);
-                            // Fallback to simple string splitting
-                            incorrectAnswers = incorrectData.replace(/[\[\]']/g, '').split(',').map(s => s.trim());
-                        }
-                    }
-                } else {
-                    // Not JSON format, split by comma
-                    incorrectAnswers = incorrectData.split(',').map(s => s.trim());
+            const card = this.flashcards[i];
+            const cardState = parseInt(card.state || 0);
+            
+            // In "Study All" mode, show any card that hasn't been completed in this session
+            // In "Due Only" mode, only show cards that aren't mastered and haven't been completed
+            if (!this.completedCards.has(card.id) && 
+                (!this.studyMode || cardState !== 2)) {
+                
+                this.currentCardIndex = i;
+                this.currentCard = card;
+                // Fix log message to use the visible card index (1-based) instead of array index
+                const visibleCardIndex = this.getDisplayIndex(i);
+                console.log(`Moving to card ${visibleCardIndex}/${this.totalDueCards} with ID ${card.id}`);
+                
+                // Render this card
+                this.ui.renderCard(card);
+                this.updateCardCounter();
+                return;
+            }
+        }
+        
+        // If we reach here, all loaded cards have been completed
+        // Check if we have more cards to load
+        if (this.hasMoreCards) {
+            console.log("All loaded cards completed, attempting to load more cards");
+            await this.loadFlashcardBatch();
+            
+            // Try finding an uncompleted card again
+            for (let i = 0; i < this.flashcards.length; i++) {
+                const card = this.flashcards[i];
+                if (!this.completedCards.has(card.id)) {
+                    this.currentCardIndex = i;
+                    this.currentCard = card;
+                    this.ui.renderCard(card);
+                    this.updateCardCounter();
+                    return;
                 }
             }
-        } catch (error) {
-            console.error("Error parsing incorrect answers:", error);
-            incorrectAnswers = ["Error parsing answers"];
         }
         
-        // Ensure we have an array and filter out empty items
-        incorrectAnswers = Array.isArray(incorrectAnswers) ? 
-            incorrectAnswers.filter(answer => answer && answer.length > 0) : [];
+        // If we still don't have any cards to show, we're done
+        console.log("No more cards to show. All completed.");
         
-        // Simplify answer preprocessing - no longer remove markdown formatting
-        const allAnswers = [correctAnswer, ...incorrectAnswers]
-            .filter(answer => answer && answer.length > 0);
+        // Make sure score reflects completion
+        this.score = this.totalDueCards;
+        this.ui.updateScore(this.score, this.totalDueCards);
         
-        shuffleArray(allAnswers);
-        this.ui.renderAnswerOptions(flashcard, allAnswers);
-        
-        // Update to use Bootstrap form-check-input class
-        answersForm.querySelectorAll('.form-check-input').forEach(radio => {
-            radio.addEventListener('click', () => this.handleAnswer(radio.value, flashcard));
-        });
+        // Show completion screen
+        this.checkRemainingDueCards();
     }
 
-    // Add new helper function to reset visual feedback
-    resetAnswerFeedback(flashcard) {
-        // Remove any previous feedback alerts
-        const existingFeedback = flashcard.querySelector('.alert');
-        if (existingFeedback) {
-            existingFeedback.remove();
-        }
-        
-        // Reset all answer options to default state
-        flashcard.querySelectorAll('.answer-option').forEach(option => {
-            option.classList.remove(
-                'border-success', 'bg-success-subtle', 
-                'border-danger', 'bg-danger-subtle'
-            );
-        });
-        
-        // Uncheck all radio buttons
-        flashcard.querySelectorAll('input[type="radio"]').forEach(radio => {
-            radio.checked = false;
-        });
-    }
-
-    isCardUnanswered(flashcard) {
-        // A card is unanswered if it's in the "new" state (0)
-        return parseInt(flashcard.dataset.state || 0) === 0;
-    }
-
-    async handleAnswer(selectedAnswer, flashcard) {
+    async handleAnswer(selectedAnswer) {
         // Prevent multiple submissions while processing
         if (this.isProcessingAnswer) return;
         this.isProcessingAnswer = true;
         
-        const isCorrect = selectedAnswer === flashcard.dataset.correct;
+        const card = this.currentCard;
+        if (!card) return;
+        
+        const isCorrect = selectedAnswer === card.correct_answer;
         
         try {
             // Update server-side progress first
-            const result = await updateProgress(flashcard.dataset.id, isCorrect);
+            const result = await updateProgress(card.id, isCorrect);
             
             if (result.success) {
-                // Update FSRS specific data
-                flashcard.dataset.state = this.getFsrsStateNumber(result.state);
-                flashcard.dataset.retrievability = result.retrievability || 0;
-                
-                // Update the displayed info in the UI
-                this.updateCardStatsUI(flashcard, result);
+                // Update FSRS specific data in our cached data
+                card.state = this.getFsrsStateNumber(result.state);
+                card.retrievability = result.retrievability || 0;
             }
         } catch (error) {
             console.error("Failed to update progress:", error);
         }
         
-        // Add visual feedback using Bootstrap classes
-        flashcard.querySelectorAll('.answer-option').forEach(option => {
-            const radio = option.querySelector('input[type="radio"]');
-            if (radio.value === flashcard.dataset.correct) {
-                option.classList.add('border-success', 'bg-success-subtle');
-            } else if (radio.checked && !isCorrect) {
-                option.classList.add('border-danger', 'bg-danger-subtle');
-            }
-        });
-        
         // Mark this card as completed in this session (regardless of correctness)
-        if (!this.completedCards.has(flashcard.dataset.id)) {
-            this.completedCards.add(flashcard.dataset.id);
+        if (!this.completedCards.has(card.id)) {
+            this.completedCards.add(card.id);
             this.score++;
             
             // Debug info
-            console.log(`Card ${flashcard.dataset.id} completed. Score: ${this.score}/${this.totalDueCards}`);
+            console.log(`Card ${card.id} completed. Score: ${this.score}/${this.totalDueCards}`);
             
             // Update the progress display
             this.ui.updateScore(this.score, this.totalDueCards);
         }
         
-        // Mark whether this card has been attempted (for resetting later)
-        flashcard.dataset.attempted = 'true';
-        
-        // MODIFIED BEHAVIOR: Show different feedback based on correctness
+        // Show different feedback based on correctness
         if (isCorrect) {
             // For correct answers, show brief feedback then auto-advance
-            this.ui.showBriefFeedback(flashcard, true);
+            this.ui.showBriefFeedback(true);
             
             // Set a short timeout to auto-advance
             setTimeout(() => {
                 // If all cards are completed, show completion screen
                 if (this.completedCards.size >= this.totalDueCards) {
                     console.log("All cards completed. Showing completion screen.");
-                    this.ui.showCompletion(this.score, this.totalDueCards);
+                    this.checkRemainingDueCards();
                 } else {
                     // Otherwise move to the next card
                     this.moveToNextCard();
@@ -198,14 +258,16 @@ export class FlashcardManager {
             }, 1000); // Show success for 1 second before advancing
         } else {
             // For incorrect answers, show feedback with "Next" button
-            this.ui.showAnswerFeedback(flashcard, false, () => {
+            this.ui.showAnswerFeedback(false, () => {
                 // This callback is triggered when the user clicks "Next"
-                this.moveCardToEnd(flashcard);
+                
+                // Add card back to the end of the queue for review
+                this.moveCardToEnd(card);
                 
                 // If all cards are completed, show completion screen
                 if (this.completedCards.size >= this.totalDueCards) {
                     console.log("All cards completed. Showing completion screen.");
-                    this.ui.showCompletion(this.score, this.totalDueCards);
+                    this.checkRemainingDueCards();
                 } else {
                     // Otherwise move to the next card
                     this.moveToNextCard();
@@ -215,6 +277,19 @@ export class FlashcardManager {
         
         // Reset processing flag
         this.isProcessingAnswer = false;
+    }
+
+    moveCardToEnd(card) {
+        // Remove the card from its current position
+        this.flashcards.splice(this.currentCardIndex, 1);
+        
+        // Insert it at the end
+        this.flashcards.push(card);
+        
+        // Adjust currentCardIndex if needed (if we removed a card before the current position)
+        if (this.currentCardIndex > 0) {
+            this.currentCardIndex--;
+        }
     }
 
     getFsrsStateNumber(stateName) {
@@ -228,173 +303,60 @@ export class FlashcardManager {
         };
         return stateMap[stateName] || 0;
     }
-    
-    updateCardStatsUI(flashcard, data) {
-        // Update last reviewed date
-        const lastReviewedEl = flashcard.querySelector('.last-reviewed');
-        const stateEl = flashcard.querySelector('.card-state');
-        
-        // Format date if provided
-        if (lastReviewedEl && data.last_reviewed) {
-            const date = new Date(data.last_reviewed);
-            lastReviewedEl.textContent = date.toLocaleString();
-        }
-        
-        // Update state label if it exists
-        if (stateEl && data.state) {
-            stateEl.textContent = data.state;
-            
-            // Remove all state classes
-            stateEl.classList.remove('bg-secondary', 'bg-warning', 'bg-success', 'bg-danger');
-            
-            // Add appropriate class based on state
-            switch(data.state) {
-                case 'new':
-                    stateEl.classList.add('bg-secondary');
-                    break;
-                case 'learning':
-                    stateEl.classList.add('bg-warning');
-                    break;
-                case 'mastered':
-                    stateEl.classList.add('bg-success');
-                    break;
-                case 'forgotten':
-                    stateEl.classList.add('bg-danger');
-                    break;
-            }
-            
-            // Update the prominent status badge using the UI manager
-            this.ui.updateStatusBadge(this.getFsrsStateNumber(data.state));
-        }
-    }
-    
-    recalculateScore() {
-        // Clear the set and recalculate based on current FSRS states
-        this.completedCards.clear();
-        this.score = 0;
-        
-        this.flashcardsArray.forEach(card => {
-            // State 2 = mastered
-            if (parseInt(card.dataset.state || 0) === 2) {
-                this.completedCards.add(card.dataset.id);
-                this.score++;
-            }
-        });
-        
-        this.ui.updateScore(this.score, this.flashcardsArray.length);
-    }
 
-    moveCardToEnd(flashcard) {
-        // Find position after all non-mastered, non-completed cards
-        let insertIndex = this.flashcardsArray.length;
+    getDisplayIndex(arrayIndex) {
+        // Count how many uncompleted cards appear before this index
+        let displayIndex = 1; // Start at 1 for 1-based indexing
         
-        // Try to find a position before mastered cards and after uncompleted cards
-        for (let i = 0; i < this.flashcardsArray.length; i++) {
-            const card = this.flashcardsArray[i];
-            
-            // If we find a mastered card or already completed card, insert before it
-            // This ensures incorrectly answered cards go after fresh cards but before finished ones
-            if (parseInt(card.dataset.state) === 2 || this.completedCards.has(card.dataset.id)) {
-                insertIndex = i;
-                break;
+        for (let i = 0; i < arrayIndex; i++) {
+            if (i < this.flashcards.length && !this.completedCards.has(this.flashcards[i].id)) {
+                displayIndex++;
             }
         }
         
-        // Move the flashcard to the determined position
-        this.container.insertBefore(flashcard, this.flashcardsArray[insertIndex]);
-        
-        // Update the array to reflect the new DOM order
-        this.flashcardsArray = Array.from(document.querySelectorAll('.flashcard'));
-    }
-
-    moveToNextCard() {
-        // Debug info
-        console.log("Moving to next card. Completed cards:", this.completedCards.size);
-        
-        // FIX: In "Study All" mode, we should show all cards regardless of state
-        const isDueOnly = new URLSearchParams(window.location.search).get('due_only') === 'true';
-        
-        // First look for cards that haven't been completed in this session
-        for (let i = 0; i < this.flashcardsArray.length; i++) {
-            // Skip current card
-            if (i === this.currentCardIndex) continue;
-            
-            const card = this.flashcardsArray[i];
-            const cardState = parseInt(card.dataset.state || 0);
-            
-            // In "Study All" mode, show any card that hasn't been completed in this session
-            // In "Due Only" mode, only show cards that aren't mastered and haven't been completed
-            if (!this.completedCards.has(card.dataset.id) && 
-                (isDueOnly ? cardState !== 2 : true)) {
-                
-                this.currentCardIndex = i;
-                console.log(`Moving to card ${i+1}/${this.flashcardsArray.length} with ID ${card.dataset.id}`);
-                
-                // Reset card if it's been attempted before
-                if (card.dataset.attempted === 'true') {
-                    this.initializeFlashcard(card);
-                }
-                
-                this.ui.showCard(this.currentCardIndex, this.flashcardsArray, this.score);
-                return;
-            }
-        }
-        
-        // If we reach here, all cards have been completed in this session
-        console.log("No more cards to show. All completed.");
-        
-        // Make sure score reflects completion
-        this.score = this.totalDueCards;
-        this.ui.updateScore(this.score, this.totalDueCards);
-        
-        // Show completion screen
-        this.ui.showCompletion(this.score, this.totalDueCards);
-    }
-
-    showNextCard() {
-        if (this.currentCardIndex < this.flashcardsArray.length - 1) {
-            this.currentCardIndex++;
-            this.ui.showCard(this.currentCardIndex, this.flashcardsArray, this.score);
-        }
-    }
-
-    showPreviousCard() {
-        if (this.currentCardIndex > 0) {
-            this.currentCardIndex--;
-            this.ui.showCard(this.currentCardIndex, this.flashcardsArray, this.score);
-        }
-    }
-
-    getCurrentCard() {
-        return this.flashcardsArray[this.currentCardIndex];
+        return displayIndex;
     }
 
     handleKeyboardNavigation(key) {
-        const currentCard = this.getCurrentCard();
-        if (!currentCard) return;
+        this.navigation.handleKeyPress(key);
+    }
 
-        const answers = Array.from(currentCard.querySelectorAll('.answer-option'));
+    checkRemainingDueCards() {
+        // Get the current study mode
+        const isDueOnly = this.studyMode;
         
-        switch(key) {
-            case '1':
-            case '2':
-            case '3':
-            case '4':
-                const index = parseInt(key) - 1;
-                if (index < answers.length) {
-                    const radio = answers[index].querySelector('input[type="radio"]');
-                    if (!radio.checked) {
-                        radio.checked = true;
-                        this.handleAnswer(radio.value, currentCard);
-                    }
-                }
-                break;
-            case 'ArrowRight':
-                this.showNextCard();
-                break;
-            case 'ArrowLeft':
-                this.showPreviousCard();
-                break;
+        // Make sure score reflects completion - set score to total cards
+        this.score = this.totalDueCards;
+        
+        // Update UI to show all cards completed and 0 remaining
+        this.ui.updateScore(this.score, this.totalDueCards);
+        this.ui.updateCardCounter(this.totalDueCards - 1, this.totalDueCards, this.score);
+        
+        // In "Study All" mode, we know we've completed everything, so no need to check server
+        if (!isDueOnly) {
+            this.ui.showCompletionScreen(this.deckId, this.score, this.totalDueCards, isDueOnly, 0);
+            return;
         }
+        
+        // In "Due Only" mode, check if there are more due cards that were added since we started
+        fetch(`/deck/api/due-count/${this.deckId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const remainingDueCards = data.due_count;
+                    console.log(`Remaining due cards: ${remainingDueCards}`);
+                    
+                    // Display completion with information about remaining due cards
+                    this.ui.showCompletionScreen(this.deckId, this.score, this.totalDueCards, isDueOnly, remainingDueCards);
+                } else {
+                    // Error fetching due count, just show normal completion
+                    this.ui.showCompletionScreen(this.deckId, this.score, this.totalDueCards, isDueOnly, 0);
+                }
+            })
+            .catch(error => {
+                console.error("Error checking remaining due cards:", error);
+                // Error occurred, just show normal completion
+                this.ui.showCompletionScreen(this.deckId, this.score, this.totalDueCards, isDueOnly, 0);
+            });
     }
 }
