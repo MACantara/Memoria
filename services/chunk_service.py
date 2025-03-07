@@ -55,6 +55,8 @@ def process_file_chunk_batch(client, file_key, chunk_index):
             # Log the raw response for debugging
             current_app.logger.debug(f"Raw response text: {response.text}")
             
+            response_text = response.text
+            
             # Try to repair common JSON formatting issues
             repaired_json = repair_json(response_text)
             
