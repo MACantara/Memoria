@@ -3,12 +3,32 @@
     <div class="col-md-6 col-lg-4">
         <div class="card h-100 shadow-sm">
             <div class="card-body position-relative d-flex flex-column">
-                <!-- Dropdown Menu for Actions -->
+                <!-- Ownership badge - Show different badges based on ownership -->
+                {% if deck.user_id and deck.user_id == current_user.id %}
+                <span class="position-absolute top-0 start-0 badge rounded-pill bg-primary m-2" 
+                      data-bs-toggle="tooltip" title="You own this deck">
+                    <i class="bi bi-person-check"></i> Your deck
+                </span>
+                {% elif deck.user_id %}
+                <span class="position-absolute top-0 start-0 badge rounded-pill bg-secondary m-2"
+                      data-bs-toggle="tooltip" title="Private deck">
+                    <i class="bi bi-lock"></i> Private
+                </span>
+                {% else %}
+                <span class="position-absolute top-0 start-0 badge rounded-pill bg-info m-2"
+                      data-bs-toggle="tooltip" title="Public deck">
+                    <i class="bi bi-globe"></i> Public
+                </span>
+                {% endif %}
+
+                <!-- Dropdown Menu for Actions - Only show for owner or public decks -->
                 <div class="dropdown position-absolute top-0 end-0 mt-2 me-2">
                     <button class="btn btn-link text-secondary p-0" type="button" data-bs-toggle="dropdown">
                         <i class="bi bi-three-dots-vertical"></i>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-start">
+                        <!-- Only show edit/delete options if user is owner -->
+                        {% if current_user.is_authenticated and (deck.user_id == current_user.id or deck.user_id == None) %}
                         <li>
                             <button class="dropdown-item" onclick="showRenameDeckModal({{ deck.flashcard_deck_id }}, '{{ deck.name }}', '{{ deck.description }}')">
                                 <i class="bi bi-pencil me-2"></i>Rename{{ ' Deck' if not is_subdeck }}
@@ -24,6 +44,19 @@
                                 <i class="bi bi-trash me-2"></i>Delete{{ ' Deck' if not is_subdeck }}
                             </button>
                         </li>
+                        {% else %}
+                        <!-- For decks user doesn't own, just show study options -->
+                        <li>
+                            <a class="dropdown-item" href="{{ url_for('deck.deck_view.study_deck', deck_id=deck.flashcard_deck_id) }}">
+                                <i class="bi bi-book me-2"></i>Study All Cards
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="{{ url_for('flashcard_parent.stats.view_deck_stats', deck_id=deck.flashcard_deck_id) }}">
+                                <i class="bi bi-graph-up me-2"></i>View Stats
+                            </a>
+                        </li>
+                        {% endif %}
                     </ul>
                 </div>
                 
@@ -56,7 +89,7 @@
                     </div>
                 </div>
                 
-                <!-- Button Section - Removed Add Cards button, keeping only View Deck and Study Now -->
+                <!-- Button Section -->
                 <div class="d-grid mt-3">
                     <!-- Row for View Deck and Study Now buttons -->
                     <div class="d-flex gap-2">
@@ -98,8 +131,51 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Add Cards Button - Only for owned or public decks -->
+                {% if current_user.is_authenticated and (deck.user_id == current_user.id or deck.user_id == None) %}
+                <div class="d-grid mt-2">
+                    <a class="btn btn-outline-primary add-cards-btn" href="javascript:void(0);" data-deck-id="{{ deck.flashcard_deck_id }}">
+                        <i class="bi bi-plus-circle me-1"></i> Add Cards
+                    </a>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
     {% endfor %}
+
+    <!-- Empty state message if no decks -->
+    {% if decks|length == 0 %}
+    <div class="col-12">
+        <div class="alert alert-info">
+            <h4 class="alert-heading"><i class="bi bi-info-circle me-2"></i>No decks found</h4>
+            <p>
+                {% if current_user.is_authenticated %}
+                You don't have any decks yet. Create a new deck to get started.
+                {% else %}
+                There are no public decks available. <a href="{{ url_for('auth.login') }}">Log in</a> to create your own decks.
+                {% endif %}
+            </p>
+            {% if current_user.is_authenticated %}
+            <hr>
+            <div class="d-flex">
+                <button type="button" class="btn btn-primary" id="createEmptyDeckBtn">
+                    <i class="bi bi-plus-circle me-1"></i> Create New Deck
+                </button>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
 </div>
+
+<!-- Initialize tooltips for ownership badges -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl)
+    });
+});
+</script>
