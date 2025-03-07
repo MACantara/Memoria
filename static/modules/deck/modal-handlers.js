@@ -133,6 +133,8 @@ export function initializeModals() {
 
     // Initialize deck search in all relevant modals
     document.querySelectorAll('.deck-search-select').forEach(selectElement => {
+        // Make sure we remove the obsolete class to avoid double-initialization
+        selectElement.classList.remove('searchable-select');
         initializeDeckSearch(selectElement);
     });
     
@@ -142,10 +144,9 @@ export function initializeModals() {
         if (modal) {
             const selectElements = modal.querySelectorAll('.deck-search-select');
             selectElements.forEach(selectElement => {
-                if (!selectElement.dataset.searchInitialized) {
-                    initializeDeckSearch(selectElement);
-                    selectElement.dataset.searchInitialized = 'true';
-                }
+                // Remove obsolete class and initialize
+                selectElement.classList.remove('searchable-select');
+                initializeDeckSearch(selectElement);
             });
         }
     });
