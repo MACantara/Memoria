@@ -1,29 +1,66 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, redirect, url_for, render_template, flash, jsonify
 from models import db, FlashcardDecks, Flashcards
+from flask_login import login_required, current_user
+from ..auth.decorators import login_required_for_decks
 from routes.deck.utils import is_descendant
 
-# Change the URL prefix to match how it's being called
-deck_management_bp = Blueprint('deck_management', __name__, url_prefix='')
+management_bp = Blueprint('deck_management', __name__)
 
-@deck_management_bp.route("/create", methods=["POST"])
+@management_bp.route('/create', methods=['POST'])
+@login_required
 def create_deck():
-    parent_deck_id = request.form.get("parent_deck_id")
-    name = request.form.get("name", "New Deck")
-    description = request.form.get("description", "")
+    parent_deck_id = request.form.get('parent_deck_id')
+    name = request.form.get('name')
+    description = request.form.get('description')
     
-    deck = FlashcardDecks(
+    # Validate parent deck ownership if provided
+    if parent_deck_id:
+        parent_deck = FlashcardDecks.query.get_or_404(parent_deck_id)
+        if parent_deck.user_id and parent_deck.user_id != current_user.id:
+            flash('You do not have permission to add sub-decks to this deck', 'error')
+            return redirect(url_for('main.index'))
+    
+    new_deck = FlashcardDecks(
         name=name,
         description=description,
-        parent_deck_id=parent_deck_id
+        parent_deck_id=parent_deck_id,
+        user_id=current_user.id  # Associate with current user
     )
-    db.session.add(deck)
+    db.session.add(new_deck)
     db.session.commit()
     
-    return jsonify({"success": True, "deck_id": deck.flashcard_deck_id})
+    return jsonify({"success": True, "deck_id": new_deck.flashcard_deck_id})
 
-@deck_management_bp.route("/rename/<int:deck_id>", methods=["PUT"])
+@management_bp.route('/create_empty', methods=['POST'])
+@login_required
+def create_empty_deck():
+    data = request.get_json()
+    name = data.get('name')
+    description = data.get('description')
+    
+    new_deck = FlashcardDecks(
+        name=name,
+        description=description,
+        user_id=current_user.id  # Associate with current user
+    )
+    db.session.add(new_deck)
+    db.session.commit()
+    
+    return jsonify({
+        "success": True,
+        "deck_id": new_deck.flashcard_deck_id,
+        "message": "Empty deck created successfully"
+    })
+
+@management_bp.route('/rename/<int:deck_id>', methods=['PUT'])
+@login_required
 def rename_deck(deck_id):
     deck = FlashcardDecks.query.get_or_404(deck_id)
+    
+    # Check if user owns this deck
+    if deck.user_id and deck.user_id != current_user.id:
+        return jsonify({'success': False, 'message': 'Unauthorized access'}), 403
+    
     try:
         data = request.json
         deck.name = data.get('name')
@@ -34,9 +71,15 @@ def rename_deck(deck_id):
         db.session.rollback()
         return jsonify({"success": False, "error": str(e)}), 500
 
-@deck_management_bp.route("/delete/<int:deck_id>", methods=["DELETE"])
+@management_bp.route('/delete/<int:deck_id>', methods=['DELETE'])
+@login_required
 def delete_deck(deck_id):
     deck = FlashcardDecks.query.get_or_404(deck_id)
+    
+    # Check if user owns this deck
+    if deck.user_id and deck.user_id != current_user.id:
+        return jsonify({'success': False, 'message': 'Unauthorized access'}), 403
+    
     try:
         # Create recursive CTE to find all sub-decks
         cte = db.session.query(
@@ -79,34 +122,24 @@ def delete_deck(deck_id):
         print(f"Error deleting deck: {str(e)}")
         return jsonify({"success": False, "error": str(e)}), 500
 
-@deck_management_bp.route("/create_empty", methods=["POST"])
-def create_empty_deck():
-    try:
-        data = request.json
-        deck = FlashcardDecks(
-            name=data.get('name', 'New Deck'),
-            description=data.get('description', ''),
-            parent_deck_id=None
-        )
-        db.session.add(deck)
-        db.session.commit()
-        
-        return jsonify({
-            "success": True,
-            "deck_id": deck.flashcard_deck_id,
-            "message": "Empty deck created successfully"
-        })
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"success": False, "error": str(e)}), 500
-
-@deck_management_bp.route("/move/<int:deck_id>", methods=["PUT"])
+@management_bp.route('/move/<int:deck_id>', methods=['PUT'])
+@login_required
 def move_deck(deck_id):
-    """Move a deck to a new parent deck"""
     deck = FlashcardDecks.query.get_or_404(deck_id)
+    
+    # Check if user owns this deck
+    if deck.user_id and deck.user_id != current_user.id:
+        return jsonify({'success': False, 'message': 'Unauthorized access'}), 403
+    
     try:
         data = request.json
         new_parent_id = data.get('new_parent_id')
+        
+        # Validate new parent ownership if provided
+        if new_parent_id:
+            new_parent = FlashcardDecks.query.get_or_404(new_parent_id)
+            if new_parent.user_id and new_parent.user_id != current_user.id:
+                return jsonify({'success': False, 'message': 'You do not have permission to move to this deck'}), 403
         
         # Validate the move
         if new_parent_id is not None:
