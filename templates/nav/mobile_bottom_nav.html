@@ -4,11 +4,11 @@
         <span>Decks</span>
     </a>
     
-    <!-- Combined Study & Stats button that opens a menu -->
-    <button class="mobile-nav-item" id="mobileStudyStatsButton">
+    <!-- Changed from a button to a link that opens the study menu modal -->
+    <a href="#" class="mobile-nav-item" data-bs-toggle="modal" data-bs-target="#selectDeckToStudyModal">
         <i class="bi bi-book"></i>
         <span>Study</span>
-    </button>
+    </a>
     
     <!-- Add button -->
     <button class="mobile-nav-item" id="mobileAddButton">
@@ -22,9 +22,16 @@
         <span>Search</span>
     </a>
     
-    <!-- Theme toggle button -->
-    <button class="mobile-nav-item" id="mobileThemeToggle">
-        <i class="bi bi-circle-half"></i>
-        <span>Theme</span>
-    </button>
+    <!-- User/Profile button - context aware -->
+    {% if current_user.is_authenticated %}
+    <a href="{{ url_for('auth.profile') }}" class="mobile-nav-item">
+        <i class="bi bi-person"></i>
+        <span>Profile</span>
+    </a>
+    {% else %}
+    <a href="{{ url_for('auth.login') }}" class="mobile-nav-item">
+        <i class="bi bi-box-arrow-in-right"></i>
+        <span>Login</span>
+    </a>
+    {% endif %}
 </div>
