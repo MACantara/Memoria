@@ -1,156 +1,283 @@
 /**
- * Deck search utility that adds search functionality directly inside dropdowns
+ * Enhanced deck search utility that creates an integrated search field + dropdown
  */
 export function initializeDeckSearch(selectElement, options = {}) {
     if (!selectElement) return;
     
+    // Create the container for our custom search control
+    const container = document.createElement('div');
+    container.className = 'deck-search-container';
+    selectElement.parentNode.insertBefore(container, selectElement);
+    
+    // Hide the original select element but keep it in the DOM for form submission
+    selectElement.style.display = 'none';
+    container.appendChild(selectElement);
+    
+    // Create the search input field
+    const searchInput = document.createElement('input');
+    searchInput.type = 'text';
+    searchInput.className = 'form-control deck-search-input';
+    searchInput.placeholder = options.placeholder || 'Search decks...';
+    container.appendChild(searchInput);
+    
+    // Create the dropdown container
+    const dropdownContainer = document.createElement('div');
+    dropdownContainer.className = 'deck-search-dropdown';
+    container.appendChild(dropdownContainer);
+    
     // Store original options for filtering
-    const originalOptions = Array.from(selectElement.options);
-    let searchTerm = '';
-    let searchTimeout = null;
+    const originalOptions = Array.from(selectElement.options).filter(option => !option.disabled);
     
-    // Add search instruction placeholder
-    const placeholderText = options.placeholder || 'Type to search decks...';
-    const firstOption = selectElement.options[0];
-    if (firstOption && firstOption.disabled) {
-        firstOption.text = placeholderText;
-    } else {
-        const placeholder = document.createElement('option');
-        placeholder.disabled = true;
-        placeholder.selected = true;
-        placeholder.text = placeholderText;
-        selectElement.prepend(placeholder);
-    }
+    // Selected deck info display
+    const selectedDeckInfo = document.createElement('div');
+    selectedDeckInfo.className = 'selected-deck-info';
+    container.appendChild(selectedDeckInfo);
     
-    // Add keyboard event to capture typing
-    selectElement.addEventListener('keydown', function(e) {
-        // Prevent default actions for some keys to avoid conflicts
-        if (e.key.length === 1 || e.key === 'Backspace') {
-            e.stopPropagation();
-            
-            // Don't prevent default for Backspace to allow clearing selection
-            if (e.key !== 'Backspace') {
-                e.preventDefault();
-            }
-            
-            // Update search term
-            if (e.key === 'Backspace') {
-                searchTerm = searchTerm.slice(0, -1);
-            } else {
-                searchTerm += e.key;
-            }
-            
-            // Show visual feedback of search in placeholder
-            updatePlaceholder();
-            
-            // Filter options based on search term
-            clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(() => {
-                filterOptions();
-            }, 300);
+    // Track state
+    let isOpen = false;
+    let selectedIndex = -1;
+    
+    // Event handlers
+    searchInput.addEventListener('focus', showDropdown);
+    searchInput.addEventListener('input', filterOptions);
+    searchInput.addEventListener('keydown', handleKeyNavigation);
+    document.addEventListener('click', handleOutsideClick);
+    
+    // Initial state setup
+    updateSelectedDeckInfo();
+    
+    // Show the dropdown list
+    function showDropdown() {
+        dropdownContainer.innerHTML = ''; // Clear existing options
+        
+        const options = filterOptions();
+        if (options.length === 0) {
+            // Show empty state
+            const emptyState = document.createElement('div');
+            emptyState.className = 'deck-search-empty';
+            emptyState.textContent = 'No matching decks found';
+            dropdownContainer.appendChild(emptyState);
         }
         
-        // Clear search on Escape key
-        if (e.key === 'Escape') {
-            clearSearch();
-            e.preventDefault();
-        }
-    });
+        dropdownContainer.classList.add('show');
+        isOpen = true;
+    }
     
-    // Reset search when dropdown is closed
-    selectElement.addEventListener('blur', function() {
-        setTimeout(() => {
-            clearSearch();
-        }, 300);
-    });
+    // Hide the dropdown list
+    function hideDropdown() {
+        dropdownContainer.classList.remove('show');
+        isOpen = false;
+    }
     
-    // Update placeholder to show search text
-    function updatePlaceholder() {
-        const firstOption = selectElement.options[0];
-        if (firstOption && firstOption.disabled) {
-            if (searchTerm) {
-                firstOption.text = `Search: ${searchTerm}`;
-            } else {
-                firstOption.text = placeholderText;
+    // Filter options based on search text
+    function filterOptions() {
+        const searchText = searchInput.value.toLowerCase();
+        dropdownContainer.innerHTML = ''; // Clear existing options
+        
+        const filteredOptions = originalOptions.filter(option => {
+            return option.textContent.toLowerCase().includes(searchText);
+        });
+        
+        filteredOptions.forEach((option, index) => {
+            const optionElement = document.createElement('div');
+            optionElement.className = 'deck-search-option';
+            optionElement.dataset.value = option.value;
+            optionElement.dataset.index = index;
+            
+            // Add additional data attributes from original option
+            if (option.dataset) {
+                Object.keys(option.dataset).forEach(key => {
+                    optionElement.dataset[key] = option.dataset[key];
+                });
             }
+            
+            // Style differently if it's a subdeck
+            const isDeckItem = option.textContent.includes('└');
+            if (isDeckItem) {
+                optionElement.classList.add('subdeck-item');
+            }
+            
+            // Add selection styling
+            if (index === selectedIndex) {
+                optionElement.classList.add('selected');
+            }
+            
+            // Highlight matching text
+            let displayText = option.textContent;
+            if (searchText) {
+                const regex = new RegExp(`(${searchText})`, 'gi');
+                displayText = displayText.replace(regex, '<mark>$1</mark>');
+            }
+            
+            optionElement.innerHTML = displayText;
+            
+            optionElement.addEventListener('click', () => {
+                selectOption(option.value, option.textContent, option);
+                hideDropdown();
+            });
+            
+            dropdownContainer.appendChild(optionElement);
+        });
+        
+        if (filteredOptions.length > 0) {
+            // Set the first item as pre-selected for keyboard navigation
+            selectedIndex = 0;
+            const firstOption = dropdownContainer.querySelector('.deck-search-option');
+            if (firstOption) firstOption.classList.add('selected');
+        } else {
+            selectedIndex = -1;
+        }
+        
+        return filteredOptions;
+    }
+    
+    // Handle keyboard navigation
+    function handleKeyNavigation(event) {
+        const options = dropdownContainer.querySelectorAll('.deck-search-option');
+        
+        switch(event.key) {
+            case 'ArrowDown':
+                event.preventDefault();
+                if (!isOpen) {
+                    showDropdown();
+                    return;
+                }
+                selectedIndex = Math.min(selectedIndex + 1, options.length - 1);
+                updateSelectedOption();
+                break;
+                
+            case 'ArrowUp':
+                event.preventDefault();
+                selectedIndex = Math.max(selectedIndex - 1, 0);
+                updateSelectedOption();
+                break;
+                
+            case 'Enter':
+                event.preventDefault();
+                if (isOpen && selectedIndex >= 0 && selectedIndex < options.length) {
+                    const option = options[selectedIndex];
+                    selectOption(option.dataset.value, option.textContent, option);
+                    hideDropdown();
+                } else if (!isOpen) {
+                    showDropdown();
+                }
+                break;
+                
+            case 'Escape':
+                event.preventDefault();
+                hideDropdown();
+                break;
         }
     }
     
-    // Filter options based on search input
-    function filterOptions() {
-        if (!searchTerm) {
-            resetOptions();
+    // Update which option is visually selected
+    function updateSelectedOption() {
+        const options = dropdownContainer.querySelectorAll('.deck-search-option');
+        options.forEach((option, index) => {
+            if (index === selectedIndex) {
+                option.classList.add('selected');
+                // Scroll into view if needed
+                option.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            } else {
+                option.classList.remove('selected');
+            }
+        });
+    }
+    
+    // Select an option and update the original select element
+    function selectOption(value, text, optionElement) {
+        // Update the original select
+        selectElement.value = value;
+        
+        // Trigger change event on the original select
+        const event = new Event('change', { bubbles: true });
+        selectElement.dispatchEvent(event);
+        
+        // Update the search input to show the selected value
+        searchInput.value = text;
+        
+        // Update selected info display
+        updateSelectedDeckInfo(optionElement);
+    }
+    
+    // Handle clicks outside the component to close dropdown
+    function handleOutsideClick(event) {
+        if (isOpen && !container.contains(event.target)) {
+            hideDropdown();
+        }
+    }
+    
+    // Update the selected deck info display if available
+    function updateSelectedDeckInfo(optionElement) {
+        // Clear the current content
+        selectedDeckInfo.innerHTML = '';
+        
+        if (!optionElement) {
+            // If no option is selected, hide the info box
+            selectedDeckInfo.style.display = 'none';
             return;
         }
         
-        // Reset to placeholder option
-        selectElement.selectedIndex = 0;
+        // Check if we have additional data to display
+        const hasParent = optionElement.dataset && optionElement.dataset.parent;
+        const cardCount = optionElement.dataset && optionElement.dataset.cardCount;
+        const dueCount = optionElement.dataset && optionElement.dataset.dueCount;
         
-        // Remove all options except the first placeholder
-        while (selectElement.options.length > 1) {
-            selectElement.remove(1);
-        }
-        
-        // Add matching options
-        let visibleCount = 0;
-        originalOptions.forEach(option => {
-            // Skip the first placeholder option
-            if (option.disabled && option.selected) {
-                return;
+        if (hasParent || cardCount || dueCount) {
+            selectedDeckInfo.style.display = 'block';
+            
+            if (hasParent) {
+                const parentInfo = document.createElement('div');
+                parentInfo.className = 'parent-deck-info text-muted small';
+                parentInfo.innerHTML = `<i class="bi bi-folder2"></i> Sub-deck of: ${optionElement.dataset.parent}`;
+                selectedDeckInfo.appendChild(parentInfo);
             }
             
-            const optionText = option.textContent.toLowerCase();
-            if (optionText.includes(searchTerm.toLowerCase())) {
-                const newOption = option.cloneNode(true);
-                selectElement.add(newOption);
-                visibleCount++;
+            if (cardCount || dueCount) {
+                const countInfo = document.createElement('div');
+                countInfo.className = 'card-count-info text-muted small mt-1';
+                
+                if (dueCount && cardCount) {
+                    countInfo.innerHTML = `
+                        <span class="badge bg-primary me-1">${dueCount} due</span>
+                        <span>${cardCount} total cards</span>
+                    `;
+                } else if (cardCount) {
+                    countInfo.innerHTML = `<span>${cardCount} total cards</span>`;
+                }
+                
+                selectedDeckInfo.appendChild(countInfo);
             }
-        });
-        
-        // Show no results message if needed
-        if (visibleCount === 0) {
-            const noMatchOption = document.createElement('option');
-            noMatchOption.disabled = true;
-            noMatchOption.text = `No matches for "${searchTerm}"`;
-            selectElement.add(noMatchOption);
+        } else {
+            selectedDeckInfo.style.display = 'none';
         }
     }
     
-    // Clear search and restore all options
-    function clearSearch() {
-        searchTerm = '';
-        updatePlaceholder();
-        resetOptions();
+    // Initialize with any pre-selected value
+    if (selectElement.value) {
+        const selectedOption = selectElement.options[selectElement.selectedIndex];
+        searchInput.value = selectedOption.textContent;
+        updateSelectedDeckInfo(selectedOption);
     }
     
-    // Reset options to original list
-    function resetOptions() {
-        // Keep only the first placeholder option
-        while (selectElement.options.length > 1) {
-            selectElement.remove(1);
-        }
-        
-        // Add all original options back
-        originalOptions.forEach(option => {
-            // Skip the first placeholder option
-            if (option.disabled && option.selected) {
-                return;
-            }
-            
-            selectElement.add(option.cloneNode(true));
-        });
-    }
-    
-    // Ensure select has proper styling for searchable dropdown
-    selectElement.classList.add('searchable-select');
-    
-    // Return utilities
     return {
-        clearSearch,
-        updateOptions: (newOptions) => {
-            // Update stored options (useful if options change)
-            originalOptions.length = 0;
-            newOptions.forEach(option => originalOptions.push(option.cloneNode(true)));
+        searchInput,
+        selectElement,
+        reset: () => {
+            selectElement.selectedIndex = 0;
+            searchInput.value = '';
+            updateSelectedDeckInfo();
+        },
+        setValue: (value) => {
+            selectElement.value = value;
+            if (value) {
+                const option = selectElement.options[selectElement.selectedIndex];
+                searchInput.value = option.textContent;
+                updateSelectedDeckInfo(option);
+            } else {
+                searchInput.value = '';
+                updateSelectedDeckInfo();
+            }
         }
     };
 }
