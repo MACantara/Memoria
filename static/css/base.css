@@ -177,6 +177,80 @@
     margin-bottom: 4px;
 }
 
+/* Add a highlight to the active mobile nav item */
+.mobile-nav-item.active {
+    color: var(--bs-primary);
+}
+
+/* Mobile Add Menu */
+.mobile-add-menu {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1040;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.3s, visibility 0s 0.3s;
+}
+
+.mobile-add-menu.active {
+    visibility: visible;
+    opacity: 1;
+    transition: opacity 0.3s, visibility 0s;
+}
+
+.mobile-add-menu-backdrop {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1041;
+}
+
+.mobile-add-menu-content {
+    position: absolute;
+    bottom: 70px;
+    left: 10px;
+    right: 10px;
+    background-color: var(--bs-body-bg);
+    border-radius: 10px;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+    padding: 15px;
+    z-index: 1042;
+    transform: translateY(20px);
+    transition: transform 0.3s;
+}
+
+.mobile-add-menu.active .mobile-add-menu-content {
+    transform: translateY(0);
+}
+
+.mobile-add-menu .list-group-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 15px;
+}
+
+.mobile-add-menu .list-group-item i {
+    font-size: 1.2rem;
+    margin-right: 8px;
+}
+
+/* Add animation to the plus button when menu is active */
+.mobile-add-menu.active + .mobile-bottom-nav #mobileAddButton {
+    color: var(--bs-primary);
+    background-color: rgba(13, 110, 253, 0.1);
+}
+
+/* Ensure the mobile add button is above the mobile navigation */
+#mobileAddButton {
+    position: relative;
+    z-index: 1045;
+}
+
 /* Add bottom padding to container on mobile to account for the nav bar */
 @media (max-width: 768px) {
     .container {
@@ -227,6 +301,12 @@
     /* Extra padding at bottom of page to prevent content hiding under navigation */
     html {
         scroll-padding-bottom: 100px;
+    }
+    
+    /* Improve interaction with mobile add menu */
+    .mobile-add-menu-content {
+        max-height: 80vh;
+        overflow-y: auto;
     }
 }
 

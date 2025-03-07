@@ -50,18 +50,68 @@
             <i class="bi bi-collection"></i>
             <span>Decks</span>
         </a>
+        
+        <!-- Study button - uses existing modal -->
         <button class="mobile-nav-item" data-bs-toggle="modal" data-bs-target="#selectDeckToStudyModal">
             <i class="bi bi-book"></i>
             <span>Study</span>
         </button>
-        <button class="mobile-nav-item" onclick="showGenerateModal(); return false;">
+        
+        <!-- Add button - context-aware implementation -->
+        <button class="mobile-nav-item" id="mobileAddButton">
             <i class="bi bi-plus-circle"></i>
             <span>Add</span>
         </button>
+        
+        <!-- Stats button - uses existing modal -->
         <button class="mobile-nav-item" data-bs-toggle="modal" data-bs-target="#selectDeckForStatsModal">
             <i class="bi bi-graph-up"></i>
             <span>Stats</span>
         </button>
+    </div>
+    
+    <!-- Mobile Add Actions Menu (hidden by default) -->
+    <div class="mobile-add-menu" id="mobileAddMenu">
+        <div class="mobile-add-menu-backdrop" id="mobileAddMenuBackdrop"></div>
+        <div class="mobile-add-menu-content">
+            <div class="list-group">
+                <!-- Context-aware add cards option -->
+                {% if request.path.startswith('/deck/') and request.path.split('/')[-1].isdigit() %}
+                    <!-- In deck view - Add cards to this specific deck -->
+                    <button type="button" class="list-group-item list-group-item-action" 
+                            onclick="document.querySelector('.add-cards-btn')?.click(); return false;">
+                        <i class="bi bi-card-text me-2"></i> Add Cards
+                    </button>
+                    
+                    <!-- In deck view - Add sub-deck to this deck -->
+                    <button type="button" class="list-group-item list-group-item-action" 
+                            onclick="document.getElementById('createDeckBtn')?.click(); return false;">
+                        <i class="bi bi-folder-symlink me-2"></i> New Sub-deck
+                    </button>
+                {% else %}
+                    <!-- In home view - Generate cards (will prompt for deck) -->
+                    <button type="button" class="list-group-item list-group-item-action" 
+                            onclick="showGenerateModal(); return false;">
+                        <i class="bi bi-card-text me-2"></i> Add Cards
+                    </button>
+                    
+                    <!-- In home view - Create new empty deck -->
+                    <button type="button" class="list-group-item list-group-item-action" 
+                            onclick="document.getElementById('createEmptyDeckBtn')?.click(); return false;">
+                        <i class="bi bi-folder me-2"></i> New Deck
+                    </button>
+                {% endif %}
+                
+                <!-- Import content - available in all contexts -->
+                <button type="button" class="list-group-item list-group-item-action" 
+                        onclick="showImportModal(); return false;">
+                    <i class="bi bi-file-earmark-arrow-up me-2"></i> Import Content
+                </button>
+            </div>
+            <button type="button" class="btn btn-outline-secondary w-100 mt-2" id="mobileAddMenuClose">
+                Cancel
+            </button>
+        </div>
     </div>
     
     <!-- Theme Toggle with Popup Menu -->
@@ -193,6 +243,58 @@
                     updateToggleIcon();
                 }
             });
+        });
+        
+        // Mobile Add Menu functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const mobileAddButton = document.getElementById('mobileAddButton');
+            const mobileAddMenu = document.getElementById('mobileAddMenu');
+            const mobileAddMenuClose = document.getElementById('mobileAddMenuClose');
+            const mobileAddMenuBackdrop = document.getElementById('mobileAddMenuBackdrop');
+            
+            if (mobileAddButton && mobileAddMenu) {
+                // Toggle menu when add button is clicked
+                mobileAddButton.addEventListener('click', function() {
+                    mobileAddMenu.classList.toggle('active');
+                });
+                
+                // Close menu when cancel button is clicked
+                if (mobileAddMenuClose) {
+                    mobileAddMenuClose.addEventListener('click', function() {
+                        mobileAddMenu.classList.remove('active');
+                    });
+                }
+                
+                // Close menu when backdrop is clicked
+                if (mobileAddMenuBackdrop) {
+                    mobileAddMenuBackdrop.addEventListener('click', function() {
+                        mobileAddMenu.classList.remove('active');
+                    });
+                }
+                
+                // Close menu when an action is selected
+                mobileAddMenu.querySelectorAll('.list-group-item').forEach(item => {
+                    item.addEventListener('click', function() {
+                        setTimeout(() => {
+                            mobileAddMenu.classList.remove('active');
+                        }, 100);
+                    });
+                });
+                
+                // Highlight active section based on current URL
+                const currentPath = window.location.pathname;
+                const navItems = document.querySelectorAll('.mobile-nav-item');
+                
+                if (currentPath === '/' || currentPath === '/index') {
+                    navItems[0].classList.add('active'); // Decks
+                } else if (currentPath.includes('/deck/') && !currentPath.includes('/study') && !currentPath.includes('/stats')) {
+                    navItems[0].classList.add('active'); // Decks - still active when in deck view
+                } else if (currentPath.includes('/study')) {
+                    navItems[1].classList.add('active'); // Study
+                } else if (currentPath.includes('/stats')) {
+                    navItems[3].classList.add('active'); // Stats
+                }
+            }
         });
     </script>
     {% block scripts %}{% endblock %}
