@@ -9,21 +9,50 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div class="d-flex align-items-center gap-3">
-        <a href="{{ url_for('deck.get_deck_flashcards', deck_id=deck.parent_deck_id or deck.flashcard_deck_id) }}" 
+        <a href="{{ url_for('deck.deck_view.get_deck_flashcards', deck_id=deck.parent_deck_id or deck.flashcard_deck_id) }}" 
            class="btn btn-outline-primary">
             <i class="bi bi-arrow-left"></i> Back to Deck
         </a>
         <h1 class="h2 mb-0">{{ deck.name }}</h1>
+        
+        <!-- Ownership badge -->
+        {% if deck.user_id %}
+            {% if current_user.is_authenticated and deck.user_id == current_user.id %}
+                <span class="badge bg-primary">
+                    <i class="bi bi-person-check"></i> Your deck
+                </span>
+            {% else %}
+                <span class="badge bg-secondary">
+                    <i class="bi bi-lock"></i> Private deck
+                </span>
+            {% endif %}
+        {% else %}
+            <span class="badge bg-info text-dark">
+                <i class="bi bi-globe"></i> Public deck
+            </span>
+        {% endif %}
     </div>
+    
+    <!-- Only show action buttons if user has permission -->
+    {% if not deck.user_id or (current_user.is_authenticated and deck.user_id == current_user.id) %}
     <div class="d-flex gap-2">
         <button class="btn btn-outline-primary add-cards-btn" data-deck-id="{{ deck.flashcard_deck_id }}">
             <i class="bi bi-plus-lg"></i> Add Cards
         </button>
-        <a href="{{ url_for('deck.study_deck', deck_id=deck.flashcard_deck_id) }}" 
+        <a href="{{ url_for('deck.deck_view.study_deck', deck_id=deck.flashcard_deck_id) }}" 
            class="btn btn-success">
             <i class="bi bi-play-fill"></i> Study
         </a>
     </div>
+    {% else %}
+    <div>
+        <!-- For other users, only show study button -->
+        <a href="{{ url_for('deck.deck_view.study_deck', deck_id=deck.flashcard_deck_id) }}" 
+           class="btn btn-success">
+            <i class="bi bi-play-fill"></i> Study
+        </a>
+    </div>
+    {% endif %}
 </div>
 
 <div class="card mb-4">
@@ -48,8 +77,21 @@
 
 {% include 'components/flashcard_list.html' %}
 
-<!-- Generate Cards Modal -->
-{% include 'components/generate_cards_modal_deck.html' %}
+<!-- Generate Cards Modal (only included if user has permission) -->
+{% if not deck.user_id or (current_user.is_authenticated and deck.user_id == current_user.id) %}
+    {% include 'components/generate_cards_modal_deck.html' %}
+{% endif %}
+
+<!-- Login prompt if not authenticated -->
+{% if not current_user.is_authenticated %}
+<div class="alert alert-info mt-4">
+    <i class="bi bi-info-circle me-2"></i>
+    <strong>Note:</strong> You're viewing this deck as a guest.
+    <a href="{{ url_for('auth.login', next=request.path) }}" class="btn btn-sm btn-primary ms-2">
+        Log in to create your own decks
+    </a>
+</div>
+{% endif %}
 
 {% endblock %}
 

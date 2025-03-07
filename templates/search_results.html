@@ -13,6 +13,20 @@
     <div>
         <h1 class="h3 mb-0">Search</h1>
     </div>
+    
+    <!-- Authentication status message -->
+    {% if current_user.is_authenticated %}
+    <div class="text-muted small">
+        <i class="bi bi-info-circle me-1"></i> 
+        Showing results from your decks and public decks
+    </div>
+    {% else %}
+    <div class="text-muted small">
+        <i class="bi bi-info-circle me-1"></i> 
+        Showing results from public decks only. 
+        <a href="{{ url_for('auth.login', next=request.url) }}">Log in</a> to see all your decks.
+    </div>
+    {% endif %}
 </div>
 
 <!-- Search form -->
@@ -77,6 +91,24 @@
                             <div class="card h-100">
                                 <div class="card-body">
                                     <h5 class="card-title">{{ deck.name }}</h5>
+                                    
+                                    <!-- Ownership badge -->
+                                    {% if deck.user_id %}
+                                        {% if current_user.is_authenticated and deck.user_id == current_user.id %}
+                                            <span class="badge bg-primary me-2 position-absolute top-0 end-0 mt-2 me-2">
+                                                <i class="bi bi-person-check"></i>
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-secondary me-2 position-absolute top-0 end-0 mt-2 me-2">
+                                                <i class="bi bi-lock"></i>
+                                            </span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="badge bg-info text-dark me-2 position-absolute top-0 end-0 mt-2 me-2">
+                                            <i class="bi bi-globe"></i>
+                                        </span>
+                                    {% endif %}
+                                    
                                     {% if deck.description %}
                                         <p class="card-text text-muted">{{ deck.description }}</p>
                                     {% endif %}
@@ -115,7 +147,23 @@
                         <div class="list-group-item">
                             <div class="d-flex justify-content-between align-items-center">
                                 <h5 class="mb-1">{{ card.question }}</h5>
-                                <span class="badge bg-secondary rounded-pill">{{ card.get_state_name() }}</span>
+                                
+                                <!-- Show deck ownership for this card -->
+                                {% if card.deck.user_id %}
+                                    {% if current_user.is_authenticated and card.deck.user_id == current_user.id %}
+                                        <span class="badge bg-primary rounded-pill" title="Your deck">
+                                            <i class="bi bi-person-check"></i>
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-secondary rounded-pill" title="Private deck">
+                                            <i class="bi bi-lock"></i>
+                                        </span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="badge bg-info text-dark rounded-pill" title="Public deck">
+                                        <i class="bi bi-globe"></i>
+                                    </span>
+                                {% endif %}
                             </div>
                             <p class="mb-1">
                                 <strong>Answer:</strong> {{ card.correct_answer }}
@@ -126,10 +174,14 @@
                                     <a href="{{ url_for('deck.deck_view.get_deck_flashcards', deck_id=card.deck.flashcard_deck_id) }}" 
                                        class="text-decoration-none">{{ card.deck.name }}</a>
                                 </div>
+                                
+                                <!-- Only show study button if user has access -->
+                                {% if not card.deck.user_id or (current_user.is_authenticated and card.deck.user_id == current_user.id) %}
                                 <a href="{{ url_for('deck.deck_view.study_deck', deck_id=card.deck.flashcard_deck_id) }}" 
                                    class="btn btn-sm btn-outline-success">
                                     Study Deck
                                 </a>
+                                {% endif %}
                             </div>
                         </div>
                         {% endfor %}
@@ -146,11 +198,28 @@
                 Enter a search term to find decks by name or description,<br>
                 or find specific flashcards by question or answer.
             </p>
+            
+            <!-- Show user-specific help text -->
+            {% if current_user.is_authenticated %}
+            <div class="mt-4 alert alert-info d-inline-block">
+                <i class="bi bi-info-circle me-2"></i>
+                You'll see results from your decks and public decks.
+            </div>
+            {% else %}
+            <div class="mt-4 alert alert-info d-inline-block">
+                <i class="bi bi-info-circle me-2"></i>
+                You'll only see results from public decks.
+                <a href="{{ url_for('auth.login') }}" class="btn btn-sm btn-outline-primary ms-2">
+                    Log in
+                </a>
+                to see your personal decks.
+            </div>
+            {% endif %}
         </div>
     {% endif %}
 </div>
 
-<!-- Add pagination if needed -->
+<!-- Pagination -->
 {% if query and (total_decks > per_page or total_cards > per_page) %}
 <div class="mt-4">
     <nav aria-label="Search result pages">

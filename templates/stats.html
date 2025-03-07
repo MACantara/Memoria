@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Spaced Repetition Stats{% endblock %}
+{% block title %}Statistics - {{ deck.name }}{% endblock %}
 
 {% block styles %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/stats.css') }}">
@@ -14,9 +14,41 @@
         <a href="{{ url_for('deck.deck_view.get_deck_flashcards', deck_id=deck.flashcard_deck_id) }}" class="btn btn-outline-primary">
             <i class="bi bi-arrow-left"></i> Back to Deck
         </a>
-        <h1 class="h2 mb-0">{{ deck.name }} - Spaced Repetition Statistics</h1>
+        
+        <div>
+            <h1 class="h2 mb-0">{{ deck.name }} - Spaced Repetition Statistics</h1>
+            <div class="text-muted small">
+                <!-- Show ownership information -->
+                {% if deck.user_id %}
+                    {% if current_user.is_authenticated and deck.user_id == current_user.id %}
+                        <i class="bi bi-person-check me-1"></i> Your deck
+                    {% else %}
+                        <i class="bi bi-lock me-1"></i> Private deck
+                    {% endif %}
+                {% else %}
+                    <i class="bi bi-globe me-1"></i> Public deck
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Add Study button -->
+    <div>
+        <a href="{{ url_for('deck.deck_view.study_deck', deck_id=deck.flashcard_deck_id, due_only='true') }}" class="btn btn-success">
+            <i class="bi bi-book"></i> Study Due Cards
+        </a>
     </div>
 </div>
+
+<!-- Authentication notice for non-logged in users -->
+{% if not current_user.is_authenticated %}
+<div class="alert alert-info mb-4">
+    <i class="bi bi-info-circle-fill me-2"></i>
+    <strong>Note:</strong> You're viewing stats as a guest. 
+    <a href="{{ url_for('auth.login', next=request.url) }}" class="btn btn-sm btn-primary ms-2">Log in</a> 
+    to track your personal learning progress.
+</div>
+{% endif %}
 
 <div class="row g-4">
     <!-- Stats Summary Cards -->

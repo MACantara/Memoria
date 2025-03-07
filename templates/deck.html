@@ -1,76 +1,168 @@
 {% extends "base.html" %}
 
-{% block title %}{{ deck.name }} - Flashcard Decks{% endblock %}
+{% block title %}{{ deck.name }}{% endblock %}
 
 {% block styles %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/deck.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/deck-search.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css') }}">
 {% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div class="d-flex align-items-center gap-3">
-        {% if deck.parent_deck_id %}
-        <a href="{{ url_for('deck.deck_view.get_deck_flashcards', deck_id=deck.parent_deck_id) }}" class="btn btn-outline-primary">
-            <i class="bi bi-arrow-left"></i> Back to Parent Deck
-        </a>
-        {% else %}
-        <a href="{{ url_for('main.index') }}" class="btn btn-outline-primary">
-            <i class="bi bi-arrow-left"></i> Back to Decks
-        </a>
-        {% endif %}
-        <h1 class="h2 mb-0">{{ deck.name }}</h1>
-    </div>
+<div class="deck-header mb-4">
+    <!-- Breadcrumb Trail -->
+    <nav aria-label="breadcrumb" class="mb-2">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('main.index') }}">Decks</a></li>
+            {% if deck.parent_deck %}
+                <!-- If the deck has a parent, add it to the breadcrumb -->
+                <li class="breadcrumb-item">
+                    <a href="{{ url_for('deck.deck_view.get_deck_flashcards', deck_id=deck.parent_deck.flashcard_deck_id) }}">
+                        {{ deck.parent_deck.name }}
+                    </a>
+                </li>
+            {% endif %}
+            <li class="breadcrumb-item active">{{ deck.name }}</li>
+        </ol>
+    </nav>
     
-    <!-- Replace old buttons with the new component -->
-    {% with 
-        deck=deck,
-        show_import=true,
-        show_add_cards=true,
-        show_create_deck=false,
-        show_create_subdeck=true,
-        show_study=true,
-        show_stats=true,
-        due_count=due_count
-    %}
-    {% include 'components/deck_action_buttons.html' %}
-    {% endwith %}
-</div>
-
-{% if deck.child_decks %}
-<section class="mb-5">
-    <h2 class="h4 mb-4">Sub-decks</h2>
-    {% with decks=deck.child_decks, show_created_at=true, is_subdeck=true %}
-    {% include 'components/deck_grid.html' %}
-    {% endwith %}
-</section>
-{% endif %}
-
-<section>
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div class="d-flex align-items-center">
-            <h2 class="h4 mb-0">Flashcards</h2>
-            <span class="badge bg-secondary rounded-pill ms-2 align-middle d-flex align-items-center" 
-                  style="height: 22px; margin-top: 2px;">
-                {{ flashcards|length }}
+    <div class="d-flex justify-content-between align-items-start flex-wrap mb-2">
+        <div>
+            <h1 class="h2 mb-1">{{ deck.name }}</h1>
+            {% if deck.description %}
+                <p class="text-muted">{{ deck.description }}</p>
+            {% endif %}
+            
+            <!-- Ownership badge -->
+            {% if deck.user_id %}
+                {% if deck.user_id == current_user.id %}
+                    <span class="badge bg-primary me-2">
+                        <i class="bi bi-person-check"></i> Your deck
+                    </span>
+                {% else %}
+                    <span class="badge bg-secondary me-2">
+                        <i class="bi bi-lock"></i> Private deck
+                    </span>
+                {% endif %}
+            {% else %}
+                <span class="badge bg-info text-dark me-2">
+                    <i class="bi bi-globe"></i> Public deck
+                </span>
+            {% endif %}
+            
+            <span class="badge bg-light text-dark me-2">
+                <i class="bi bi-card-text"></i> {{ deck.count_all_flashcards() }} Cards
+            </span>
+            <span class="badge bg-light text-dark">
+                <i class="bi bi-folder2"></i> {{ deck.count_all_sub_decks() }} Sub-decks
             </span>
         </div>
+        
+        <!-- Deck action buttons -->
+        <div class="d-flex flex-wrap gap-2 align-items-start">
+            {% with 
+              deck=deck,
+              show_import=true,
+              show_add_cards=true,
+              show_create_subdeck=true,
+              show_create_deck=false,
+              show_study=true,
+              show_stats=true,
+              due_count=due_count
+            %}
+            {% include 'components/deck_action_buttons.html' %}
+            {% endwith %}
+        </div>
     </div>
-    {% include 'components/flashcard_list.html' %}
-</section>
+</div>
 
+<!-- Tab navigation for deck content -->
+<ul class="nav nav-tabs mb-3" id="deckContentTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="flashcards-tab" data-bs-toggle="tab" 
+                data-bs-target="#flashcards-tab-pane" type="button" role="tab" 
+                aria-controls="flashcards-tab-pane" aria-selected="true">
+            <i class="bi bi-card-text me-1"></i> Flashcards
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="sub-decks-tab" data-bs-toggle="tab" 
+                data-bs-target="#sub-decks-tab-pane" type="button" role="tab" 
+                aria-controls="sub-decks-tab-pane" aria-selected="false">
+            <i class="bi bi-folder2 me-1"></i> Sub-decks
+        </button>
+    </li>
+</ul>
+
+<!-- Tab content for deck -->
+<div class="tab-content" id="deckContentTabsContent">
+    <!-- Flashcards Tab -->
+    <div class="tab-pane fade show active" id="flashcards-tab-pane" role="tabpanel" 
+         aria-labelledby="flashcards-tab" tabindex="0">
+        {% include 'components/flashcard_list.html' %}
+    </div>
+    
+    <!-- Sub-decks Tab -->
+    <div class="tab-pane fade" id="sub-decks-tab-pane" role="tabpanel" 
+         aria-labelledby="sub-decks-tab" tabindex="0">
+        {% if deck.child_decks %}
+            {% with decks=deck.child_decks, is_subdeck=true %}
+                {% include 'components/deck_grid.html' %}
+            {% endwith %}
+        {% else %}
+            <div class="alert alert-info">
+                <h4 class="alert-heading"><i class="bi bi-info-circle me-2"></i>No Sub-decks</h4>
+                <p>This deck doesn't have any sub-decks yet.</p>
+                
+                <!-- Only show create sub-deck button if user has permission -->
+                {% if not deck.user_id or (current_user.is_authenticated and deck.user_id == current_user.id) %}
+                <hr>
+                <button type="button" class="btn btn-primary" id="createDeckBtn">
+                    <i class="bi bi-folder-plus me-1"></i> Create Sub-deck
+                </button>
+                {% else %}
+                <hr>
+                <p class="mb-0 text-muted">
+                    <i class="bi bi-lock me-1"></i>
+                    You don't have permission to create sub-decks for this deck.
+                </p>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Create Sub-deck Modal -->
+{% include 'components/create_sub_deck_modal.html' %}
+
+<!-- Include the add flashcards modal component -->
+{% include 'components/add_flashcards_modal.html' %}
+
+<!-- Include delete confirmation modal -->
+{% include 'components/delete_deck_modal.html' %}
+
+<!-- Include move deck modal -->
+{% include 'components/move_deck_modal.html' %}
+
+<!-- Include rename deck modal -->
+{% include 'components/rename_deck_modal.html' %}
 {% endblock %}
 
 {% block scripts %}
 <script type="module">
-    // Import but don't reinitialize - components are already initialized in base.html
-    import { deleteDeck, renameDeck } from "{{ url_for('static', filename='modules/utils.js') }}";
+    import { initializeFormHandlers } from '{{ url_for("static", filename="modules/deck/form-handlers.js") }}';
+    import { initializeDeckModals } from '{{ url_for("static", filename="modules/deck/modal-handlers.js") }}';
+    import { setupDeckOperations } from '{{ url_for("static", filename="modules/deck/deck-operations.js") }}';
     
-    // Make these functions available globally for HTML onclick handlers
-    window.deleteDeck = deleteDeck;
-    window.renameDeck = renameDeck;
-    
-    // Log for debugging
-    console.log("Deck view script loaded");
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize all deck-related modal handlers
+        const modals = initializeDeckModals();
+        
+        // Initialize form handlers with modal references
+        initializeFormHandlers(modals);
+        
+        // Initialize deck operations (delete, rename, move)
+        setupDeckOperations(modals);
+    });
 </script>
 {% endblock %}
