@@ -15,48 +15,35 @@ Study {{ deck.name }} (All Cards)
 {% endblock %}
 
 {% block content %}
-<div class="card mb-4">
-    <div class="card-body">
-        <div class="row mb-3">
-            <div class="col-3 text-start">
-                <a href="{{ url_for('deck.deck_view.get_deck_flashcards', deck_id=deck.flashcard_deck_id) }}" class="btn btn-outline-primary">
-                    <i class="bi bi-arrow-left"></i> Back to Deck
-                </a>
-            </div>
-            <div class="col-6 text-center">
-                <div class="d-flex justify-content-center align-items-center">
-                    <h1 class="h2 mb-0">{{ deck.name }}</h1>
-                    {% if due_only %}
-                    <span class="badge bg-info ms-2">Due Today</span>
-                    {% else %}
-                    <span class="badge bg-secondary ms-2">All Cards</span>
-                    {% endif %}
-                </div>
-            </div>
-            <div class="col-3">
-                <!-- Placeholder for right side alignment -->
-            </div>
+<!-- Compact navigation header -->
+<div class="flashcard-nav py-2 mb-2">
+    <div class="d-flex justify-content-between align-items-center">
+        <!-- Back button (icon only) -->
+        <a href="{{ url_for('deck.deck_view.get_deck_flashcards', deck_id=deck.flashcard_deck_id) }}" class="btn btn-sm btn-outline-primary">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+        
+        <!-- Deck name with truncation -->
+        <div class="text-center deck-title">
+            <h2 class="h5 mb-0">{{ deck.name }}</h2>
         </div>
         
-        <div class="mt-3">
-            <div class="d-flex justify-content-between align-items-center mb-1">
-                <span id="cardNumber" class="text-muted">Card 1 of {{ flashcards|length }}</span>
-                <span class="text-success"><span id="score">0</span>/{{ flashcards|length }} reviewed</span>
-            </div>
-            <div class="progress" style="height: 8px;">
-                <div id="progressBar" class="progress-bar bg-success" role="progressbar" 
-                     style="width: 0%;" aria-valuenow="0" aria-valuemin="0" 
-                     aria-valuemax="100"></div>
-            </div>
+        <!-- Empty space to balance layout -->
+        <div style="width: 32px;"></div>
+    </div>
+    
+    <!-- Progress bar without text -->
+    <div class="mt-2">
+        <div class="progress" style="height: 4px;">
+            <div id="progressBar" class="progress-bar bg-success" role="progressbar" 
+                 style="width: 0%;" aria-valuenow="0" aria-valuemin="0" 
+                 aria-valuemax="100"></div>
         </div>
     </div>
 </div>
 
-<!-- Status badge displayed above the flashcard -->
-<div class="text-center mb-3">
-    <span id="statusBadge" class="badge fs-4 p-3 bg-secondary">New</span>
-</div>
 
+<!-- Flashcards container -->
 <div id="flashcardsContainer">
     {% for flashcard in flashcards %}
     <div class="card flashcard mb-4" 
