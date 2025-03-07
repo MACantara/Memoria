@@ -2,6 +2,7 @@ from flask import Blueprint, request, render_template, jsonify, g
 from models import db, FlashcardDecks, Flashcards
 from sqlalchemy import or_, and_
 from routes.deck.utils import count_due_flashcards
+from flask_login import current_user
 
 search_bp = Blueprint('search', __name__, url_prefix='/search')
 
@@ -33,12 +34,13 @@ def search():
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return search_json(query, page, per_page, scope)
     
-    # Regular request - perform search based on scope
+    # Regular request - perform search based on scope and user access
     deck_results = []
     card_results = []
     total_decks = 0
     total_cards = 0
     
+    # Add user access control
     if scope in ['all', 'decks']:
         deck_results, total_decks = search_decks(query, page, per_page)
     
@@ -102,16 +104,34 @@ def search_json(query, page=1, per_page=20, search_type='all'):
     })
 
 def search_decks(query, page=1, per_page=20):
-    """Search deck names and descriptions"""
+    """Search deck names and descriptions with user access control"""
     search_term = f'%{query}%'
     
-    # Base query to search decks
-    deck_query = FlashcardDecks.query.filter(
-        or_(
-            FlashcardDecks.name.ilike(search_term),
-            FlashcardDecks.description.ilike(search_term)
+    # Base query to search decks with user access control
+    if current_user.is_authenticated:
+        deck_query = FlashcardDecks.query.filter(
+            and_(
+                or_(
+                    FlashcardDecks.name.ilike(search_term),
+                    FlashcardDecks.description.ilike(search_term)
+                ),
+                or_(
+                    FlashcardDecks.user_id == current_user.id,
+                    FlashcardDecks.user_id == None  # Include public decks
+                )
+            )
         )
-    )
+    else:
+        # For anonymous users, only search public decks
+        deck_query = FlashcardDecks.query.filter(
+            and_(
+                or_(
+                    FlashcardDecks.name.ilike(search_term),
+                    FlashcardDecks.description.ilike(search_term)
+                ),
+                FlashcardDecks.user_id == None
+            )
+        )
     
     # Get total count
     total_decks = deck_query.count()
@@ -120,27 +140,50 @@ def search_decks(query, page=1, per_page=20):
     decks = deck_query.order_by(
         # Sort exact matches first, then alphabetically
         FlashcardDecks.name.ilike(query).desc(),  # Exact matches first
-        FlashcardDecks.name                        # Then alphabetically
+        FlashcardDecks.name                       # Then alphabetically
     ).paginate(page=page, per_page=per_page, error_out=False).items
     
     return decks, total_decks
 
 def search_flashcards(query, page=1, per_page=20):
-    """Search flashcard questions and answers"""
+    """Search flashcard questions and answers with user access control"""
     search_term = f'%{query}%'
     
-    # Base query to search flashcards
-    card_query = db.session.query(
-        Flashcards, FlashcardDecks
-    ).join(
-        FlashcardDecks, 
-        Flashcards.flashcard_deck_id == FlashcardDecks.flashcard_deck_id
-    ).filter(
-        or_(
-            Flashcards.question.ilike(search_term),
-            Flashcards.correct_answer.ilike(search_term)
+    # Base query to search flashcards with access control
+    if current_user.is_authenticated:
+        card_query = db.session.query(
+            Flashcards, FlashcardDecks
+        ).join(
+            FlashcardDecks, 
+            Flashcards.flashcard_deck_id == FlashcardDecks.flashcard_deck_id
+        ).filter(
+            and_(
+                or_(
+                    Flashcards.question.ilike(search_term),
+                    Flashcards.correct_answer.ilike(search_term)
+                ),
+                or_(
+                    FlashcardDecks.user_id == current_user.id,
+                    FlashcardDecks.user_id == None
+                )
+            )
         )
-    )
+    else:
+        # For anonymous users, only search cards in public decks
+        card_query = db.session.query(
+            Flashcards, FlashcardDecks
+        ).join(
+            FlashcardDecks, 
+            Flashcards.flashcard_deck_id == FlashcardDecks.flashcard_deck_id
+        ).filter(
+            and_(
+                or_(
+                    Flashcards.question.ilike(search_term),
+                    Flashcards.correct_answer.ilike(search_term)
+                ),
+                FlashcardDecks.user_id == None
+            )
+        )
     
     # Get total count
     total_cards = card_query.count()
