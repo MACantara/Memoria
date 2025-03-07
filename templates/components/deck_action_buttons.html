@@ -89,8 +89,8 @@
             </li>
             {% endif %}
             
-            <!-- Create Sub-deck Option -->
-            {% if show_create_subdeck %}
+            <!-- Create Sub-deck Option (only show if user can create subdeck) -->
+            {% if show_create_subdeck and (deck.user_id == current_user.id or deck.user_id == None) %}
             <li>
                 <a class="dropdown-item" href="#" id="createDeckBtn">
                     <i class="bi bi-folder-symlink me-2"></i> New Sub-deck
@@ -117,7 +117,7 @@
     {% if show_stats %}
         {% if deck %}
             <!-- Deck context: Show stats for this deck -->
-            <a href="{{ url_for('stats.view_deck_stats', deck_id=deck.flashcard_deck_id) }}" class="btn btn-outline-success">
+            <a href="{{ url_for('flashcard_parent.stats.view_deck_stats', deck_id=deck.flashcard_deck_id) }}" class="btn btn-outline-success">
                 <i class="bi bi-graph-up"></i> Stats
             </a>
         {% else %}
