@@ -1,0 +1,37 @@
+/* Styling for deck search components */
+
+/* Search container */
+.deck-search-container {
+    margin-bottom: 0.5rem;
+}
+
+/* Slight styling for the clear button */
+.deck-search-container .btn-outline-secondary {
+    border-color: var(--bs-border-color);
+    color: var(--bs-secondary);
+}
+
+.deck-search-container .btn-outline-secondary:hover {
+    background-color: var(--bs-secondary-bg);
+    border-color: var(--bs-secondary);
+}
+
+/* No results message styling */
+.no-results-message {
+    font-size: 0.875rem;
+    padding: 0.5rem;
+    margin-top: 0.25rem;
+    margin-bottom: 0;
+    color: var(--bs-secondary);
+}
+
+/* Style for the select dropdown with search */
+select.deck-search-select {
+    max-height: 240px;
+    overflow-y: auto;
+}
+
+/* Special styling for indented options (subdecks) */
+select.deck-search-select option[value]:not([disabled]) {
+    padding: 6px 8px;
+}
