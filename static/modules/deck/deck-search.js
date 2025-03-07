@@ -4,6 +4,14 @@
 export function initializeDeckSearch(selectElement, options = {}) {
     if (!selectElement) return;
     
+    // Check if this select has already been processed
+    if (selectElement.dataset.searchInitialized === 'true') {
+        return;
+    }
+    
+    // Mark this element as processed
+    selectElement.dataset.searchInitialized = 'true';
+    
     // Create the container for our custom search control
     const container = document.createElement('div');
     container.className = 'deck-search-container';
