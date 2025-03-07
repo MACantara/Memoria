@@ -378,6 +378,10 @@
         max-height: 80vh;
         overflow-y: auto;
     }
+    
+    .theme-toast {
+        bottom: 80px; /* Position higher on mobile to clear the bottom navigation */
+    }
 }
 
 /* For screens larger than mobile, we hide the mobile nav */
@@ -390,9 +394,9 @@
 /* Theme toast for mobile theme switching */
 .theme-toast {
     position: fixed;
-    top: 50%;
+    bottom: 100px; /* Changed from top: 50% to bottom: 100px */
     left: 50%;
-    transform: translate(-50%, -50%) translateY(30px);
+    transform: translateX(-50%); /* Simplified transform to just center horizontally */
     background-color: rgba(0,0,0,0.8);
     color: white;
     padding: 12px 24px;
@@ -409,7 +413,7 @@
 }
 
 .theme-toast.show {
-    transform: translate(-50%, -50%);
+    transform: translateX(-50%) translateY(-10px); /* Slight upward animation when showing */
     opacity: 1;
 }
 
