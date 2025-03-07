@@ -1,114 +1,148 @@
 /**
- * Deck search utility that adds search functionality to deck dropdowns
+ * Deck search utility that adds search functionality directly inside dropdowns
  */
 export function initializeDeckSearch(selectElement, options = {}) {
     if (!selectElement) return;
     
-    // Create search input
-    const searchContainer = document.createElement('div');
-    searchContainer.className = 'input-group mb-2';
-    
-    const searchInput = document.createElement('input');
-    searchInput.type = 'text';
-    searchInput.className = 'form-control form-control-sm';
-    searchInput.placeholder = options.placeholder || 'Search decks...';
-    searchInput.setAttribute('aria-label', 'Search decks');
-    
-    // Add clear button to search input
-    const searchClear = document.createElement('button');
-    searchClear.className = 'btn btn-sm btn-outline-secondary';
-    searchClear.type = 'button';
-    searchClear.innerHTML = '<i class="bi bi-x"></i>';
-    searchClear.style.display = 'none';
-    
-    // Add input and clear button to container
-    searchContainer.appendChild(searchInput);
-    searchContainer.appendChild(searchClear);
-    
-    // Insert search before select element
-    selectElement.parentNode.insertBefore(searchContainer, selectElement);
-    
     // Store original options for filtering
     const originalOptions = Array.from(selectElement.options);
+    let searchTerm = '';
+    let searchTimeout = null;
     
-    // Add event listeners
-    searchInput.addEventListener('input', filterOptions);
-    searchClear.addEventListener('click', clearSearch);
+    // Add search instruction placeholder
+    const placeholderText = options.placeholder || 'Type to search decks...';
+    const firstOption = selectElement.options[0];
+    if (firstOption && firstOption.disabled) {
+        firstOption.text = placeholderText;
+    } else {
+        const placeholder = document.createElement('option');
+        placeholder.disabled = true;
+        placeholder.selected = true;
+        placeholder.text = placeholderText;
+        selectElement.prepend(placeholder);
+    }
+    
+    // Add keyboard event to capture typing
+    selectElement.addEventListener('keydown', function(e) {
+        // Prevent default actions for some keys to avoid conflicts
+        if (e.key.length === 1 || e.key === 'Backspace') {
+            e.stopPropagation();
+            
+            // Don't prevent default for Backspace to allow clearing selection
+            if (e.key !== 'Backspace') {
+                e.preventDefault();
+            }
+            
+            // Update search term
+            if (e.key === 'Backspace') {
+                searchTerm = searchTerm.slice(0, -1);
+            } else {
+                searchTerm += e.key;
+            }
+            
+            // Show visual feedback of search in placeholder
+            updatePlaceholder();
+            
+            // Filter options based on search term
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                filterOptions();
+            }, 300);
+        }
+        
+        // Clear search on Escape key
+        if (e.key === 'Escape') {
+            clearSearch();
+            e.preventDefault();
+        }
+    });
+    
+    // Reset search when dropdown is closed
+    selectElement.addEventListener('blur', function() {
+        setTimeout(() => {
+            clearSearch();
+        }, 300);
+    });
+    
+    // Update placeholder to show search text
+    function updatePlaceholder() {
+        const firstOption = selectElement.options[0];
+        if (firstOption && firstOption.disabled) {
+            if (searchTerm) {
+                firstOption.text = `Search: ${searchTerm}`;
+            } else {
+                firstOption.text = placeholderText;
+            }
+        }
+    }
     
     // Filter options based on search input
     function filterOptions() {
-        const searchTerm = searchInput.value.toLowerCase();
-        let visibleCount = 0;
+        if (!searchTerm) {
+            resetOptions();
+            return;
+        }
         
-        // Show/hide clear button
-        searchClear.style.display = searchTerm ? 'block' : 'none';
-        
-        // Reset select to first option
+        // Reset to placeholder option
         selectElement.selectedIndex = 0;
         
-        // Filter options
-        Array.from(originalOptions).forEach(option => {
-            // Skip the first disabled placeholder option
+        // Remove all options except the first placeholder
+        while (selectElement.options.length > 1) {
+            selectElement.remove(1);
+        }
+        
+        // Add matching options
+        let visibleCount = 0;
+        originalOptions.forEach(option => {
+            // Skip the first placeholder option
             if (option.disabled && option.selected) {
                 return;
             }
             
             const optionText = option.textContent.toLowerCase();
-            const isMatch = optionText.includes(searchTerm);
-            
-            // Create a new option for each original option to ensure we maintain attributes
-            let currentOption = selectElement.querySelector(`option[value="${option.value}"]`);
-            if (!currentOption && isMatch) {
-                // If the option doesn't exist and it matches, add it
-                currentOption = option.cloneNode(true);
-                selectElement.appendChild(currentOption);
-                visibleCount++;
-            } else if (currentOption && !isMatch) {
-                // If the option exists but doesn't match, remove it
-                currentOption.remove();
-            } else if (currentOption && isMatch) {
-                // Option exists and matches
+            if (optionText.includes(searchTerm.toLowerCase())) {
+                const newOption = option.cloneNode(true);
+                selectElement.add(newOption);
                 visibleCount++;
             }
         });
         
         // Show no results message if needed
-        const noResultsMessage = selectElement.parentNode.querySelector('.no-results-message');
-        if (visibleCount === 0 && searchTerm) {
-            if (!noResultsMessage) {
-                const message = document.createElement('div');
-                message.className = 'no-results-message alert alert-info mt-2 mb-0 py-2';
-                message.innerHTML = `<small><i class="bi bi-info-circle"></i> No decks match "${searchInput.value}"</small>`;
-                selectElement.parentNode.insertBefore(message, selectElement.nextSibling);
-            }
-        } else if (noResultsMessage) {
-            noResultsMessage.remove();
+        if (visibleCount === 0) {
+            const noMatchOption = document.createElement('option');
+            noMatchOption.disabled = true;
+            noMatchOption.text = `No matches for "${searchTerm}"`;
+            selectElement.add(noMatchOption);
         }
     }
     
-    // Clear search input and restore all options
+    // Clear search and restore all options
     function clearSearch() {
-        searchInput.value = '';
-        searchClear.style.display = 'none';
-        
-        // Reset the select element
-        selectElement.innerHTML = '';
-        originalOptions.forEach(option => {
-            selectElement.appendChild(option.cloneNode(true));
-        });
-        
-        // Remove no results message if present
-        const noResultsMessage = selectElement.parentNode.querySelector('.no-results-message');
-        if (noResultsMessage) {
-            noResultsMessage.remove();
-        }
-        
-        // Set focus back to search
-        searchInput.focus();
+        searchTerm = '';
+        updatePlaceholder();
+        resetOptions();
     }
     
-    // Initialize with empty search to ensure proper setup
-    filterOptions();
+    // Reset options to original list
+    function resetOptions() {
+        // Keep only the first placeholder option
+        while (selectElement.options.length > 1) {
+            selectElement.remove(1);
+        }
+        
+        // Add all original options back
+        originalOptions.forEach(option => {
+            // Skip the first placeholder option
+            if (option.disabled && option.selected) {
+                return;
+            }
+            
+            selectElement.add(option.cloneNode(true));
+        });
+    }
+    
+    // Ensure select has proper styling for searchable dropdown
+    selectElement.classList.add('searchable-select');
     
     // Return utilities
     return {
@@ -117,7 +151,6 @@ export function initializeDeckSearch(selectElement, options = {}) {
             // Update stored options (useful if options change)
             originalOptions.length = 0;
             newOptions.forEach(option => originalOptions.push(option.cloneNode(true)));
-            filterOptions();
         }
     };
 }
