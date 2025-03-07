@@ -1,8 +1,25 @@
+/**
+ * NavigationManager - Handles keyboard navigation and movement between flashcards
+ */
 export class NavigationManager {
+    /**
+     * @param {Object} flashcardManager - Reference to the FlashcardManager instance
+     */
     constructor(flashcardManager) {
-        this.flashcardManager = flashcardManager;
-        this.prevButton = document.getElementById('prevCard');
-        this.nextButton = document.getElementById('nextCard');
+        this.manager = flashcardManager;
+        this.keybindings = {
+            // Number keys 1-4 for answer selection
+            '1': this.selectAnswerByNumber.bind(this, 0),
+            '2': this.selectAnswerByNumber.bind(this, 1),
+            '3': this.selectAnswerByNumber.bind(this, 2),
+            '4': this.selectAnswerByNumber.bind(this, 3),
+            
+            // Space for advancing
+            ' ': this.advanceCard.bind(this),
+            
+            // Arrow keys for navigation (future enhancement)
+            'ArrowRight': this.advanceCard.bind(this),
+        };
     }
 
     initialize() {
@@ -18,7 +35,52 @@ export class NavigationManager {
 
         // Initialize keyboard navigation
         document.addEventListener('keydown', (e) => {
-            this.flashcardManager.handleKeyboardNavigation(e.key);
+            this.handleKeyPress(e.key);
         });
+    }
+
+    /**
+     * Handle keyboard navigation
+     * @param {string} key - The key that was pressed
+     */
+    handleKeyPress(key) {
+        if (this.keybindings[key]) {
+            this.keybindings[key]();
+        }
+    }
+    
+    /**
+     * Select an answer option by its number (1-4)
+     * @param {number} index - The zero-based index of the answer to select
+     */
+    selectAnswerByNumber(index) {
+        if (!this.manager.currentCard) return;
+        
+        // Find all answer options
+        const answerForm = document.getElementById('answerForm');
+        if (!answerForm) return;
+        
+        const answerOptions = answerForm.querySelectorAll('.answer-option');
+        if (index >= 0 && index < answerOptions.length) {
+            // Simulate a click on the answer option
+            answerOptions[index].click();
+        }
+    }
+    
+    /**
+     * Advance to the next card or trigger the Next button if present
+     */
+    advanceCard() {
+        // Check if we have a next button (for incorrect answers)
+        const nextButton = document.querySelector('.feedback-container .btn');
+        if (nextButton) {
+            nextButton.click();
+            return;
+        }
+        
+        // Otherwise, try to advance to the next card
+        if (this.manager.completedCards.size < this.manager.totalDueCards) {
+            this.manager.moveToNextCard();
+        }
     }
 }
