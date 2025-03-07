@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, redirect, url_for, current_app
+from flask import Blueprint, request, jsonify, redirect, url_for, current_app, render_template, flash
 from models import db, FlashcardDecks, Flashcards
 from datetime import datetime
 from google import genai
@@ -8,12 +8,15 @@ import os
 import traceback
 from services.fsrs_scheduler import get_current_time
 from config import Config
+from flask_login import login_required, current_user
+from ..auth.decorators import login_required_for_decks
 
 generation_bp = Blueprint('generation', __name__)
 
 api_key = os.getenv("GOOGLE_GEMINI_API_KEY")
 
 @generation_bp.route("/generate-flashcards", methods=["POST"])
+@login_required
 def generate():
     """Generate flashcards using AI"""
     topic = request.form["topic"]
