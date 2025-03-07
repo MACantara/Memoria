@@ -199,7 +199,6 @@ body {
     top: 0;
     z-index: 1030;
     background-color: var(--bs-body-bg);
-    border-bottom: 1px solid var(--bs-border-color);
 }
 
 .deck-title {
