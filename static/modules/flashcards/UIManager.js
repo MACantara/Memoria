@@ -329,4 +329,114 @@ export class UIManager {
             subdeckIndicator.style.display = 'none';
         }
     }
+
+    showCompletionScreen(container, deckId, score, totalDue, isDueOnly, remainingDueCards) {
+        // Create different completion screens depending on the mode and whether there are more due cards
+        if (isDueOnly) {
+            if (remainingDueCards > 0) {
+                // Due Only mode with more cards due - show option to continue
+                container.innerHTML = `
+                    <div class="card text-center p-5">
+                        <div class="card-body">
+                            <h2 class="card-title mb-4">
+                                <i class="bi bi-check2-circle text-success"></i> Session Complete!
+                            </h2>
+                            <p class="card-text fs-5">You've reviewed ${score} flashcards in this session.</p>
+                            <div class="progress mb-3" style="height: 20px;">
+                                <div class="progress-bar bg-success" role="progressbar" 
+                                    style="width: 100%" aria-valuenow="100" aria-valuemin="0" 
+                                    aria-valuemax="100">100%</div>
+                            </div>
+                            <p class="card-text fs-4 text-success fw-bold">
+                                <i class="bi bi-trophy-fill"></i> Session Score: ${score}/${totalDue}
+                            </p>
+                            
+                            <div class="alert alert-info mt-4">
+                                <i class="bi bi-info-circle me-2"></i>
+                                <strong>${remainingDueCards} more cards</strong> have become due for review since you started this session.
+                            </div>
+                            
+                            <div class="d-flex justify-content-center gap-3 mt-4 flex-wrap">
+                                <a href="/deck/${deckId}/study?due_only=true" class="btn btn-primary">
+                                    <i class="bi bi-arrow-right"></i> Continue Studying Due Cards
+                                </a>
+                                <a href="/deck/${deckId}" class="btn btn-outline-secondary">
+                                    <i class="bi bi-house-door"></i> Back to Deck
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                // Due Only mode with no more cards due - show standard completion
+                container.innerHTML = `
+                    <div class="card text-center p-5">
+                        <div class="card-body">
+                            <h2 class="card-title mb-4">
+                                <i class="bi bi-calendar-check-fill text-success"></i> All Due Cards Completed!
+                            </h2>
+                            <p class="card-text fs-5">You've reviewed all flashcards that were due today.</p>
+                            <div class="progress mb-3" style="height: 20px;">
+                                <div class="progress-bar bg-success" role="progressbar" 
+                                    style="width: 100%" aria-valuenow="100" aria-valuemin="0" 
+                                    aria-valuemax="100">100%</div>
+                            </div>
+                            <p class="card-text fs-4 text-success fw-bold">
+                                <i class="bi bi-trophy-fill"></i> Session Score: ${score}/${totalDue}
+                            </p>
+                            
+                            <div class="alert alert-info mt-4">
+                                <i class="bi bi-info-circle me-2"></i>
+                                Want to study more? You can also review cards that aren't due yet.
+                            </div>
+                            
+                            <div class="d-flex justify-content-center gap-3 mt-4 flex-wrap">
+                                <a href="/deck/${deckId}/study" class="btn btn-primary">
+                                    <i class="bi bi-collection"></i> Study All Cards
+                                </a>
+                                <a href="/deck/${deckId}" class="btn btn-outline-secondary">
+                                    <i class="bi bi-house-door"></i> Back to Deck
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+        } else {
+            // Study All mode - show standard completion
+            container.innerHTML = `
+                <div class="card text-center p-5">
+                    <div class="card-body">
+                        <h2 class="card-title mb-4">
+                            <i class="bi bi-emoji-smile-fill text-success"></i> Session Complete!
+                        </h2>
+                        <p class="card-text fs-5">You've completed your flashcard review session.</p>
+                        <div class="progress mb-3" style="height: 20px;">
+                            <div class="progress-bar bg-success" role="progressbar" 
+                                style="width: 100%" aria-valuenow="100" aria-valuemin="0" 
+                                aria-valuemax="100">100%</div>
+                        </div>
+                        <p class="card-text fs-4 text-success fw-bold">
+                            <i class="bi bi-trophy-fill"></i> Session Score: ${score}/${totalDue}
+                        </p>
+                        <div class="d-flex justify-content-center gap-3 mt-4 flex-wrap">
+                            <a href="${window.location.href}" class="btn btn-primary">
+                                <i class="bi bi-arrow-repeat"></i> Study Again
+                            </a>
+                            <a href="/deck/${deckId}" class="btn btn-outline-secondary">
+                                <i class="bi bi-house-door"></i> Back to Deck
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Update badge to show completion status
+        const statusBadge = document.getElementById('statusBadge');
+        if (statusBadge) {
+            statusBadge.textContent = 'Completed';
+            statusBadge.className = 'badge bg-success';
+        }
+    }
 }
