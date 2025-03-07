@@ -1,5 +1,6 @@
 import json
 import traceback
+import re
 from google.genai import types
 from models import FlashcardGenerator
 from config import Config
@@ -52,13 +53,22 @@ def process_file_chunk_batch(client, file_key, chunk_index):
         # Try to parse JSON response for multiple-choice format
         try:
             # Log the raw response for debugging
-            current_app.logger.debug(f"Raw response text: {response.text[:200]}...")
+            current_app.logger.debug(f"Raw response text: {response.text}")
             
-            flashcards_data = json.loads(response.text)
+            # Try to repair common JSON formatting issues
+            repaired_json = repair_json(response_text)
+            
+            # Try to parse the JSON
+            flashcards_data = json.loads(repaired_json)
             current_app.logger.info(f"Successfully parsed JSON response with {len(flashcards_data)} flashcards")
             
             # Format flashcards for compatibility with existing UI
             for card in flashcards_data:
+                # Skip incomplete cards
+                if not all(key in card for key in ['q', 'ca', 'ia']):
+                    current_app.logger.warning(f"Skipping incomplete card: {card}")
+                    continue
+                
                 # Format: Q: [question] | A: [correct_answer]
                 formatted_card = f"Q: {card['q']} | A: {card['ca']}"
                 chunk_flashcards.append(formatted_card)
@@ -67,17 +77,29 @@ def process_file_chunk_batch(client, file_key, chunk_index):
         except (json.JSONDecodeError, KeyError) as e:
             # Log the parsing error
             current_app.logger.error(f"Failed to parse JSON: {str(e)}")
-            current_app.logger.debug(f"Response text: {response.text[:200]}...")
             
-            # Fallback to legacy format if JSON parsing fails
-            raw_cards = response.text.split('\n')
-            for card in raw_cards:
-                if 'Q:' in card and '|' in card and 'A:' in card:
-                    cleaned = clean_flashcard_text(card)
-                    if cleaned:
-                        chunk_flashcards.append(cleaned)
+            # Try extracting cards using regex as last resort
+            current_app.logger.info("Attempting to extract cards using regex pattern matching")
+            extracted_cards = extract_cards_from_text(response_text)
             
-            current_app.logger.info(f"Fallback parsing found {len(chunk_flashcards)} flashcards")
+            if extracted_cards:
+                current_app.logger.info(f"Successfully extracted {len(extracted_cards)} cards using pattern matching")
+                mc_data = extracted_cards
+                
+                # Also format as standard flashcards
+                for card in extracted_cards:
+                    formatted_card = f"q: {card['q']} | ca: {card['ca']}"
+                    chunk_flashcards.append(formatted_card)
+            else:
+                # Fallback to legacy format if JSON parsing fails
+                raw_cards = response_text.split('\n')
+                for card in raw_cards:
+                    if 'q:' in card and '|' in card and 'a:' in card:
+                        cleaned = clean_flashcard_text(card)
+                        if cleaned:
+                            chunk_flashcards.append(cleaned)
+                
+                current_app.logger.info(f"Fallback parsing found {len(chunk_flashcards)} flashcards")
         
         # Log results
         current_app.logger.info(f"Generated {len(chunk_flashcards)} flashcards for chunk {chunk_index}")
@@ -115,6 +137,68 @@ def process_file_chunk_batch(client, file_key, chunk_index):
         current_app.logger.error(error_msg)
         current_app.logger.error(traceback.format_exc())
         return {'error': error_msg}
+
+def repair_json(json_str):
+    """Attempt to repair malformed JSON strings"""
+    # Remove any whitespace and newlines at the beginning
+    json_str = json_str.strip()
+    
+    # Make sure it starts with a valid JSON character
+    if not json_str.startswith('[') and not json_str.startswith('{'):
+        # Try to find the first valid JSON starting point
+        start_idx = json_str.find('[')
+        if start_idx == -1:
+            start_idx = json_str.find('{')
+        
+        if start_idx != -1:
+            json_str = json_str[start_idx:]
+    
+    # Make sure brackets are balanced (simple approach)
+    bracket_stack = []
+    for i, char in enumerate(json_str):
+        if char in '{[':
+            bracket_stack.append(char)
+        elif char == '}' and bracket_stack and bracket_stack[-1] == '{':
+            bracket_stack.pop()
+        elif char == ']' and bracket_stack and bracket_stack[-1] == '[':
+            bracket_stack.pop()
+    
+    # Close any unclosed brackets
+    if bracket_stack:
+        for bracket in reversed(bracket_stack):
+            closing = '}' if bracket == '{' else ']'
+            json_str += closing
+    
+    return json_str
+
+def extract_cards_from_text(text):
+    """Extract flashcards from text using regex patterns"""
+    cards = []
+    
+    # Look for card patterns like {"q": "question", "ca": "answer", "ia": ["wrong1", "wrong2", "wrong3"]}
+    # This is a simplified regex and might need adjustment
+    card_pattern = r'{\s*"q":\s*"([^"]+)",\s*"ca":\s*"([^"]+)",\s*"ia":\s*\[(.*?)\]\s*}'
+    matches = re.finditer(card_pattern, text, re.DOTALL)
+    
+    for match in matches:
+        question = match.group(1)
+        correct_answer = match.group(2)
+        incorrect_answers_raw = match.group(3)
+        
+        # Extract the incorrect answers
+        ia_pattern = r'"([^"]+)"'
+        incorrect_answers = re.findall(ia_pattern, incorrect_answers_raw)
+        
+        # Create a card and add it to the list
+        if question and correct_answer and incorrect_answers:
+            card = {
+                'q': question,
+                'ca': correct_answer,
+                'ia': incorrect_answers[:3]  # Limit to 3 incorrect answers
+            }
+            cards.append(card)
+    
+    return cards
 
 def get_file_state(file_key):
     """Get current processing state for a file"""
