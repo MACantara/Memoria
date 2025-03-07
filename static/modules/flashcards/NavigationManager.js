@@ -46,7 +46,7 @@ export class NavigationManager {
             return;
         }
         
-        // Handle keyboard shortcuts based on context - only if we're not in answer feedback mode
+        // Handle keyboard shortcuts based on context
         switch (key) {
             case 'Enter':
             case ' ': // Space
@@ -69,8 +69,9 @@ export class NavigationManager {
             case '2':
             case '3':
             case '4':
-                // Only work if viewing options and haven't already selected
-                if (isReviewingCard && !hasSelectedAnswer && !hasAnswerFeedback) {
+                // Fixed condition: Only work if viewing card options and not already in feedback state
+                // Removed the !hasSelectedAnswer check since number keys should work to select an answer
+                if (isReviewingCard && !hasAnswerFeedback) {
                     const optionIndex = parseInt(key) - 1;
                     const options = document.querySelectorAll('.answer-option');
                     
