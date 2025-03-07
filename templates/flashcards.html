@@ -43,13 +43,17 @@ Study {{ deck.name }} (All Cards)
 </div>
 
 <!-- Flashcard counter and state badge -->
-<div class="d-flex align-items-center justify-content-center mb-2">
-    <span id="statusBadge" class="badge bg-secondary">New</span>
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <div id="cardCounter" class="text-muted small">Card 0 of {{ flashcards_count }} ({{ flashcards_count }} remaining)</div>
+    <div>
+        <span id="statusBadge" class="badge bg-secondary">New</span>
+    </div>
 </div>
 
-<!-- Single Flashcard Container - Only one card visible at a time -->
+<!-- Main container for flashcard content -->
 <div id="flashcardsContainer">
     {% if not flashcards_count %}
+    <!-- No cards to study message -->
     <div class="alert alert-info">
         <h3 class="h5"><i class="bi bi-info-circle me-2"></i>No Cards to Study</h3>
         <p class="mb-0">
@@ -67,8 +71,17 @@ Study {{ deck.name }} (All Cards)
         </p>
     </div>
     {% else %}
-    <!-- Single card template that will be populated dynamically -->
-    <div id="currentFlashcard" class="card flashcard mb-4">
+    <!-- Initial loading state for when cards are being fetched -->
+    <div id="initialLoadingIndicator" class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading flashcards...</span>
+        </div>
+        <p class="mt-3">Loading your flashcards...</p>
+        <p class="text-muted small">Preparing {{ flashcards_count }} cards for review</p>
+    </div>
+    
+    <!-- Single card template that will be dynamically populated -->
+    <div id="currentFlashcard" class="card flashcard mb-4" style="display: none;">
         <div class="card-body">
             <div id="questionContainer" class="card-title h4"></div>
             <form id="answerForm" class="answer-form mt-4">
@@ -77,12 +90,12 @@ Study {{ deck.name }} (All Cards)
         </div>
     </div>
 
-    <!-- Loading indicator for when cards are being fetched -->
+    <!-- Loading indicator for when additional cards are being fetched -->
     <div id="loadingIndicator" class="text-center py-4 d-none">
         <div class="spinner-border text-primary" role="status">
-            <span class="visually-hidden">Loading...</span>
+            <span class="visually-hidden">Loading more cards...</span>
         </div>
-        <p class="mt-2">Loading flashcards...</p>
+        <p class="mt-2">Loading more flashcards...</p>
     </div>
     {% endif %}
 </div>
@@ -100,11 +113,28 @@ Study {{ deck.name }} (All Cards)
     
     document.addEventListener('DOMContentLoaded', () => {
         console.log("Page loaded. Initializing FlashcardManager...");
-        console.log("Total flashcards: {{ flashcards_count }}");
+        console.log("Total flashcards to study: {{ flashcards_count }}");
         
         const manager = new FlashcardManager();
+        
+        // Once the first batch is loaded, hide the initial loading indicator
+        manager.addEventListener('firstBatchLoaded', () => {
+            const initialLoader = document.getElementById('initialLoadingIndicator');
+            if (initialLoader) {
+                initialLoader.style.display = 'none';
+            }
+            
+            // Show the first card
+            const currentCard = document.getElementById('currentFlashcard');
+            if (currentCard) {
+                currentCard.style.display = 'block';
+            }
+        });
+        
+        // Initialize the manager
         manager.initialize();
 
+        // Set up keyboard navigation
         document.addEventListener('keydown', (e) => {
             manager.handleKeyboardNavigation(e.key);
         });
