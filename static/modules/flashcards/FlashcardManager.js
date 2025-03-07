@@ -397,4 +397,63 @@ export class FlashcardManager {
                 break;
         }
     }
+
+    showCompletion(score, totalDue) {
+        // Add debug info
+        console.log(`Showing completion screen. Score: ${score}/${totalDue}`);
+        
+        // Update progress bar to 100% first
+        this.updateScore(score, totalDue);
+        
+        // Update card counter to show 0 remaining
+        if (this.cardNumberElement) {
+            this.cardNumberElement.textContent = 
+                `Complete (0 remaining)`;
+        }
+        
+        // Update the status badge to show completion
+        this.statusBadge.textContent = 'Completed';
+        this.statusBadge.className = 'badge fs-4 p-3 bg-success';
+        
+        // Get the deck ID from the URL
+        const pathParts = window.location.pathname.split('/');
+        const deckId = pathParts[2]; // Assuming URL pattern is /deck/{id}/study
+        
+        // Check if there are more cards due today before showing completion
+        this.checkRemainingDueCards(deckId, totalDue, score);
+    }
+    
+    checkRemainingDueCards(deckId, totalDue, score) {
+        const container = document.getElementById('flashcardsContainer');
+        
+        // Get the current study mode
+        const isDueOnly = new URLSearchParams(window.location.search).get('due_only') === 'true';
+        
+        // In "Study All" mode, we know we've completed everything, so no need to check server
+        if (!isDueOnly) {
+            this.ui.showCompletionScreen(container, deckId, score, totalDue, isDueOnly, 0);
+            return;
+        }
+        
+        // In "Due Only" mode, check if there are more due cards that were added since we started
+        fetch(`/deck/api/due-count/${deckId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const remainingDueCards = data.due_count;
+                    console.log(`Remaining due cards: ${remainingDueCards}`);
+                    
+                    // Display completion with information about remaining due cards
+                    this.ui.showCompletionScreen(container, deckId, score, totalDue, isDueOnly, remainingDueCards);
+                } else {
+                    // Error fetching due count, just show normal completion
+                    this.ui.showCompletionScreen(container, deckId, score, totalDue, isDueOnly, 0);
+                }
+            })
+            .catch(error => {
+                console.error("Error checking remaining due cards:", error);
+                // Error occurred, just show normal completion
+                this.ui.showCompletionScreen(container, deckId, score, totalDue, isDueOnly, 0);
+            });
+    }
 }
