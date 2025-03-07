@@ -60,6 +60,9 @@
     <!-- Mobile Add Actions Menu (hidden by default) -->
     {% include 'menus/mobile_add_actions_menu.html' %}
     
+    <!-- Mobile Study & Stats Menu (hidden by default) -->
+    {% include 'menus/mobile_study_stats_menu.html' %}
+    
     <!-- Theme Toggle with Popup Menu -->
     {% include 'menus/theme_toggle_popup_menu.html' %}
 
@@ -336,6 +339,44 @@
                     } else {
                         option.classList.remove('active');
                     }
+                });
+            }
+        });
+        
+        // Mobile Study & Stats Menu functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const mobileStudyStatsButton = document.getElementById('mobileStudyStatsButton');
+            const mobileStudyStatsMenu = document.querySelector('.mobile-study-stats-menu');
+            const mobileStudyStatsMenuClose = document.getElementById('mobileStudyStatsMenuClose');
+            const mobileStudyStatsMenuBackdrop = document.getElementById('mobileStudyStatsMenuBackdrop');
+            
+            if (mobileStudyStatsButton && mobileStudyStatsMenu) {
+                // Toggle menu when button is clicked
+                mobileStudyStatsButton.addEventListener('click', function() {
+                    mobileStudyStatsMenu.classList.toggle('active');
+                });
+                
+                // Close menu when close button is clicked
+                if (mobileStudyStatsMenuClose) {
+                    mobileStudyStatsMenuClose.addEventListener('click', function() {
+                        mobileStudyStatsMenu.classList.remove('active');
+                    });
+                }
+                
+                // Close menu when backdrop is clicked
+                if (mobileStudyStatsMenuBackdrop) {
+                    mobileStudyStatsMenuBackdrop.addEventListener('click', function() {
+                        mobileStudyStatsMenu.classList.remove('active');
+                    });
+                }
+                
+                // Close menu when an action is selected
+                mobileStudyStatsMenu.querySelectorAll('.list-group-item').forEach(item => {
+                    item.addEventListener('click', function() {
+                        setTimeout(() => {
+                            mobileStudyStatsMenu.classList.remove('active');
+                        }, 100);
+                    });
                 });
             }
         });
