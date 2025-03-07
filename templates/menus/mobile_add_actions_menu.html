@@ -1,42 +1,74 @@
 <div class="mobile-add-menu" id="mobileAddMenu">
     <div class="mobile-add-menu-backdrop" id="mobileAddMenuBackdrop"></div>
+    
     <div class="mobile-add-menu-content">
-        <div class="list-group">
-            <!-- Context-aware add cards option -->
-            {% if request.path.startswith('/deck/') and request.path.split('/')[-1].isdigit() %}
-                <!-- In deck view - Add cards to this specific deck -->
-                <button type="button" class="list-group-item list-group-item-action" 
-                        onclick="document.querySelector('.add-cards-btn')?.click(); return false;">
-                    <i class="bi bi-card-text me-2"></i> Add Cards
-                </button>
-                
-                <!-- In deck view - Add sub-deck to this deck -->
-                <button type="button" class="list-group-item list-group-item-action" 
-                        onclick="document.getElementById('createDeckBtn')?.click(); return false;">
-                    <i class="bi bi-folder-symlink me-2"></i> New Sub-deck
-                </button>
-            {% else %}
-                <!-- In home view - Generate cards (will prompt for deck) -->
-                <button type="button" class="list-group-item list-group-item-action" 
-                        onclick="showGenerateModal(); return false;">
-                    <i class="bi bi-card-text me-2"></i> Add Cards
-                </button>
-                
-                <!-- In home view - Create new empty deck -->
-                <button type="button" class="list-group-item list-group-item-action" 
-                        onclick="document.getElementById('createEmptyDeckBtn')?.click(); return false;">
-                    <i class="bi bi-folder me-2"></i> New Deck
-                </button>
-            {% endif %}
+        <div class="py-2">
+            <h5 class="modal-title text-center mb-3">Add Content</h5>
             
-            <!-- Import content - available in all contexts -->
-            <button type="button" class="list-group-item list-group-item-action" 
-                    onclick="showImportModal(); return false;">
-                <i class="bi bi-file-earmark-arrow-up me-2"></i> Import Content
+            <!-- Context-aware menu content -->
+            <div class="list-group list-group-flush">
+                <!-- Add Cards - Context-aware implementation -->
+                {% if request.path.startswith('/deck/') and request.path.split('/')[-1].isdigit() %}
+                    <!-- In deck view - Add cards directly to this deck -->
+                    {% set deck_id = request.path.split('/')[-1] %}
+                    <a href="#" class="list-group-item list-group-item-action add-cards-btn" data-deck-id="{{ deck_id }}">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-card-text text-primary me-3"></i>
+                            <div>
+                                <div class="fw-bold">Add Cards</div>
+                                <small class="text-muted">Generate cards with AI</small>
+                            </div>
+                        </div>
+                    </a>
+                    <a href="#" class="list-group-item list-group-item-action" id="createDeckBtn">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-folder-symlink text-secondary me-3"></i>
+                            <div>
+                                <div class="fw-bold">New Sub-deck</div>
+                                <small class="text-muted">Create a new sub-deck</small>
+                            </div>
+                        </div>
+                    </a>
+                {% else %}
+                    <!-- Home or search page context - Generic add cards -->
+                    <a href="#" class="list-group-item list-group-item-action" onclick="showGenerateModal(); return false;">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-card-text text-primary me-3"></i>
+                            <div>
+                                <div class="fw-bold">Add Cards</div>
+                                <small class="text-muted">Generate flashcards with AI</small>
+                            </div>
+                        </div>
+                    </a>
+                    <a href="#" class="list-group-item list-group-item-action" id="createEmptyDeckBtn">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-folder-plus text-secondary me-3"></i>
+                            <div>
+                                <div class="fw-bold">New Deck</div>
+                                <small class="text-muted">Create a new deck</small>
+                            </div>
+                        </div>
+                    </a>
+                {% endif %}
+                
+                <!-- Import Content - Available in all contexts -->
+                <a href="#" class="list-group-item list-group-item-action" onclick="showImportModal(); return false;">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-file-earmark-arrow-up text-success me-3"></i>
+                        <div>
+                            <div class="fw-bold">Import Content</div>
+                            <small class="text-muted">Create cards from text or PDF</small>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        </div>
+        
+        <!-- Cancel button -->
+        <div class="d-flex justify-content-center mt-3">
+            <button type="button" class="btn btn-sm btn-secondary" id="mobileAddMenuClose">
+                <i class="bi bi-x"></i> Close
             </button>
         </div>
-        <button type="button" class="btn btn-outline-secondary w-100 mt-2" id="mobileAddMenuClose">
-            Cancel
-        </button>
     </div>
 </div>
