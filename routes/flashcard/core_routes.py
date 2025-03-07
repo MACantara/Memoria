@@ -1,21 +1,31 @@
-from flask import Blueprint, request, jsonify, render_template
+from flask import Blueprint, request, jsonify, render_template, flash, redirect, url_for
 from models import db, FlashcardDecks, Flashcards
 from services.fsrs_scheduler import process_review
+from flask_login import login_required, current_user
+from ..auth.decorators import login_required_for_decks
 import traceback
 
-# Update blueprint name to be more specific since it's now part of flashcard package
+# Updated blueprint name
 flashcard_bp = Blueprint('flashcard', __name__)
 
 @flashcard_bp.route("/deck/<int:deck_id>/view")
+@login_required_for_decks
 def view_flashcards(deck_id):
     """View all flashcards in a deck"""
     deck = FlashcardDecks.query.get_or_404(deck_id)
+    
+    # Check if user has access to this deck
+    if deck.user_id and deck.user_id != current_user.id:
+        flash('You do not have permission to access this deck', 'error')
+        return redirect(url_for('main.index'))
+        
     flashcards = Flashcards.query.filter_by(flashcard_deck_id=deck_id)\
         .order_by(Flashcards.created_at.desc()).all()
     
     return render_template("view_flashcards.html", deck=deck, flashcards=flashcards)
 
 @flashcard_bp.route("/update_progress", methods=["POST"])
+@login_required
 def update_progress():
     """Update flashcard study progress"""
     try:
@@ -25,6 +35,12 @@ def update_progress():
         
         # Get the flashcard
         flashcard = Flashcards.query.get_or_404(flashcard_id)
+        
+        # Check if user has permission to update this flashcard
+        deck = FlashcardDecks.query.get(flashcard.flashcard_deck_id)
+        if deck.user_id and deck.user_id != current_user.id:
+            return jsonify({"success": False, "error": "Unauthorized access"}), 403
+        
         print(f"Processing flashcard {flashcard_id}, is_correct: {is_correct}")
         
         # Use timezone-aware datetime
