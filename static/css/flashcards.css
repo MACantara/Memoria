@@ -192,3 +192,32 @@ body {
 .feedback-container {
     pointer-events: auto;
 }
+
+/* Compact flashcard navigation */
+.flashcard-nav {
+    position: sticky;
+    top: 0;
+    z-index: 1030;
+    background-color: var(--bs-body-bg);
+    border-bottom: 1px solid var(--bs-border-color);
+}
+
+.deck-title {
+    max-width: 70%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.compact-status-badge {
+    font-size: 0.75rem;
+    padding: 0.25em 0.6em;
+    position: relative;
+    top: -8px;
+    z-index: 5;
+}
+
+/* Remove margin from the flashcard to make it tighter with the status badge */
+#flashcardsContainer .card.flashcard {
+    margin-top: 0.5rem;
+}

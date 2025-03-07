@@ -11,35 +11,6 @@ Study {{ deck.name }} (All Cards)
 {% block styles %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/flashcards.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css') }}">
-<style>
-    /* Compact flashcard navigation */
-    .flashcard-nav {
-        position: sticky;
-        top: 0;
-        z-index: 1030;
-        background-color: var(--bs-body-bg);
-    }
-    
-    .deck-title {
-        max-width: 70%;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-    
-    .compact-status-badge {
-        font-size: 0.75rem;
-        padding: 0.25em 0.6em;
-        position: relative;
-        top: -8px;
-        z-index: 5;
-    }
-    
-    /* Remove margin from the flashcard to make it tighter with the status badge */
-    #flashcardsContainer .card.flashcard {
-        margin-top: 0.5rem;
-    }
-</style>
 <meta name="viewport" content="width=device-width, maximum-scale=1.0, user-scalable=no">
 {% endblock %}
 
