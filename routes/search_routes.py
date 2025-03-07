@@ -9,6 +9,7 @@ def search():
     """Handle search requests and render search results page"""
     query = request.args.get('q', '').strip()
     page = int(request.args.get('page', 1))
+    scope = request.args.get('scope', 'all')  # Add scope parameter with default 'all'
     per_page = 20
     
     # Empty query shows search page with no results
@@ -20,15 +21,24 @@ def search():
                               total_decks=0,
                               total_cards=0,
                               page=page,
-                              per_page=per_page)
+                              per_page=per_page,
+                              scope=scope)  # Pass scope to template
     
     # For AJAX requests, return JSON data
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return search_json(query, page, per_page)
+        return search_json(query, page, per_page, scope)
     
-    # Regular request - perform search and render full page
-    deck_results, total_decks = search_decks(query, page, per_page)
-    card_results, total_cards = search_flashcards(query, page, per_page)
+    # Regular request - perform search based on scope
+    deck_results = []
+    card_results = []
+    total_decks = 0
+    total_cards = 0
+    
+    if scope in ['all', 'decks']:
+        deck_results, total_decks = search_decks(query, page, per_page)
+    
+    if scope in ['all', 'cards']:
+        card_results, total_cards = search_flashcards(query, page, per_page)
     
     return render_template('search_results.html',
                           query=query,
@@ -37,7 +47,8 @@ def search():
                           total_decks=total_decks,
                           total_cards=total_cards,
                           page=page,
-                          per_page=per_page)
+                          per_page=per_page,
+                          scope=scope)  # Pass scope to template
 
 @search_bp.route('/api', methods=['GET'])
 def search_api():
