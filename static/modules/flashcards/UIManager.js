@@ -258,8 +258,8 @@ export class UIManager {
             if (remainingDueCards > 0) {
                 // Due Only mode with more cards due - show option to continue
                 this.flashcardContainer.innerHTML = `
-                    <div class="text-center p-5">
-                        <div class="card-body">
+                    <div class="text-center p-3">
+                        <div>
                             <h2 class="card-title mb-4">
                                 <i class="bi bi-check2-circle text-success"></i> Session Complete!
                             </h2>
@@ -289,8 +289,8 @@ export class UIManager {
             } else {
                 // Due Only mode with no more cards due - show standard completion
                 this.flashcardContainer.innerHTML = `
-                    <div class="text-center p-5">
-                        <div class="card-body">
+                    <div class="text-center p-3">
+                        <div>
                             <h2 class="card-title mb-4">
                                 <i class="bi bi-calendar-check-fill text-success"></i> All Due Cards Completed!
                             </h2>
