@@ -1,17 +1,29 @@
-from flask import Flask
+from flask import Flask, g, request
+from flask_login import LoginManager
 import json
-from models import db
+from models import db, User
 from config import Config
 from routes import register_blueprints
 from google import genai
 import os
 
-def create_app(config_class=Config):
+def create_app(test_config=None):
     app = Flask(__name__)
-    app.config.from_object(config_class)
-    
+    app.config.from_object(Config)
+
     # Initialize database
     db.init_app(app)
+    
+    # Initialize Flask-Login
+    login_manager = LoginManager()
+    login_manager.login_view = 'auth.login'
+    login_manager.login_message = 'Please log in to access this page.'
+    login_manager.login_message_category = 'info'
+    login_manager.init_app(app)
+    
+    @login_manager.user_loader
+    def load_user(user_id):
+        return User.query.get(int(user_id))
     
     # Initialize Gemini AI client if API key is available
     if Config.GEMINI_API_KEY:
@@ -30,21 +42,15 @@ def create_app(config_class=Config):
             # Return empty list as fallback if parsing fails
             return []
     
+    # Create database tables
+    with app.app_context():
+        db.create_all()
+
     # Register blueprints using the centralized function
     register_blueprints(app)
     
     return app
 
-app = create_app()
-
-# Create tables if they don't exist
-with app.app_context():
-    db.create_all()
-
-if __name__ == "__main__":
-    try:
-        print("Starting development server...")
-        print(f"Access the application at: http://{Config.HOST}:{Config.PORT}")
-        app.run(host=Config.HOST, port=Config.PORT)
-    except Exception as e:
-        print(f"Error starting development server: {e}")
+if __name__ == '__main__':
+    app = create_app()
+    app.run(host=app.config['HOST'], port=app.config['PORT'], debug=app.config['DEBUG'])
