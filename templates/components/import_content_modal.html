@@ -42,7 +42,7 @@
                                         <option value="" selected disabled>Choose a deck...</option>
                                         <!-- Deck options will be populated dynamically -->
                                     </select>
-                                    <div class="loading-spinner spinner-border spinner-border-sm text-primary" role="status">
+                                    <div class="loading-spinner spinner-border spinner-border-sm text-primary d-none" role="status">
                                         <span class="visually-hidden">Loading...</span>
                                     </div>
                                 </div>
@@ -50,12 +50,14 @@
                             
                             <div class="mb-3">
                                 <div class="drag-area" id="dragArea">
-                                    <i class="bi bi-cloud-arrow-up"></i>
-                                    <h5>Drag & Drop your file here</h5>
-                                    <p>or</p>
-                                    <button type="button" class="btn btn-primary" id="browseBtn">Browse Files</button>
-                                    <input type="file" hidden id="fileInput" name="file" accept=".txt,.pdf" />
-                                    <p class="mt-2 text-muted">Supported formats: PDF, TXT</p>
+                                    <div class="drag-area-inner">
+                                        <i class="bi bi-cloud-arrow-up fs-3 mb-2"></i>
+                                        <h5>Drag & Drop Files Here</h5>
+                                        <p class="text-muted">or</p>
+                                        <button type="button" class="btn btn-primary" id="browseBtn">Browse Files</button>
+                                        <input type="file" hidden id="fileInput" name="file" accept=".txt,.pdf" />
+                                        <p class="mt-2 text-muted small">Supported formats: PDF, TXT</p>
+                                    </div>
                                 </div>
                                 <div id="fileInfo" class="mt-2 d-none">
                                     <div class="alert alert-info">
@@ -109,6 +111,79 @@
     </div>
 </div>
 
+<style>
+    /* Enhanced drag and drop styling */
+    .drag-area {
+        border: 2px dashed #6c757d;
+        border-radius: 8px;
+        background-color: rgba(0,0,0,0.02);
+        text-align: center;
+        min-height: 180px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .drag-area-inner {
+        padding: 30px;
+        width: 100%;
+    }
+    
+    .drag-area.active {
+        border-color: #0d6efd;
+        background-color: rgba(13, 110, 253, 0.05);
+        animation: pulse 1.5s infinite;
+    }
+    
+    .drag-area:hover {
+        border-color: #0d6efd;
+        background-color: rgba(13, 110, 253, 0.03);
+    }
+    
+    @keyframes pulse {
+        0% {
+            box-shadow: 0 0 0 0 rgba(13, 110, 253, 0.3);
+        }
+        70% {
+            box-shadow: 0 0 0 10px rgba(13, 110, 253, 0);
+        }
+        100% {
+            box-shadow: 0 0 0 0 rgba(13, 110, 253, 0);
+        }
+    }
+    
+    /* Make the loading spinner hidden by default */
+    .select-container {
+        position: relative;
+    }
+    
+    .select-container .loading-spinner {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 10;
+    }
+    
+    .select-container.select-loading .loading-spinner {
+        display: block !important;
+    }
+    
+    /* File info styling */
+    #fileInfo .alert {
+        display: flex;
+        align-items: center;
+        padding: 10px 15px;
+    }
+    
+    #fileInfo .alert i {
+        font-size: 1.2em;
+        margin-right: 8px;
+    }
+</style>
+
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         // DOM elements
@@ -136,6 +211,10 @@
         function loadDecks() {
             deckSelector.closest('.select-container').classList.add('select-loading');
             
+            // Show the loading spinner by removing d-none
+            const loadingSpinner = deckSelector.closest('.select-container').querySelector('.loading-spinner');
+            loadingSpinner.classList.remove('d-none');
+            
             fetch('/deck/api/list')
                 .then(response => response.json())
                 .then(data => {
@@ -156,13 +235,23 @@
                     deckSelector.innerHTML = '<option value="" selected disabled>Error loading decks</option>';
                 })
                 .finally(() => {
+                    // Hide the spinner when done
                     deckSelector.closest('.select-container').classList.remove('select-loading');
+                    loadingSpinner.classList.add('d-none');
                 });
         }
         
         // Initialize when modal is shown
         $('#importContentModal').on('shown.bs.modal', function () {
             loadDecks();
+            
+            // Reset drag area and file input
+            resetFileInput();
+            
+            // Call attention to drag area with subtle pulse
+            const dragArea = document.getElementById('dragArea');
+            dragArea.classList.add('pulse-once');
+            setTimeout(() => dragArea.classList.remove('pulse-once'), 1500);
         });
         
         // Drag and Drop events
@@ -183,6 +272,13 @@
             handleFile(file);
         });
         
+        // Make dragArea also clickable to open file dialog
+        dragArea.addEventListener('click', function(e) {
+            if (e.target !== browseBtn) {
+                fileInput.click();
+            }
+        });
+        
         // Browse button
         browseBtn.addEventListener('click', function() {
             fileInput.click();
@@ -200,7 +296,7 @@
             resetFileInput();
         });
         
-        // Handle selected file
+        // Handle selected file with improved UI feedback
         function handleFile(file) {
             const validTypes = ['.txt', '.pdf'];
             const extension = '.' + file.name.split('.').pop().toLowerCase();
@@ -218,10 +314,29 @@
                 return;
             }
             
-            // Show file info
+            // Show file info with enhanced styling
             fileName.textContent = file.name;
+            const fileSize = (file.size / 1024).toFixed(2);
+            const fileIcon = file.name.toLowerCase().endsWith('.pdf') ? 'bi-file-earmark-pdf' : 'bi-file-earmark-text';
+            
+            fileInfo.innerHTML = `
+                <div class="alert alert-info">
+                    <i class="${fileIcon} me-2"></i>
+                    <div class="d-flex justify-content-between align-items-center w-100">
+                        <div>
+                            <strong>${file.name}</strong>
+                            <div class="small text-muted">${fileSize} KB</div>
+                        </div>
+                        <button type="button" class="btn-close" id="removeFile"></button>
+                    </div>
+                </div>
+            `;
+            
             fileInfo.classList.remove('d-none');
             dragArea.classList.add('d-none');
+            
+            // Attach remove button listener again since we recreated the button
+            document.getElementById('removeFile').addEventListener('click', resetFileInput);
             
             // Enable import button if deck is selected
             importBtn.disabled = !deckSelector.value;
