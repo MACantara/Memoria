@@ -5,30 +5,56 @@
         <div class="py-2">
             <h5 class="modal-title text-center mb-3">Add Content</h5>
             
+            <!-- Authentication warning for non-logged in users -->
+            {% if not current_user.is_authenticated %}
+            <div class="alert alert-warning mb-3">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                Some features require logging in. 
+                <a href="{{ url_for('auth.login', next=request.path) }}" class="btn btn-sm btn-outline-primary mt-2">
+                    <i class="bi bi-box-arrow-in-right me-1"></i> Login
+                </a>
+            </div>
+            {% endif %}
+            
             <!-- Context-aware menu content -->
             <div class="list-group list-group-flush">
                 <!-- Add Cards - Context-aware implementation -->
                 {% if request.path.startswith('/deck/') and request.path.split('/')[-1].isdigit() %}
-                    <!-- In deck view - Add cards directly to this deck -->
+                    <!-- In deck view - Add cards directly to this deck if user has permission -->
                     {% set deck_id = request.path.split('/')[-1] %}
-                    <a href="javascript:void(0);" class="list-group-item list-group-item-action add-cards-btn" data-deck-id="{{ deck_id }}">
-                        <div class="d-flex align-items-center">
-                            <i class="bi bi-card-text text-primary me-3"></i>
-                            <div>
-                                <div class="fw-bold">Add Cards</div>
-                                <small class="text-muted">Generate cards with AI</small>
+                    {% set deck = g.all_decks|selectattr('flashcard_deck_id', 'equalto', deck_id|int)|first %}
+                    
+                    {% if not deck.user_id or (current_user.is_authenticated and deck.user_id == current_user.id) %}
+                        <a href="javascript:void(0);" class="list-group-item list-group-item-action add-cards-btn" data-deck-id="{{ deck_id }}">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-card-text text-primary me-3"></i>
+                                <div>
+                                    <div class="fw-bold">Add Cards</div>
+                                    <small class="text-muted">Generate cards with AI</small>
+                                </div>
+                            </div>
+                        </a>
+                        <a href="javascript:void(0);" class="list-group-item list-group-item-action" id="createDeckBtn">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-folder-symlink text-secondary me-3"></i>
+                                <div>
+                                    <div class="fw-bold">New Sub-deck</div>
+                                    <small class="text-muted">Create a new sub-deck</small>
+                                </div>
+                            </div>
+                        </a>
+                    {% else %}
+                        <!-- Show info if user doesn't have permission -->
+                        <div class="list-group-item disabled">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-lock text-muted me-3"></i>
+                                <div>
+                                    <div class="fw-bold text-muted">Private Deck</div>
+                                    <small class="text-muted">You don't have permission to add content</small>
+                                </div>
                             </div>
                         </div>
-                    </a>
-                    <a href="javascript:void(0);" class="list-group-item list-group-item-action" id="createDeckBtn">
-                        <div class="d-flex align-items-center">
-                            <i class="bi bi-folder-symlink text-secondary me-3"></i>
-                            <div>
-                                <div class="fw-bold">New Sub-deck</div>
-                                <small class="text-muted">Create a new sub-deck</small>
-                            </div>
-                        </div>
-                    </a>
+                    {% endif %}
                 {% else %}
                     <!-- Home or search page context - Generic add cards -->
                     <a href="javascript:void(0);" class="list-group-item list-group-item-action" onclick="showGenerateModal(); return false;">
@@ -40,13 +66,20 @@
                             </div>
                         </div>
                     </a>
-                    <!-- Fix for Empty Deck button in mobile menu -->
+                    
+                    <!-- Only show Create Deck for logged-in users or public interface -->
                     <a href="javascript:void(0);" class="list-group-item list-group-item-action" id="createEmptyDeckBtn">
                         <div class="d-flex align-items-center">
                             <i class="bi bi-folder-plus text-secondary me-3"></i>
                             <div>
                                 <div class="fw-bold">New Deck</div>
-                                <small class="text-muted">Create a new deck</small>
+                                <small class="text-muted">
+                                    {% if current_user.is_authenticated %}
+                                        Create a personal deck
+                                    {% else %}
+                                        Create a public deck
+                                    {% endif %}
+                                </small>
                             </div>
                         </div>
                     </a>
