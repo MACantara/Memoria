@@ -185,6 +185,25 @@ body {
         position: fixed;
         width: 100%;
     }
+    
+    /* Hide the mobile bottom navigation on study pages */
+    .mobile-bottom-nav {
+        display: none;
+    }
+    
+    /* Flashcard-specific navigation controls could be added here */
+    .flashcard-mobile-controls {
+        display: flex;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background-color: var(--bs-body-bg);
+        padding: 10px;
+        border-top: 1px solid var(--bs-border-color);
+        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+        z-index: 1030;
+    }
 }
 
 /* Ensure options are distinct on touch devices */
