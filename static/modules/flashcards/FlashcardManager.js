@@ -102,10 +102,12 @@ export class FlashcardManager {
     updateCardCounter() {
         // Calculate cards left to review in this session
         const remaining = Math.max(0, this.totalDueCards - this.score);
-        const currentIndex = this.currentCardIndex + 1;  // 1-based index for display
         
-        // Update UI manager's counter
-        this.ui.updateCardCounter(this.currentCardIndex, this.totalDueCards, this.score);
+        // Use getDisplayIndex to get the correct 1-based card number for display
+        const currentIndex = this.getDisplayIndex(this.currentCardIndex);
+        
+        // Update UI manager's counter with correct display index
+        this.ui.updateCardCounter(currentIndex - 1, this.totalDueCards, this.score);
     }
 
     async moveToNextCard() {
@@ -132,7 +134,9 @@ export class FlashcardManager {
                 
                 this.currentCardIndex = i;
                 this.currentCard = card;
-                console.log(`Moving to card ${i+1}/${this.flashcards.length} with ID ${card.id}`);
+                // Fix log message to use the visible card index (1-based) instead of array index
+                const visibleCardIndex = this.getDisplayIndex(i);
+                console.log(`Moving to card ${visibleCardIndex}/${this.totalDueCards} with ID ${card.id}`);
                 
                 // Render this card
                 this.ui.renderCard(card);
@@ -268,6 +272,19 @@ export class FlashcardManager {
             'unknown': 0
         };
         return stateMap[stateName] || 0;
+    }
+
+    getDisplayIndex(arrayIndex) {
+        // Count how many uncompleted cards appear before this index
+        let displayIndex = 1; // Start at 1 for 1-based indexing
+        
+        for (let i = 0; i < arrayIndex; i++) {
+            if (i < this.flashcards.length && !this.completedCards.has(this.flashcards[i].id)) {
+                displayIndex++;
+            }
+        }
+        
+        return displayIndex;
     }
 
     handleKeyboardNavigation(key) {
