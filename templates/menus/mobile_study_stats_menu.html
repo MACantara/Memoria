@@ -67,6 +67,35 @@
                             </div>
                         </div>
                     </a>
+                {% elif request.path.startswith('/search') %}
+                    <!-- Search context - Same behavior as home page -->
+                    <button class="list-group-item list-group-item-action" data-bs-toggle="modal" data-bs-target="#selectDeckToStudyModal">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-calendar-check text-success me-3"></i>
+                            <div>
+                                <div class="fw-bold">Study Due Cards</div>
+                                <small class="text-muted">Review cards due today</small>
+                            </div>
+                        </div>
+                    </button>
+                    <button class="list-group-item list-group-item-action" data-bs-toggle="modal" data-bs-target="#selectDeckToStudyModal">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-collection-play text-primary me-3"></i>
+                            <div>
+                                <div class="fw-bold">Study All Cards</div>
+                                <small class="text-muted">Review cards from any deck</small>
+                            </div>
+                        </div>
+                    </button>
+                    <button class="list-group-item list-group-item-action" data-bs-toggle="modal" data-bs-target="#selectDeckForStatsModal">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-graph-up text-info me-3"></i>
+                            <div>
+                                <div class="fw-bold">View Stats</div>
+                                <small class="text-muted">See progress for any deck</small>
+                            </div>
+                        </div>
+                    </button>
                 {% else %}
                     <!-- In home/index view - Open modal to select a deck -->
                     <button class="list-group-item list-group-item-action" data-bs-toggle="modal" data-bs-target="#selectDeckToStudyModal">
