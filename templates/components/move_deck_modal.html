@@ -6,6 +6,18 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
+                <!-- Authentication warning -->
+                {% if not current_user.is_authenticated %}
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    You must be logged in to move decks.
+                    <div class="mt-2">
+                        <a href="{{ url_for('auth.login', next=request.path) }}" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-box-arrow-in-right me-1"></i> Login to manage decks
+                        </a>
+                    </div>
+                </div>
+                {% else %}
                 <p>Select a new location for <strong id="deckToMoveName"></strong>:</p>
                 
                 <div class="mb-3">
@@ -28,17 +40,19 @@
                         <select class="form-select deck-search-select" id="parentDeckSelect" disabled>
                             <option value="" disabled selected>Select a parent deck...</option>
                             
-                            <!-- List of possible parent decks -->
+                            <!-- List of possible parent decks (only owned or public decks) -->
                             {% for deck in g.all_decks %}
-                                {% if not deck.parent_deck_id %}  <!-- Show only top-level decks -->
-                                    <option value="{{ deck.flashcard_deck_id }}" 
-                                            data-parent="">{{ deck.name }}</option>
-                                    
-                                    <!-- First level of child decks -->
-                                    {% for child in deck.child_decks %}
-                                        <option value="{{ child.flashcard_deck_id }}" 
-                                                data-parent="{{ deck.name }}">{{ child.name }}</option>
-                                    {% endfor %}
+                                {% if deck.user_id == current_user.id or deck.user_id == None %}
+                                    {% if not deck.parent_deck_id %}  <!-- Show only top-level decks -->
+                                        <option value="{{ deck.flashcard_deck_id }}" 
+                                                data-parent="">{{ deck.name }}</option>
+                                        
+                                        <!-- First level of child decks -->
+                                        {% for child in deck.child_decks %}
+                                            <option value="{{ child.flashcard_deck_id }}" 
+                                                    data-parent="{{ deck.name }}">{{ child.name }}</option>
+                                        {% endfor %}
+                                    {% endif %}
                                 {% endif %}
                             {% endfor %}
                         </select>
@@ -58,9 +72,12 @@
                 </div>
                 
                 <div id="moveStatus"></div>
+                {% endif %}
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <!-- Only show move button if user is authenticated -->
+                {% if current_user.is_authenticated %}
                 <button type="button" class="btn btn-primary" id="confirmMoveBtn">
                     <span class="normal-state">Move Deck</span>
                     <span class="loading-state d-none">
@@ -68,6 +85,7 @@
                         Moving...
                     </span>
                 </button>
+                {% endif %}
             </div>
         </div>
     </div>
