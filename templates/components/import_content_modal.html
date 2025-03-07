@@ -165,6 +165,14 @@
         top: 50%;
         transform: translateY(-50%);
         z-index: 10;
+        /* Ensure spinner rotates correctly */
+        animation: spinner-border 0.75s linear infinite;
+        border-radius: 50%;
+    }
+    
+    /* Ensure proper spinner animation */
+    @keyframes spinner-border {
+        to { transform: translateY(-50%) rotate(360deg); }
     }
     
     .select-container.select-loading .loading-spinner {
