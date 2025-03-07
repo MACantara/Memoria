@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template
+from flask import Blueprint, render_template, g
 from models import db, FlashcardDecks
 from routes.deck.utils import count_due_flashcards
 
@@ -11,6 +11,9 @@ def index():
     
     # Get ALL decks regardless of hierarchy for modals
     all_decks = FlashcardDecks.query.all()
+    
+    # Make all_decks available to templates via g object for base.html to use
+    g.all_decks = all_decks
     
     # Pass the count_due_flashcards function to the template
     return render_template('index.html', 
