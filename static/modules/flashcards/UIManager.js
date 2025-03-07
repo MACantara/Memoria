@@ -41,28 +41,30 @@ export class UIManager {
         }
     }
     
-    updateStatusBadge(stateNum) {
-        if (!this.statusBadge) return;
+    updateStatusBadge(state) {
+        const statusBadge = document.getElementById('statusBadge');
+        if (!statusBadge) return;
         
-        const stateName = this.getStateName(stateNum);
-        this.statusBadge.textContent = stateName.charAt(0).toUpperCase() + stateName.slice(1);
+        // Remove existing classes
+        statusBadge.classList.remove('bg-secondary', 'bg-warning', 'bg-success', 'bg-danger');
         
-        // Reset badge classes but keep size and padding classes
-        this.statusBadge.className = 'badge fs-4 p-3';
-        
-        // Add appropriate class based on state
-        switch(stateNum) {
-            case 0:
-                this.statusBadge.classList.add('bg-secondary');
+        // Update badge style and text based on state
+        switch(parseInt(state)) {
+            case 0: // New
+                statusBadge.textContent = 'New';
+                statusBadge.classList.add('bg-secondary');
                 break;
-            case 1:
-                this.statusBadge.classList.add('bg-warning', 'text-dark');
+            case 1: // Learning
+                statusBadge.textContent = 'Learning';
+                statusBadge.classList.add('bg-warning');
                 break;
-            case 2:
-                this.statusBadge.classList.add('bg-success');
+            case 2: // Mastered
+                statusBadge.textContent = 'Mastered';
+                statusBadge.classList.add('bg-success');
                 break;
-            case 3:
-                this.statusBadge.classList.add('bg-danger');
+            case 3: // Forgotten
+                statusBadge.textContent = 'Forgotten';
+                statusBadge.classList.add('bg-danger');
                 break;
         }
     }
@@ -87,30 +89,13 @@ export class UIManager {
         }
     }
 
-    updateScore(score, totalDue) {
-        // Add debug info
-        console.log(`Updating score: ${score}/${totalDue}`);
-        
-        // Update the score text to show session completion rather than mastery
-        const scoreElement = document.getElementById('score');
-        if (scoreElement) scoreElement.textContent = score;
-        
-        // Update the progress bar
+    updateScore(score, total) {
+        // Update only the progress bar, not the text
         const progressBar = document.getElementById('progressBar');
         if (progressBar) {
-            // Calculate completion percentage for this session
-            const percentage = totalDue > 0 ? (score / totalDue) * 100 : 0;
-            progressBar.style.width = `${percentage}%`;
-            progressBar.setAttribute('aria-valuenow', percentage);
-            
-            // Change progress bar color based on completion percentage
-            if (percentage < 30) {
-                progressBar.className = "progress-bar bg-danger";
-            } else if (percentage < 70) {
-                progressBar.className = "progress-bar bg-warning";
-            } else {
-                progressBar.className = "progress-bar bg-success";
-            }
+            const percent = total > 0 ? (score / total) * 100 : 0;
+            progressBar.style.width = `${percent}%`;
+            progressBar.setAttribute('aria-valuenow', percent);
         }
     }
 
