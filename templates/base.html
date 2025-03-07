@@ -323,46 +323,57 @@
                 }
             }
             
-            // Mobile theme toggle functionality
+            // Mobile theme toggle functionality - UPDATED
             const mobileThemeToggle = document.getElementById('mobileThemeToggle');
-            const currentTheme = localStorage.getItem('theme') || 'auto';
+            const mobileThemeMenu = document.getElementById('mobileThemeMenu');
+            const mobileThemeMenuBackdrop = document.getElementById('mobileThemeMenuBackdrop');
+            const mobileThemeOptions = document.querySelectorAll('.mobile-theme-option');
             
             // Set initial icon based on current theme
             if (mobileThemeToggle) {
                 updateMobileThemeIcon(mobileThemeToggle);
                 
+                // Changed to toggle the theme menu instead of cycling through themes
                 mobileThemeToggle.addEventListener('click', function() {
-                    const htmlElement = document.documentElement;
-                    const currentTheme = localStorage.getItem('theme') || 'auto';
-                    let newTheme;
-                    
-                    // Simple rotation between themes: light -> dark -> auto -> light
-                    if (currentTheme === 'light') {
-                        newTheme = 'dark';
-                    } else if (currentTheme === 'dark') {
-                        newTheme = 'auto';
-                    } else {
-                        newTheme = 'light';
-                    }
-                    
-                    // Apply the new theme
-                    localStorage.setItem('theme', newTheme);
-                    
-                    // Update theme on document
-                    if (newTheme === 'dark') {
-                        htmlElement.setAttribute('data-bs-theme', 'dark');
-                    } else if (newTheme === 'light') {
-                        htmlElement.setAttribute('data-bs-theme', 'light');
-                    } else if (newTheme === 'auto') {
-                        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                        htmlElement.setAttribute('data-bs-theme', prefersDark ? 'dark' : 'light');
-                    }
-                    
-                    // Update the icon
-                    updateMobileThemeIcon(mobileThemeToggle);
-                    
-                    // Show brief toast notification
-                    showThemeChangeToast(newTheme);
+                    mobileThemeMenu.classList.toggle('active');
+                    updateActiveThemeOption(); // Update checkmarks
+                });
+                
+                // Close menu when backdrop is clicked
+                if (mobileThemeMenuBackdrop) {
+                    mobileThemeMenuBackdrop.addEventListener('click', function() {
+                        mobileThemeMenu.classList.remove('active');
+                    });
+                }
+                
+                // Handle theme option selection
+                mobileThemeOptions.forEach(option => {
+                    option.addEventListener('click', function() {
+                        const theme = this.getAttribute('data-theme');
+                        const htmlElement = document.documentElement;
+                        
+                        // Apply and save the theme
+                        localStorage.setItem('theme', theme);
+                        
+                        // Apply theme to document
+                        if (theme === 'dark') {
+                            htmlElement.setAttribute('data-bs-theme', 'dark');
+                        } else if (theme === 'light') {
+                            htmlElement.setAttribute('data-bs-theme', 'light');
+                        } else if (theme === 'auto') {
+                            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                            htmlElement.setAttribute('data-bs-theme', prefersDark ? 'dark' : 'light');
+                        }
+                        
+                        // Update the theme toggle icon
+                        updateMobileThemeIcon(mobileThemeToggle);
+                        
+                        // Show toast notification
+                        showThemeChangeToast(theme);
+                        
+                        // Close the menu
+                        mobileThemeMenu.classList.remove('active');
+                    });
                 });
             }
             
@@ -419,56 +430,6 @@
                         document.body.removeChild(toast);
                     }, 300);
                 }, 2000);
-            }
-            
-            // Mobile theme menu functionality
-            const mobileThemeMenu = document.getElementById('mobileThemeMenu');
-            const mobileThemeMenuBackdrop = document.getElementById('mobileThemeMenuBackdrop');
-            const mobileThemeOptions = document.querySelectorAll('.mobile-theme-option');
-            
-            // Toggle menu when theme button is clicked
-            if (mobileThemeToggle && mobileThemeMenu) {
-                mobileThemeToggle.addEventListener('click', function() {
-                    mobileThemeMenu.classList.toggle('active');
-                    updateActiveThemeOption(); // Update checkmarks
-                });
-                
-                // Close menu when backdrop is clicked
-                if (mobileThemeMenuBackdrop) {
-                    mobileThemeMenuBackdrop.addEventListener('click', function() {
-                        mobileThemeMenu.classList.remove('active');
-                    });
-                }
-                
-                // Handle theme option selection
-                mobileThemeOptions.forEach(option => {
-                    option.addEventListener('click', function() {
-                        const theme = this.getAttribute('data-theme');
-                        const htmlElement = document.documentElement;
-                        
-                        // Apply and save the theme
-                        localStorage.setItem('theme', theme);
-                        
-                        // Apply theme to document
-                        if (theme === 'dark') {
-                            htmlElement.setAttribute('data-bs-theme', 'dark');
-                        } else if (theme === 'light') {
-                            htmlElement.setAttribute('data-bs-theme', 'light');
-                        } else if (theme === 'auto') {
-                            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                            htmlElement.setAttribute('data-bs-theme', prefersDark ? 'dark' : 'light');
-                        }
-                        
-                        // Update the theme toggle icon
-                        updateMobileThemeIcon(mobileThemeToggle);
-                        
-                        // Show toast notification
-                        showThemeChangeToast(theme);
-                        
-                        // Close the menu
-                        mobileThemeMenu.classList.remove('active');
-                    });
-                });
             }
             
             function updateActiveThemeOption() {
