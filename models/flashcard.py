@@ -65,7 +65,7 @@ class Flashcards(db.Model):
     
     # FSRS specific fields
     fsrs_state = db.Column(JSONEncodedDict, default=dict)
-    due_date = db.Column(db.DateTime)
+    due_date = db.Column(db.DateTime, default=datetime.utcnow)
     difficulty = db.Column(db.Float, default=0.0)
     stability = db.Column(db.Float, default=0.0)
     retrievability = db.Column(db.Float, default=0.0)
