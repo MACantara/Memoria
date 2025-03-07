@@ -17,6 +17,8 @@ window.showGenerateModal = function() {
     }
 };
 
+import { initializeDeckSearch } from './deck-search.js';
+
 export function initializeModals() {
     const modals = {};
     
@@ -128,6 +130,25 @@ export function initializeModals() {
             modals.generateModal.show();
         };
     }
+
+    // Initialize deck search in all relevant modals
+    document.querySelectorAll('.deck-search-select').forEach(selectElement => {
+        initializeDeckSearch(selectElement);
+    });
+    
+    // For any modals that might be dynamically loaded
+    document.addEventListener('shown.bs.modal', function(event) {
+        const modal = event.target;
+        if (modal) {
+            const selectElements = modal.querySelectorAll('.deck-search-select');
+            selectElements.forEach(selectElement => {
+                if (!selectElement.dataset.searchInitialized) {
+                    initializeDeckSearch(selectElement);
+                    selectElement.dataset.searchInitialized = 'true';
+                }
+            });
+        }
+    });
 
     return modals;
 }
