@@ -68,6 +68,20 @@
                                 </div>
                             </div>
                             
+                            <div class="mb-3">
+                                <label for="importDeckSelect" class="form-label">Choose a deck:</label>
+                                <select class="form-select deck-search-select" id="importDeckSelect" name="deck_id" required>
+                                    <option value="" disabled selected>Select a deck...</option>
+                                    {% for deck in g.all_decks if not deck.parent_deck_id %} <!-- Only top-level decks -->
+                                        <option value="{{ deck.flashcard_deck_id }}">{{ deck.name }}</option>
+                                        {% for subdeck in deck.child_decks %}
+                                            <option value="{{ subdeck.flashcard_deck_id }}">&nbsp;&nbsp;└ {{ subdeck.name }}</option>
+                                        {% endfor %}
+                                    {% endfor %}
+                                </select>
+                                <!-- Help text is automatically added by the component -->
+                            </div>
+
                             <div class="d-grid">
                                 <button type="submit" class="btn btn-primary" id="importBtn" disabled>
                                     <i class="bi bi-magic"></i> Generate Flashcards

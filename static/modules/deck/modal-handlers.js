@@ -17,7 +17,19 @@ window.showGenerateModal = function() {
     }
 };
 
+import { initializeDeckSearch } from './deck-search.js';
+
+// Track if modals have been initialized to prevent duplicate handlers
+let modalsInitialized = false;
+
 export function initializeModals() {
+    // Prevent duplicate initialization
+    if (modalsInitialized) {
+        console.log("Modals already initialized, skipping");
+        return window._modalInstances || {};
+    }
+    
+    console.log("Initializing modals");
     const modals = {};
     
     // Helper function to safely create modal
@@ -32,42 +44,40 @@ export function initializeModals() {
     modals.noCardsModal = createModal('noCardsModal');
     modals.emptyDeckModal = createModal('createEmptyDeckModal');
     modals.deleteModal = createModal('deleteDeckModal');
-    modals.importModal = createModal('importContentModal');  // Add import modal
+    modals.importModal = createModal('importContentModal');
 
     let currentDeckId = null;
 
     // Create deck button handler
-    const createDeckBtn = document.getElementById('createDeckBtn');
-    if (createDeckBtn && modals.deckModal) {
-        createDeckBtn.onclick = () => {
-            document.getElementById('createDeckForm').reset();
-            modals.deckModal.show();
-        };
-    }
+    setupButtonClickHandler('createDeckBtn', () => {
+        console.log("Creating subdeck modal shown");
+        const form = document.getElementById('createDeckForm');
+        if (form) form.reset();
+        if (modals.deckModal) modals.deckModal.show();
+    });
 
     // Empty deck button handler
-    const createEmptyDeckBtn = document.getElementById('createEmptyDeckBtn');
-    if (createEmptyDeckBtn && modals.emptyDeckModal) {
-        createEmptyDeckBtn.onclick = () => {
-            document.getElementById('createEmptyDeckForm').reset();
-            modals.emptyDeckModal.show();
-        };
-    }
+    setupButtonClickHandler('createEmptyDeckBtn', () => {
+        console.log("Creating empty deck modal shown");
+        const form = document.getElementById('createEmptyDeckForm');
+        if (form) form.reset();
+        if (modals.emptyDeckModal) modals.emptyDeckModal.show();
+    });
 
     // Add cards button handlers
-    if (modals.generateModal) {
-        document.querySelectorAll('.add-cards-btn').forEach(button => {
-            button.addEventListener('click', () => {
-                const form = document.getElementById('generateForm');
-                form.reset();
-                const parentDeckIdInput = document.getElementById('generateParentDeckId');
-                if (parentDeckIdInput) {
-                    parentDeckIdInput.value = button.dataset.deckId;
-                }
-                modals.generateModal.show();
-            });
+    document.querySelectorAll('.add-cards-btn').forEach(button => {
+        button.addEventListener('click', () => {
+            const form = document.getElementById('generateForm');
+            if (form) form.reset();
+            
+            const parentDeckIdInput = document.getElementById('generateParentDeckId');
+            if (parentDeckIdInput) {
+                parentDeckIdInput.value = button.dataset.deckId;
+            }
+            
+            if (modals.generateModal) modals.generateModal.show();
         });
-    }
+    });
 
     // No cards handlers
     if (modals.noCardsModal) {
@@ -99,11 +109,13 @@ export function initializeModals() {
         generateFromNoCards.addEventListener('click', () => {
             modals.noCardsModal.hide();
             const form = document.getElementById('generateForm');
-            form.reset();
+            if (form) form.reset();
+            
             const parentDeckIdInput = document.getElementById('generateParentDeckId');
             if (parentDeckIdInput) {
                 parentDeckIdInput.value = currentDeckId;
             }
+            
             modals.generateModal.show();
         });
     }
@@ -124,10 +136,62 @@ export function initializeModals() {
 
     if (modals.generateModal) {
         window.showGenerateModal = () => {
-            document.getElementById('generateForm').reset();
+            const form = document.getElementById('generateForm');
+            if (form) form.reset();
             modals.generateModal.show();
         };
     }
 
+    // Initialize deck search in all relevant modals
+    document.querySelectorAll('.deck-search-select').forEach(selectElement => {
+        selectElement.classList.remove('searchable-select');
+        initializeDeckSearch(selectElement);
+    });
+    
+    // For modals that might load dynamically
+    document.addEventListener('shown.bs.modal', function(event) {
+        const modal = event.target;
+        if (modal) {
+            const selectElements = modal.querySelectorAll('.deck-search-select');
+            selectElements.forEach(selectElement => {
+                selectElement.classList.remove('searchable-select');
+                initializeDeckSearch(selectElement);
+            });
+        }
+    });
+
+    // Mark as initialized
+    modalsInitialized = true;
+    
+    // Store instances globally for debugging
+    window._modalInstances = modals;
+
     return modals;
+}
+
+// Helper function to set up button click handlers
+function setupButtonClickHandler(buttonId, handler) {
+    const button = document.getElementById(buttonId);
+    if (button) {
+        // For mobile menu items that have the same ID, we need to handle them specially
+        if (buttonId === 'createEmptyDeckBtn' || buttonId === 'createDeckBtn') {
+            // Find all elements with this ID or data-target matching this ID
+            document.querySelectorAll(`#${buttonId}, [data-target="#${buttonId}"]`).forEach(element => {
+                element.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    console.log(`Button clicked: ${buttonId}`);
+                    handler();
+                });
+            });
+        } else {
+            // Regular button handling
+            button.addEventListener('click', (e) => {
+                e.preventDefault();
+                console.log(`Button clicked: ${buttonId}`);
+                handler();
+            });
+        }
+    } else {
+        console.log(`Button with ID ${buttonId} not found`);
+    }
 }

@@ -321,6 +321,72 @@
     background-color: rgba(13, 110, 253, 0.1);
 }
 
+/* Mobile Study & Stats Menu Styling */
+.mobile-study-stats-menu {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1040;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.3s, visibility 0s 0.3s;
+}
+
+.mobile-study-stats-menu.active {
+    visibility: visible;
+    opacity: 1;
+    transition: opacity 0.3s, visibility 0s;
+}
+
+.mobile-study-stats-menu-backdrop {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1041;
+}
+
+.mobile-study-stats-menu-content {
+    position: absolute;
+    bottom: 70px;
+    left: 10px;
+    right: 10px;
+    background-color: var(--bs-body-bg);
+    border-radius: 10px;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+    padding: 15px;
+    z-index: 1042;
+    transform: translateY(20px);
+    transition: transform 0.3s;
+}
+
+.mobile-study-stats-menu.active .mobile-study-stats-menu-content {
+    transform: translateY(0);
+}
+
+/* Highlight active study button when menu is open */
+.mobile-study-stats-menu.active + .mobile-bottom-nav #mobileStudyStatsButton {
+    color: var(--bs-primary);
+    background-color: rgba(13, 110, 253, 0.1);
+}
+
+/* List styling in the study stats menu */
+.mobile-study-stats-menu .list-group-item-action {
+    border-left: none;
+    border-right: none;
+}
+
+.mobile-study-stats-menu .list-group-item-action:first-child {
+    border-top: none;
+}
+
+.mobile-study-stats-menu .list-group-item-action:last-child {
+    border-bottom: none;
+}
+
 /* Add bottom padding to container on mobile to account for the nav bar */
 @media (max-width: 768px) {
     .container {

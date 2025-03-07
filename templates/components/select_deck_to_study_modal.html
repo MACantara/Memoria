@@ -8,7 +8,7 @@
             <div class="modal-body">
                 <div class="mb-3">
                     <label for="studyDeckSelect" class="form-label">Choose a deck to study:</label>
-                    <select class="form-select" id="studyDeckSelect">
+                    <select class="form-select deck-search-select" id="studyDeckSelect">
                         <option value="" disabled selected>Select a deck...</option>
                         
                         <!-- Show all decks with due counts -->
@@ -23,6 +23,7 @@
                             </option>
                         {% endfor %}
                     </select>
+                    <!-- Help text - will be added by the component -->
                 </div>
                 
                 <div class="d-flex justify-content-between mt-4">

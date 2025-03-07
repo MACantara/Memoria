@@ -8,7 +8,7 @@
             <div class="modal-body">
                 <div class="mb-3">
                     <label for="statsDeckSelect" class="form-label">Choose a deck to view statistics:</label>
-                    <select class="form-select" id="statsDeckSelect">
+                    <select class="form-select deck-search-select" id="statsDeckSelect">
                         <option value="" disabled selected>Select a deck...</option>
                         
                         <!-- Show all decks without indentation -->
@@ -21,6 +21,7 @@
                             </option>
                         {% endfor %}
                     </select>
+                    <!-- Help text - will be added by the component -->
                 </div>
                 
                 <div id="statsDeckInfo" class="small text-muted mb-3 d-none">

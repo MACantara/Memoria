@@ -59,47 +59,18 @@
     {% include 'components/flashcard_list.html' %}
 </section>
 
-<!-- Create Deck Modal -->
-{% include 'components/create_sub_deck_modal.html' %}
-
-<!-- Generate Cards Modal -->
-{% include 'components/generate_cards_modal_deck.html' %}
-
-<!-- Rename Deck Modal -->
-{% include 'components/rename_deck_modal.html' %}
-
-<!-- Move Deck Modal -->
-{% include 'components/move_deck_modal.html' %}
-
-<!-- Delete Confirmation Modal -->
-{% include 'components/delete_deck_modal.html' %}
-
-<!-- Import Content Modal -->
-{% include 'components/import_content_modal.html' %}
-
 {% endblock %}
 
 {% block scripts %}
 <script type="module">
-    import { initializeModals } from "{{ url_for('static', filename='modules/deck/modal-handlers.js') }}";
-    import { initializeFormHandlers } from "{{ url_for('static', filename='modules/deck/form-handlers.js') }}";
-    import { initializeDeckOperations } from "{{ url_for('static', filename='modules/deck/deck-operations.js') }}";
+    // Import but don't reinitialize - components are already initialized in base.html
     import { deleteDeck, renameDeck } from "{{ url_for('static', filename='modules/utils.js') }}";
     
     // Make these functions available globally for HTML onclick handlers
     window.deleteDeck = deleteDeck;
     window.renameDeck = renameDeck;
     
-    document.addEventListener('DOMContentLoaded', () => {
-        // Initialize ALL modals without destructuring
-        const modals = initializeModals();
-        
-        // Initialize handlers with the complete modals object
-        initializeFormHandlers(modals);
-        initializeDeckOperations();
-        
-        // Display debug info to help diagnose issues
-        console.log("Available modals:", Object.keys(modals));
-    });
+    // Log for debugging
+    console.log("Deck view script loaded");
 </script>
 {% endblock %}

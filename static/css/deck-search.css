@@ -1,0 +1,169 @@
+/* Styling for deck search components */
+
+/* Search container */
+.deck-search-container {
+    position: relative;
+    margin-bottom: 1rem;
+}
+
+/* Slight styling for the clear button */
+.deck-search-container .btn-outline-secondary {
+    border-color: var(--bs-border-color);
+    color: var(--bs-secondary);
+}
+
+.deck-search-container .btn-outline-secondary:hover {
+    background-color: var(--bs-secondary-bg);
+    border-color: var(--bs-secondary);
+}
+
+/* No results message styling */
+.no-results-message {
+    font-size: 0.875rem;
+    padding: 0.5rem;
+    margin-top: 0.25rem;
+    margin-bottom: 0;
+    color: var(--bs-secondary);
+}
+
+/* Style for the select dropdown with search */
+select.deck-search-select {
+    max-height: 240px;
+    overflow-y: auto;
+}
+
+/* Special styling for indented options (subdecks) */
+select.deck-search-select option[value]:not([disabled]) {
+    padding: 6px 8px;
+}
+
+/* Style for searchable select dropdowns */
+select.searchable-select {
+    padding-right: 2.5rem; /* Extra space for search icon */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='currentColor' class='bi bi-search' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z'%3E%3C/path%3E%3C/svg%3E"),
+                     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='currentColor' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat, no-repeat;
+    background-position: right 0.75rem center, right 2.25rem center;
+    background-size: 1rem 1rem, 1rem 1rem;
+    appearance: none;
+}
+
+/* Increase height for better usability */
+select.searchable-select {
+    max-height: 240px;
+    overflow-y: auto;
+}
+
+/* Special styling for indented options (subdecks) */
+select.searchable-select option[value]:not([disabled]) {
+    padding: 6px 8px;
+}
+
+/* Style for the first placeholder option */
+select.searchable-select option:first-child {
+    font-style: italic;
+    color: var(--bs-secondary);
+}
+
+/* Style for disabled no-results option */
+select.searchable-select option:disabled:not(:first-child) {
+    font-style: italic;
+    color: var(--bs-danger);
+    background-color: var(--bs-danger-bg-subtle);
+}
+
+/* Special styling for the select when actively searching */
+select.searchable-select:focus {
+    border-color: var(--bs-primary);
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+/* Deck search component styling */
+
+/* Style the search input */
+.deck-search-input {
+    padding-right: 2rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='currentColor' class='bi bi-search' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z'%3E%3C/path%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 1rem 1rem;
+}
+
+/* Style the dropdown */
+.deck-search-dropdown {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    max-height: 240px;
+    overflow-y: auto;
+    background-color: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.375rem;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    z-index: 1050;
+    margin-top: 0.25rem;
+}
+
+.deck-search-dropdown.show {
+    display: block;
+}
+
+/* Style the dropdown options */
+.deck-search-option {
+    padding: 0.5rem 0.75rem;
+    cursor: pointer;
+    user-select: none;
+    border-bottom: 1px solid var(--bs-border-color-translucent);
+}
+
+.deck-search-option:last-child {
+    border-bottom: none;
+}
+
+.deck-search-option:hover,
+.deck-search-option.selected {
+    background-color: rgba(var(--bs-primary-rgb), 0.1);
+}
+
+/* Style for subdecks */
+.deck-search-option.subdeck-item {
+    padding-left: 1.5rem;
+    font-size: 0.95em;
+}
+
+/* Style for highlighted search matches */
+.deck-search-option mark {
+    background-color: rgba(var(--bs-warning-rgb), 0.3);
+    padding: 0;
+    border-radius: 2px;
+}
+
+/* Style for empty state */
+.deck-search-empty {
+    padding: 0.75rem;
+    text-align: center;
+    font-style: italic;
+    color: var(--bs-secondary);
+}
+
+/* Style for selected deck info */
+.selected-deck-info {
+    margin-top: 0.5rem;
+    padding: 0.5rem;
+    border-radius: 0.375rem;
+    background-color: var(--bs-tertiary-bg);
+    display: none;
+}
+
+/* Dark mode adjustments */
+[data-bs-theme="dark"] .deck-search-dropdown {
+    border-color: var(--bs-border-color);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.5);
+}
+
+[data-bs-theme="dark"] .deck-search-option:hover,
+[data-bs-theme="dark"] .deck-search-option.selected {
+    background-color: rgba(var(--bs-primary-rgb), 0.2);
+}
