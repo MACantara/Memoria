@@ -1,124 +1,106 @@
-<div class="modal fade" id="importContentModal" tabindex="-1" aria-labelledby="importContentModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
+<div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="importContentModalLabel">Import Content</h5>
+                <h5 class="modal-title" id="importModalLabel">Import Content</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <!-- Add a workflow explanation at the top -->
-                <div class="alert alert-info workflow-guide">
-                    <i class="bi bi-info-circle me-2"></i>
-                    <strong>How this works:</strong>
-                    <ol class="mb-0">
-                        <li>Upload a file and select a deck</li>
-                        <li>Generate flashcards from the content</li>
-                        <li>Review the flashcards</li>
-                        <li>Click "Save Flashcards" when you're satisfied</li>
-                    </ol>
+                <!-- Authentication notice -->
+                {% if current_user.is_authenticated %}
+                <div class="alert alert-info mb-3">
+                    <i class="bi bi-info-circle-fill me-2"></i>
+                    Imported content will be associated with your account.
                 </div>
-
-                <ul class="nav nav-tabs mb-3" role="tablist">
-                    <li class="nav-item">
-                        <a class="nav-link active" id="upload-tab" data-bs-toggle="tab" href="#uploadContent" role="tab">
-                            <i class="bi bi-cloud-upload me-1"></i> 1. Upload File
+                {% else %}
+                <div class="alert alert-warning mb-3">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    You are not logged in. Imported content will be public and accessible to everyone.
+                    <div class="mt-2">
+                        <a href="{{ url_for('auth.login', next=request.path) }}" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-box-arrow-in-right me-1"></i> Login to create private decks
                         </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" id="results-tab" data-bs-toggle="tab" href="#resultsContent" role="tab">
-                            <i class="bi bi-card-list me-1"></i> 2. Review Results
-                        </a>
-                    </li>
-                </ul>
-                
-                <div class="tab-content">
-                    <!-- Upload Tab -->
-                    <div class="tab-pane fade show active" id="uploadContent" role="tabpanel">
-                        <form id="importFileForm">
-                            <div class="mb-3">
-                                <label for="deckSelector" class="form-label">Select Deck:</label>
-                                <div class="select-container">
-                                    <select class="form-select" id="deckSelector" name="deck_id" required>
-                                        <option value="" selected disabled>Choose a deck...</option>
-                                        <!-- Deck options will be populated dynamically -->
-                                    </select>
-                                    <div class="loading-spinner spinner-border spinner-border-sm text-primary d-none" role="status">
-                                        <span class="visually-hidden">Loading...</span>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="mb-3">
-                                <div class="drag-area" id="dragArea">
-                                    <div class="drag-area-inner">
-                                        <i class="bi bi-cloud-arrow-up fs-3 mb-2"></i>
-                                        <h5>Drag & Drop Files Here</h5>
-                                        <p class="text-muted">or</p>
-                                        <button type="button" class="btn btn-primary" id="browseBtn">Browse Files</button>
-                                        <input type="file" hidden id="fileInput" name="file" accept=".txt,.pdf" />
-                                        <p class="mt-2 text-muted small">Supported formats: PDF, TXT</p>
-                                    </div>
-                                </div>
-                                <div id="fileInfo" class="mt-2 d-none">
-                                    <div class="alert alert-info">
-                                        <i class="bi bi-file-earmark-text me-2"></i>
-                                        <span id="fileName"></span>
-                                        <button type="button" class="btn-close float-end" id="removeFile"></button>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="mb-3">
-                                <label for="importDeckSelect" class="form-label">Choose a deck:</label>
-                                <select class="form-select deck-search-select" id="importDeckSelect" name="deck_id" required>
-                                    <option value="" disabled selected>Select a deck...</option>
-                                    {% for deck in g.all_decks if not deck.parent_deck_id %} <!-- Only top-level decks -->
-                                        <option value="{{ deck.flashcard_deck_id }}">{{ deck.name }}</option>
-                                        {% for subdeck in deck.child_decks %}
-                                            <option value="{{ subdeck.flashcard_deck_id }}">&nbsp;&nbsp;└ {{ subdeck.name }}</option>
-                                        {% endfor %}
-                                    {% endfor %}
-                                </select>
-                                <!-- Help text is automatically added by the component -->
-                            </div>
+                    </div>
+                </div>
+                {% endif %}
 
-                            <div class="d-grid">
-                                <button type="submit" class="btn btn-primary" id="importBtn" disabled>
-                                    <i class="bi bi-magic"></i> Generate Flashcards
+                <form id="fileUploadForm" action="{{ url_for('import.upload_file') }}" method="post" enctype="multipart/form-data">
+                    <!-- File selection area with drag-and-drop -->
+                    <div class="mb-3">
+                        <label for="fileInput" class="form-label">Select Text or PDF File</label>
+                        <div class="file-drop-area">
+                            <span class="file-message">Drag & drop file here or click to browse</span>
+                            <input class="file-input" type="file" name="file" id="fileInput" accept=".txt,.pdf" required>
+                        </div>
+                        <div id="fileInfo" class="mt-2 d-none">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-file-earmark me-2"></i>
+                                <span id="fileName">No file selected</span>
+                                <button type="button" class="btn btn-link text-danger p-0 ms-auto" id="removeFile">
+                                    <i class="bi bi-x-circle"></i>
                                 </button>
                             </div>
-                        </form>
-                    </div>
-                    
-                    <!-- Results Tab -->
-                    <div class="tab-pane fade" id="resultsContent" role="tabpanel">
-                        <div id="processingInfo" class="d-none">
-                            <div class="alert alert-info">
-                                <i class="bi bi-info-circle me-2"></i>
-                                <span id="processingStatus">Processing file...</span>
-                                <div class="progress mt-2">
-                                    <div class="progress-bar" role="progressbar" style="width: 0%;" 
-                                         id="processingProgress" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
-                                </div>
+                            <div class="progress mt-2" style="height: 5px;">
+                                <div id="uploadProgress" class="progress-bar" role="progressbar" style="width: 0%;" 
+                                     aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
                             </div>
                         </div>
-                        
-                        <div id="importResults" class="mt-3">
-                            <!-- Generated flashcards will appear here -->
+                    </div>
+                    
+                    <!-- Deck selection options with create new option -->
+                    <div class="mb-3">
+                        <label class="form-label d-block">Choose Destination:</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="deckOption" id="useExistingDeck" value="existing" checked>
+                            <label class="form-check-label" for="useExistingDeck">
+                                Add to existing deck
+                            </label>
                         </div>
-
-                        <!-- Add clear instructions for the next step -->
-                        <div id="nextStepInstructions" class="alert alert-success d-none mt-3">
-                            <i class="bi bi-arrow-down-circle-fill me-2"></i>
-                            <strong>Next Step:</strong> Review the flashcards above. If you're satisfied, click the "Save Flashcards" button below to add them to your selected deck.
+                        
+                        <div class="ms-4 mt-2 mb-3" id="existingDeckBlock">
+                            <select class="form-select" name="deck_id" id="deckSelect">
+                                <option value="" disabled selected>Select a deck...</option>
+                                
+                                <!-- Show only decks the user has access to -->
+                                {% for deck in g.all_decks %}
+                                    {% if deck.user_id == None or (current_user.is_authenticated and deck.user_id == current_user.id) %}
+                                        <option value="{{ deck.flashcard_deck_id }}">{{ deck.name }}</option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="deckOption" id="createNewDeck" value="new">
+                            <label class="form-check-label" for="createNewDeck">
+                                Create a new deck
+                            </label>
+                        </div>
+                        
+                        <div class="ms-4 mt-2 d-none" id="newDeckBlock">
+                            <div class="mb-3">
+                                <input type="text" class="form-control" id="newDeckName" name="new_deck_name" 
+                                       placeholder="New deck name" disabled>
+                            </div>
+                            <div class="mb-3">
+                                <textarea class="form-control" id="newDeckDescription" name="new_deck_description" 
+                                          placeholder="Deck description (optional)" rows="2" disabled></textarea>
+                            </div>
                         </div>
                     </div>
-                </div>
+                    
+                    <div id="uploadStatus"></div>
+                </form>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-success d-none" id="saveFlashcardsBtn">
-                    <i class="bi bi-save me-1"></i> Save Flashcards to Deck
+                <button type="button" class="btn btn-primary" id="uploadBtn">
+                    <span class="normal-state">
+                        <i class="bi bi-upload"></i> Upload
+                    </span>
+                    <span class="loading-state d-none">
+                        <span class="spinner-border spinner-border-sm"></span> Uploading...
+                    </span>
                 </button>
             </div>
         </div>
