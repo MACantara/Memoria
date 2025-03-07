@@ -1,34 +1,47 @@
-<div class="modal fade" id="deleteDeckModal" tabindex="-1">
+<div class="modal fade" id="deleteDeckModal" tabindex="-1" aria-labelledby="deleteDeckModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Delete Deck</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <h5 class="modal-title" id="deleteDeckModalLabel">Delete Deck</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
+                <!-- Authentication check: only owners can delete -->
+                {% if not current_user.is_authenticated %}
                 <div class="alert alert-warning">
-                    <i class="bi bi-exclamation-triangle"></i> Warning:
-                    <ul class="mb-0 mt-2">
-                        <li>This will delete the deck and all its content</li>
-                        <li>All sub-decks will be deleted</li>
-                        <li>All flashcards in this deck and its sub-decks will be deleted</li>
-                        <li>This action cannot be undone</li>
-                    </ul>
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    You must be logged in and be the owner of the deck to delete it.
                 </div>
-                <p>Are you sure you want to proceed with deletion?</p>
-                <div class="d-flex justify-content-end gap-2 mt-3">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
-                        <span class="normal-state">
-                            <i class="bi bi-trash"></i> Delete Deck
-                        </span>
-                        <span class="loading-state d-none">
-                            <span class="spinner-border spinner-border-sm me-2"></span>
-                            Deleting...
-                        </span>
-                    </button>
+                {% else %}
+                <p>Are you sure you want to delete <strong id="deckToDeleteName"></strong>?</p>
+                
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    This action <strong>cannot be undone</strong>. All flashcards in this deck will be permanently deleted.
+                    {% if deck and deck.child_decks|length > 0 %}
+                    <div class="mt-2">
+                        <strong>Warning:</strong> This deck has {{ deck.child_decks|length }} sub-deck(s) that will also be deleted.
+                    </div>
+                    {% endif %}
                 </div>
-                <div id="deleteStatus" class="mt-3"></div>
+                
+                <input type="hidden" id="deckToDeleteId">
+                <div id="deleteStatus"></div>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                
+                <!-- Only show delete button if user is authenticated -->
+                {% if current_user.is_authenticated %}
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+                    <span class="normal-state">Delete</span>
+                    <span class="loading-state d-none">
+                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                        Deleting...
+                    </span>
+                </button>
+                {% endif %}
             </div>
         </div>
     </div>
