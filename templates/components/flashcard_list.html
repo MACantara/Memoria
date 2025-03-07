@@ -1,66 +1,72 @@
-<div class="flashcards-container mt-4">
-    {% if flashcards %}
-    <div class="row row-cols-1 row-cols-md-2 g-4">
-        {% for flashcard in flashcards %}
-        <div class="col">
-            <div class="card h-100 flashcard-item">
-                <div class="card-body">
-                    <!-- Question -->
-                    <h5 class="card-title">{{ flashcard.question }}</h5>
-                    <hr>
-                    
-                    <!-- Answers section -->
-                    <div class="answers-container">
-                        <!-- Correct Answer -->
-                        <div class="mb-3">
-                            <h6 class="text-success"><i class="bi bi-check-circle-fill me-1"></i> Correct Answer:</h6>
-                            <p class="ps-4">{{ flashcard.correct_answer }}</p>
+<div class="flashcard-list">
+    {% if flashcards|length > 0 %}
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead>
+                <tr>
+                    <th style="width: 50%">Question</th>
+                    <th style="width: 50%">Answer</th>
+                    <th class="text-end">Status</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for card in flashcards %}
+                <tr>
+                    <td>{{ card.question }}</td>
+                    <td>{{ card.correct_answer }}</td>
+                    <td class="text-end">
+                        {% if card.state == 0 %}
+                        <span class="badge bg-secondary">New</span>
+                        {% elif card.state == 1 %}
+                        <span class="badge bg-warning text-dark">Learning</span>
+                        {% elif card.state == 2 %}
+                        <span class="badge bg-success">Mastered</span>
+                        {% elif card.state == 3 %}
+                        <span class="badge bg-danger">Forgotten</span>
+                        {% else %}
+                        <span class="badge bg-light text-dark">Unknown</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        <!-- Only show edit/delete buttons if user owns the flashcard's deck -->
+                        {% if current_user.is_authenticated and card.deck.user_id == current_user.id %}
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-secondary" title="Edit card">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-outline-danger" title="Delete card">
+                                <i class="bi bi-trash"></i>
+                            </button>
                         </div>
-                        
-                        <!-- Incorrect Answers -->
-                        <div>
-                            <h6 class="text-secondary"><i class="bi bi-x-circle-fill me-1"></i> Incorrect Answers:</h6>
-                            <ul class="ps-4">
-                                <!-- Handle both list and JSON string formats for incorrect_answers -->
-                                {% if flashcard.incorrect_answers is string %}
-                                    {% for answer in flashcard.incorrect_answers|fromjson %}
-                                        <li>{{ answer }}</li>
-                                    {% endfor %}
-                                {% else %}
-                                    {% for answer in flashcard.incorrect_answers %}
-                                        <li>{{ answer }}</li>
-                                    {% endfor %}
-                                {% endif %}
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-                <div class="card-footer bg-transparent mt-3 p-0">
-                    <div class="row text-muted small">
-                        <div class="col-6">
-                            <i class="bi bi-clock"></i> Last Reviewed: 
-                            <span>{{ flashcard.last_reviewed.strftime('%Y-%m-%d') if flashcard.last_reviewed else 'Never' }}</span>
-                        </div>
-                        <div class="col-6">
-                            <i class="bi bi-stars"></i> State: 
-                            <span class="badge 
-                            {% if flashcard.get_state_name() == 'new' %}bg-secondary
-                            {% elif flashcard.get_state_name() == 'learning' %}bg-warning
-                            {% elif flashcard.get_state_name() == 'mastered' %}bg-success
-                            {% elif flashcard.get_state_name() == 'forgotten' %}bg-danger
-                            {% endif %}">
-                                {{ flashcard.get_state_name() }}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        {% endfor %}
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
     {% else %}
-        <div class="alert alert-info">
-            <i class="bi bi-info-circle me-2"></i>No flashcards found in this deck.
-        </div>
+    <div class="alert alert-info">
+        <h4 class="alert-heading"><i class="bi bi-info-circle me-2"></i>No flashcards</h4>
+        <p>This deck doesn't have any flashcards yet.</p>
+        <hr>
+        <p class="mb-0">
+            <!-- Only show create flashcards button if user can add cards to deck -->
+            {% if not deck.user_id or (current_user.is_authenticated and deck.user_id == current_user.id) %}
+            <button type="button" class="btn btn-primary add-cards-btn" data-deck-id="{{ deck.flashcard_deck_id }}">
+                <i class="bi bi-plus-lg me-1"></i> Add Flashcards
+            </button>
+            <button type="button" class="btn btn-outline-primary" onclick="showImportModal(); return false;">
+                <i class="bi bi-file-earmark-arrow-up me-1"></i> Import Content
+            </button>
+            {% else %}
+            <div class="alert alert-warning mb-0">
+                <i class="bi bi-lock-fill me-2"></i>
+                You don't have permission to add flashcards to this deck.
+            </div>
+            {% endif %}
+        </p>
+    </div>
     {% endif %}
 </div>
