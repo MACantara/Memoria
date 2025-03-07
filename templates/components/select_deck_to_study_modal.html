@@ -11,13 +11,15 @@
                     <select class="form-select" id="studyDeckSelect">
                         <option value="" disabled selected>Select a deck...</option>
                         
-                        <!-- Show all decks without indentation -->
+                        <!-- Show all decks with due counts -->
                         {% for deck in decks %}
+                            {% set due_count = count_due_flashcards(deck.flashcard_deck_id) %}
                             <option value="{{ deck.flashcard_deck_id }}" 
                                     data-card-count="{{ deck.count_all_flashcards() }}"
                                     data-has-cards="{{ 'true' if deck.count_all_flashcards() > 0 else 'false' }}"
+                                    data-due-count="{{ due_count }}"
                                     data-parent="{{ deck.parent_deck.name if deck.parent_deck_id else '' }}">
-                                {{ deck.name }} ({{ deck.count_all_flashcards() }} cards)
+                                {{ deck.name }} ({{ due_count }} due / {{ deck.count_all_flashcards() }} total)
                             </option>
                         {% endfor %}
                     </select>
@@ -25,14 +27,15 @@
                 
                 <div class="d-flex justify-content-between mt-4">
                     <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="studyDueOnly">
+                        <input class="form-check-input" type="checkbox" id="studyDueOnly" checked>
                         <label class="form-check-label" for="studyDueOnly">
                             Only show cards due today
                         </label>
                     </div>
-                    <span id="selectedDeckCardCount" class="text-muted">
-                        <!-- Card count will appear here -->
-                    </span>
+                    <div class="text-muted">
+                        <span id="selectedDeckDueCount" class="badge bg-primary me-1">0 due</span>
+                        <span id="selectedDeckCardCount">0 total</span>
+                    </div>
                 </div>
                 
                 <div id="deckInfo" class="small text-muted mb-3 d-none">
@@ -45,6 +48,10 @@
                 
                 <div class="alert alert-info d-none" id="noCardsWarning">
                     <i class="bi bi-info-circle me-2"></i> This deck has no cards. Please add cards first.
+                </div>
+                
+                <div class="alert alert-info d-none" id="noDueCardsWarning">
+                    <i class="bi bi-info-circle me-2"></i> No cards are due for study today in this deck.
                 </div>
             </div>
             <div class="modal-footer">
@@ -67,7 +74,9 @@
         const startStudyingBtn = document.getElementById('startStudyingBtn');
         const noDeckSelectedWarning = document.getElementById('noDeckSelectedWarning');
         const noCardsWarning = document.getElementById('noCardsWarning');
+        const noDueCardsWarning = document.getElementById('noDueCardsWarning');
         const selectedDeckCardCount = document.getElementById('selectedDeckCardCount');
+        const selectedDeckDueCount = document.getElementById('selectedDeckDueCount');
         const deckInfo = document.getElementById('deckInfo');
         const parentDeckName = document.getElementById('parentDeckName');
         
@@ -76,14 +85,17 @@
             const selectedOption = deckSelect.options[deckSelect.selectedIndex];
             const hasCards = selectedOption.dataset.hasCards === 'true';
             const cardCount = selectedOption.dataset.cardCount || 0;
+            const dueCount = selectedOption.dataset.dueCount || 0;
             const parentName = selectedOption.dataset.parent;
             
             // Reset warning states
             noDeckSelectedWarning.classList.add('d-none');
             noCardsWarning.classList.add('d-none');
+            noDueCardsWarning.classList.add('d-none');
             
-            // Show card count for the selected deck
-            selectedDeckCardCount.textContent = `${cardCount} cards`;
+            // Show card counts for the selected deck
+            selectedDeckCardCount.textContent = `${cardCount} total`;
+            selectedDeckDueCount.textContent = `${dueCount} due`;
             
             // Show parent deck info if this is a subdeck
             if (parentName) {
@@ -93,9 +105,27 @@
                 deckInfo.classList.add('d-none');
             }
             
-            // Show warning if the deck has no cards
+            // Show warnings based on card counts and due only selection
             if (!hasCards) {
                 noCardsWarning.classList.remove('d-none');
+            } else if (dueOnlyCheckbox.checked && dueCount == 0) {
+                noDueCardsWarning.classList.remove('d-none');
+            }
+        });
+        
+        // Update warnings when checkbox state changes
+        dueOnlyCheckbox.addEventListener('change', function() {
+            // Skip if no deck is selected
+            if (!deckSelect.value) return;
+            
+            const selectedOption = deckSelect.options[deckSelect.selectedIndex];
+            const dueCount = selectedOption.dataset.dueCount || 0;
+            
+            // Show/hide no due cards warning based on checkbox state
+            if (this.checked && dueCount == 0) {
+                noDueCardsWarning.classList.remove('d-none');
+            } else {
+                noDueCardsWarning.classList.add('d-none');
             }
         });
         
@@ -112,9 +142,15 @@
             
             const selectedOption = deckSelect.options[deckSelect.selectedIndex];
             const hasCards = selectedOption.dataset.hasCards === 'true';
+            const dueCount = selectedOption.dataset.dueCount || 0;
             
             if (!hasCards) {
                 noCardsWarning.classList.remove('d-none');
+                return;
+            }
+            
+            if (dueOnly && dueCount == 0) {
+                noDueCardsWarning.classList.remove('d-none');
                 return;
             }
             
