@@ -355,6 +355,63 @@
                     }
                 });
             });
+            
+            // Fix Bootstrap modal initialization issues
+            (function() {
+                // Store reference to the original Bootstrap Modal constructor
+                const OriginalModal = bootstrap.Modal;
+                
+                // Override the Modal constructor
+                bootstrap.Modal = function(element, options) {
+                    // Ensure options object exists and has proper backdrop config
+                    options = options || {};
+                    
+                    // Make sure backdrop is properly defined (default to true if not specified)
+                    if (options.backdrop === undefined) {
+                        options.backdrop = true;
+                    }
+                    
+                    // Make sure keyboard and focus are also defined
+                    options.keyboard = options.keyboard !== undefined ? options.keyboard : true;
+                    options.focus = options.focus !== undefined ? options.focus : true;
+                    
+                    // Call the original constructor with patched options
+                    return new OriginalModal(element, options);
+                };
+                
+                // Copy prototype and static methods
+                bootstrap.Modal.prototype = OriginalModal.prototype;
+                bootstrap.Modal.getInstance = OriginalModal.getInstance;
+                bootstrap.Modal.getOrCreateInstance = OriginalModal.getOrCreateInstance;
+                
+                console.log("Bootstrap Modal patched to fix backdrop issues");
+            })();
+                
+            // Fix for modal initialization via data attributes
+            document.querySelectorAll('[data-bs-toggle="modal"]').forEach(button => {
+                // Remove the default event listener by cloning the element
+                const newButton = button.cloneNode(true);
+                button.parentNode.replaceChild(newButton, button);
+                
+                // Add our custom event listener
+                newButton.addEventListener('click', function(e) {
+                    e.preventDefault(); // Prevent default action
+                    
+                    const modalId = this.getAttribute('data-bs-target');
+                    if (modalId) {
+                        const modalElement = document.querySelector(modalId);
+                        if (modalElement) {
+                            try {
+                                // Use our patched Modal constructor with explicit options
+                                const modalInstance = new bootstrap.Modal(modalElement);
+                                modalInstance.show();
+                            } catch (err) {
+                                console.error('Modal initialization error:', err);
+                            }
+                        }
+                    }
+                });
+            });
         });
     </script>
     {% block scripts %}{% endblock %}
