@@ -1,15 +1,26 @@
 from flask import Blueprint, jsonify, request
-from models import db, FlashcardDecks, Flashcards
+from models import db, FlashcardDecks, Flashcards, User
 from services.fsrs_scheduler import get_current_time
 from routes.deck.utils import count_due_flashcards
+from flask_login import login_required, current_user
+from ..auth.decorators import login_required_for_decks
 
-deck_api_bp = Blueprint('deck_api', __name__, url_prefix='/api')
+api_bp = Blueprint('deck_api', __name__)
 
-@deck_api_bp.route("/decks/tree")
+@api_bp.route("/decks/tree")
+@login_required
 def get_deck_tree():
     """Get the complete deck hierarchy as a tree structure"""
-    # Get top-level decks
-    root_decks = FlashcardDecks.query.filter_by(parent_deck_id=None).all()
+    # Get top-level decks that belong to current user or public decks
+    root_decks = FlashcardDecks.query.filter(
+        db.and_(
+            FlashcardDecks.parent_deck_id == None,
+            db.or_(
+                FlashcardDecks.user_id == current_user.id,
+                FlashcardDecks.user_id == None
+            )
+        )
+    ).all()
     
     # Build tree recursively
     result = []
@@ -32,7 +43,7 @@ def build_deck_tree(deck):
     
     return deck_dict
 
-@deck_api_bp.route("/decks")
+@api_bp.route("/decks")
 def get_decks_api():
     """Get all decks as a structured JSON for API use"""
     # Get top-level decks
@@ -62,7 +73,7 @@ def get_child_decks(parent_id):
     
     return result
 
-@deck_api_bp.route("/list", methods=["GET"])
+@api_bp.route("/list", methods=["GET"])
 def api_list_decks():
     """Get all decks as a flat list for API usage"""
     decks = FlashcardDecks.query.order_by(FlashcardDecks.name).all()
@@ -78,12 +89,16 @@ def api_list_decks():
     
     return jsonify(result)
 
-@deck_api_bp.route("/due-counts", methods=["GET"])
+@api_bp.route("/due-counts", methods=["GET"])
+@login_required
 def get_due_counts():
     """Get due flashcard counts for all decks"""
     try:
-        # Get all decks
-        decks = FlashcardDecks.query.all()
+        # Only load decks that belong to the current user or public decks
+        decks = FlashcardDecks.query.filter(
+            (FlashcardDecks.user_id == current_user.id) | 
+            (FlashcardDecks.user_id == None)
+        ).all()
         
         # Calculate due counts for each deck
         result = {}
@@ -101,7 +116,8 @@ def get_due_counts():
             "error": str(e)
         }), 500
 
-@deck_api_bp.route("/due-count/<int:deck_id>")
+@api_bp.route("/due-count/<int:deck_id>")
+@login_required
 def get_due_count(deck_id):
     """Get the count of due flashcards for a specific deck"""
     try:
@@ -109,6 +125,10 @@ def get_due_count(deck_id):
         
         # Check if deck exists
         deck = FlashcardDecks.query.get_or_404(deck_id)
+        
+        # Verify user has access to this deck
+        if deck.user_id and deck.user_id != current_user.id:
+            return jsonify({'success': False, 'message': 'Unauthorized access'})
         
         # Get due count for the deck
         due_count = count_due_flashcards(deck_id)
