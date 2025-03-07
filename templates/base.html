@@ -331,6 +331,30 @@
                     }
                 });
             }
+            
+            // Fix for modal initialization to prevent backdrop issues
+            document.querySelectorAll('[data-bs-toggle="modal"]').forEach(button => {
+                button.addEventListener('click', function(e) {
+                    const modalId = this.getAttribute('data-bs-target');
+                    if (modalId) {
+                        const modalElement = document.querySelector(modalId);
+                        if (modalElement) {
+                            try {
+                                // Use proper initialization with explicit backdrop config
+                                const modalInstance = new bootstrap.Modal(modalElement, {
+                                    backdrop: true,
+                                    keyboard: true,
+                                    focus: true
+                                });
+                                modalInstance.show();
+                                e.preventDefault(); // Prevent default action
+                            } catch (err) {
+                                console.error('Modal initialization error:', err);
+                            }
+                        }
+                    }
+                });
+            });
         });
     </script>
     {% block scripts %}{% endblock %}
