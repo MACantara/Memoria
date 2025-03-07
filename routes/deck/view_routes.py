@@ -1,4 +1,4 @@
-from flask import Blueprint, request, render_template
+from flask import Blueprint, request, render_template, jsonify
 from models import FlashcardDecks, Flashcards
 from services.fsrs_scheduler import get_due_cards, get_current_time
 from routes.deck.utils import count_due_flashcards
@@ -27,47 +27,116 @@ def study_deck(deck_id):
     # Check if we should only get due cards
     due_only = request.args.get('due_only', 'false').lower() == 'true'
     
-    # Debug log
-    print(f"Study request for deck {deck_id}: due_only={due_only}")
-    
-    # Get cards based on the due_only parameter
-    if due_only:
-        flashcards = get_due_cards(deck_id, due_only=True)
-        print(f"Retrieved {len(flashcards)} due cards for study")
-    else:
-        flashcards = get_due_cards(deck_id, due_only=False)
-        print(f"Retrieved {len(flashcards)} total cards for study")
-    
-    # Initialize FSRS state and due dates for any cards that need it
-    if flashcards:
-        current_time = get_current_time()
-        for card in flashcards:
-            # If card doesn't have FSRS state or state is None, initialize it
-            if not card.fsrs_state or card.state is None:
-                print(f"Initializing FSRS state for card {card.flashcard_id}")
-                card.init_fsrs_state()
-            
-            # If card doesn't have a due date, make it due now
-            if card.due_date is None:
-                card.due_date = current_time
+    # AJAX request for batch loading flashcards
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        page = int(request.args.get('page', 1))
+        batch_size = int(request.args.get('batch_size', 20))
+        offset = (page - 1) * batch_size
         
-        db.session.commit()
+        # Get cards based on the due_only parameter with pagination
+        if due_only:
+            flashcards = get_due_cards(deck_id, due_only=True, offset=offset, limit=batch_size)
+        else:
+            flashcards = get_due_cards(deck_id, due_only=False, offset=offset, limit=batch_size)
+        
+        # Serialize flashcards to JSON
+        flashcard_data = []
+        for card in flashcards:
+            deck_info = None
+            if card.flashcard_deck_id != deck_id:  # This is from a subdeck
+                subdeck = FlashcardDecks.query.get(card.flashcard_deck_id)
+                if subdeck:
+                    deck_info = {
+                        'deck_id': subdeck.flashcard_deck_id,
+                        'deck_name': subdeck.name
+                    }
+            
+            flashcard_data.append({
+                'id': card.flashcard_id,
+                'question': card.question,
+                'correct_answer': card.correct_answer,
+                'incorrect_answers': card.incorrect_answers,
+                'state': card.state or 0,
+                'retrievability': card.retrievability or 0,
+                'subdeck': deck_info
+            })
+        
+        return jsonify({
+            'flashcards': flashcard_data,
+            'page': page,
+            'has_more': len(flashcards) == batch_size
+        })
     
-    # Get parent deck information for each card to display subdeck names
-    deck_info = {}
-    for card in flashcards:
-        if card.flashcard_deck_id != deck_id:  # This card is from a subdeck
-            subdeck = FlashcardDecks.query.get(card.flashcard_deck_id)
-            if subdeck:
-                deck_info[card.flashcard_id] = {
-                    'deck_id': subdeck.flashcard_deck_id,
-                    'deck_name': subdeck.name
-                }
+    # Normal page load - just get the count of cards for rendering the template
+    if due_only:
+        flashcards_count = db.session.query(db.func.count(Flashcards.flashcard_id)).filter(
+            db.or_(
+                Flashcards.flashcard_deck_id == deck_id,
+                FlashcardDecks.query.filter(
+                    FlashcardDecks.parent_deck_id == deck_id
+                ).exists()
+            ),
+            db.or_(Flashcards.due_date <= get_current_time(), Flashcards.due_date == None),
+            Flashcards.state != 2  # Exclude cards already mastered
+        ).scalar()
+    else:
+        flashcards_count = db.session.query(db.func.count(Flashcards.flashcard_id)).filter(
+            db.or_(
+                Flashcards.flashcard_deck_id == deck_id,
+                FlashcardDecks.query.filter(
+                    FlashcardDecks.parent_deck_id == deck_id
+                ).exists()
+            )
+        ).scalar()
+    
+    # Pass batch size for loading
+    batch_size = 20  # Set your desired batch size
     
     return render_template(
         "flashcards.html", 
-        deck=deck, 
-        flashcards=flashcards, 
-        due_only=due_only,
-        deck_info=deck_info
+        deck=deck,
+        flashcards_count=flashcards_count,
+        batch_size=batch_size,
+        due_only=due_only
     )
+
+# Update the get_due_cards function to support pagination
+def get_due_cards(deck_id, due_only=False, offset=0, limit=None):
+    """Get cards due for review with pagination support"""
+    from models import db  # Import here to avoid circular imports
+    
+    # Create recursive CTE to find all decks including this one and its sub-decks
+    cte = db.session.query(
+        FlashcardDecks.flashcard_deck_id.label('id')
+    ).filter(
+        FlashcardDecks.flashcard_deck_id == deck_id
+    ).cte(name='due_decks', recursive=True)
+
+    cte = cte.union_all(
+        db.session.query(
+            FlashcardDecks.flashcard_deck_id.label('id')
+        ).filter(
+            FlashcardDecks.parent_deck_id == cte.c.id
+        )
+    )
+    
+    # Base query that includes all cards in the deck and its sub-decks
+    query = db.session.query(Flashcards).filter(
+        Flashcards.flashcard_deck_id.in_(db.session.query(cte.c.id))
+    )
+    
+    # Add filters for due cards if needed
+    if due_only:
+        current_time = get_current_time()
+        query = query.filter(
+            db.or_(Flashcards.due_date <= current_time, Flashcards.due_date == None),
+            Flashcards.state != 2  # Exclude cards already mastered
+        )
+    
+    # Apply pagination
+    if offset > 0:
+        query = query.offset(offset)
+    if limit:
+        query = query.limit(limit)
+        
+    return query.all()
