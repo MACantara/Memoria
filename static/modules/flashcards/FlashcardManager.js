@@ -325,6 +325,13 @@ export class FlashcardManager {
         // Get the current study mode
         const isDueOnly = this.studyMode;
         
+        // Make sure score reflects completion - set score to total cards
+        this.score = this.totalDueCards;
+        
+        // Update UI to show all cards completed and 0 remaining
+        this.ui.updateScore(this.score, this.totalDueCards);
+        this.ui.updateCardCounter(this.totalDueCards - 1, this.totalDueCards, this.score);
+        
         // In "Study All" mode, we know we've completed everything, so no need to check server
         if (!isDueOnly) {
             this.ui.showCompletionScreen(this.deckId, this.score, this.totalDueCards, isDueOnly, 0);
