@@ -49,7 +49,15 @@ export function initializeFormHandlers(modals = {}) {
     async function handleCreateSubdeckSubmit(e, deckModalInstance) {
         e.preventDefault();
         const form = e.target;
-        const submitButton = form.querySelector('button[type="submit"]');
+        // Find submit button by its relationship to the form (could be outside the form)
+        const submitButton = document.querySelector(`button[type="submit"][form="${form.id}"]`) || 
+                            form.querySelector('button[type="submit"]');
+        
+        if (!submitButton) {
+            console.error("Submit button not found for form:", form.id);
+            return;
+        }
+        
         const normalState = submitButton.querySelector('.normal-state');
         const loadingState = submitButton.querySelector('.loading-state');
         const statusDiv = document.getElementById('createDeckStatus');
@@ -97,7 +105,15 @@ export function initializeFormHandlers(modals = {}) {
     async function handleCreateEmptyDeckSubmit(e, emptyDeckModalInstance) {
         e.preventDefault();
         const form = e.target;
-        const submitButton = form.querySelector('button[type="submit"]');
+        // Find submit button by its relationship to the form (could be outside the form)
+        const submitButton = document.querySelector(`button[type="submit"][form="${form.id}"]`) || 
+                            form.querySelector('button[type="submit"]');
+        
+        if (!submitButton) {
+            console.error("Submit button not found for form:", form.id);
+            return;
+        }
+        
         const normalState = submitButton.querySelector('.normal-state');
         const loadingState = submitButton.querySelector('.loading-state');
         const statusDiv = document.getElementById('createEmptyDeckStatus');
@@ -152,7 +168,15 @@ export function initializeFormHandlers(modals = {}) {
         e.preventDefault();
         const form = e.target;
         const formData = new FormData(form);
-        const submitButton = form.querySelector('button[type="submit"]');
+        // Find submit button by its relationship to the form (could be outside the form)
+        const submitButton = document.querySelector(`button[type="submit"][form="${form.id}"]`) || 
+                            form.querySelector('button[type="submit"]');
+        
+        if (!submitButton) {
+            console.error("Submit button not found for form:", form.id);
+            return;
+        }
+        
         const normalState = submitButton.querySelector('.normal-state');
         const loadingState = submitButton.querySelector('.loading-state');
         const statusDiv = form.querySelector('#generateStatus');
