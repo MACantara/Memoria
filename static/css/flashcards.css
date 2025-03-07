@@ -211,16 +211,6 @@ body {
     pointer-events: auto;
 }
 
-/* Add subtle animation to any-key hint */
-.feedback-container .text-muted {
-    animation: fade-in-out 2s infinite;
-}
-
-@keyframes fade-in-out {
-    0%, 100% { opacity: 0.5; }
-    50% { opacity: 0.9; }
-}
-
 /* Compact flashcard navigation */
 .flashcard-nav {
     position: sticky;
