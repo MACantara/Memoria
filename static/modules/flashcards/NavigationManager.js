@@ -69,8 +69,7 @@ export class NavigationManager {
             case '2':
             case '3':
             case '4':
-                // Fixed condition: Only work if viewing card options and not already in feedback state
-                // Removed the !hasSelectedAnswer check since number keys should work to select an answer
+                // Only work if viewing card options and not already in feedback state
                 if (isReviewingCard && !hasAnswerFeedback) {
                     const optionIndex = parseInt(key) - 1;
                     const options = document.querySelectorAll('.answer-option');
@@ -79,9 +78,17 @@ export class NavigationManager {
                         console.log(`Selecting option ${optionIndex + 1}`);
                         const radioInput = options[optionIndex].querySelector('input[type="radio"]');
                         if (radioInput) {
+                            // Check the radio input
                             radioInput.checked = true;
-                            // Trigger a click event on the answer option to activate the handler
-                            options[optionIndex].click();
+                            
+                            // Get the answer value and submit it directly to the manager
+                            const answerValue = radioInput.value;
+                            if (this.manager) {
+                                this.manager.handleAnswer(answerValue);
+                            } else if (window.flashcardManager) {
+                                // Fallback to window.flashcardManager if this.manager is not available
+                                window.flashcardManager.handleAnswer(answerValue);
+                            }
                         }
                     }
                 }
