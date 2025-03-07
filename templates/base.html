@@ -36,9 +36,13 @@
     {% block styles %}{% endblock %}
 </head>
 <body>
+    <!-- Add a spacer div at the bottom of the body for extra padding on mobile -->
     <div class="container py-4">
         {% block content %}{% endblock %}
     </div>
+    
+    <!-- Mobile-only spacer -->
+    <div class="d-block d-md-none" style="height: 20px;"></div>
     
     <!-- Mobile Bottom Navigation -->
     <div class="mobile-bottom-nav">

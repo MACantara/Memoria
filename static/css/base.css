@@ -180,16 +180,68 @@
 /* Add bottom padding to container on mobile to account for the nav bar */
 @media (max-width: 768px) {
     .container {
-        padding-bottom: 70px !important; /* Make sure content doesn't get hidden behind nav */
+        padding-bottom: 90px !important; /* Increased from 70px to 90px for more space */
     }
     
+    /* Add bottom padding to additional containers that might be used */
+    .container-fluid, 
+    .container-sm, 
+    .container-md, 
+    .container-lg, 
+    .container-xl, 
+    .container-xxl {
+        padding-bottom: 90px !important;
+    }
+    
+    /* Add padding to other common bottom elements */
+    main, section:last-child, .card:last-child {
+        margin-bottom: 20px !important;
+    }
+    
+    /* Ensure the footer has sufficient padding if present */
+    footer {
+        margin-bottom: 90px !important;
+    }
+    
+    /* Make the bottom nav a bit more compact */
     .mobile-bottom-nav {
         display: flex;
+        padding: 8px 5px;
     }
     
     /* Hide theme toggle on mobile - it's less important */
     .theme-toggle-container {
         display: none;
+    }
+    
+    /* Additional spacing for elements that might appear at bottom of page */
+    .modal-footer, .card-footer, .alert:last-child {
+        margin-bottom: 15px !important;
+    }
+    
+    /* Ensure modals aren't cut off at bottom */
+    .modal-dialog {
+        margin-bottom: 100px;
+    }
+    
+    /* Improve spacing on lists that might be at page bottom */
+    .list-group:last-child, 
+    .list-group-item:last-child, 
+    table:last-child {
+        margin-bottom: 20px !important;
+    }
+    
+    /* Improve interaction elements at bottom of page */
+    .form-group:last-child, 
+    .form-check:last-child, 
+    .btn-group:last-child, 
+    .d-flex:last-child {
+        margin-bottom: 20px !important;
+    }
+    
+    /* Extra padding at bottom of page to prevent content hiding under navigation */
+    html {
+        scroll-padding-bottom: 100px;
     }
 }
 
