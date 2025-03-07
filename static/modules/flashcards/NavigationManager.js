@@ -71,6 +71,8 @@ export class NavigationManager {
      * Advance to the next card or trigger the Next button if present
      */
     advanceCard() {
+        if (!this.manager.currentCard) return;
+        
         // Check if we have a next button (for incorrect answers)
         const nextButton = document.querySelector('.feedback-container .btn');
         if (nextButton) {
@@ -78,9 +80,25 @@ export class NavigationManager {
             return;
         }
         
-        // Otherwise, try to advance to the next card
-        if (this.manager.completedCards.size < this.manager.totalDueCards) {
-            this.manager.moveToNextCard();
+        // Check if the current card has been answered before allowing advancement
+        const currentCardId = this.manager.currentCard.id;
+        if (this.manager.completedCards.has(currentCardId)) {
+            // If current card is complete, we can safely move to the next card
+            if (this.manager.completedCards.size < this.manager.totalDueCards) {
+                this.manager.moveToNextCard();
+            }
+        } else {
+            // Card hasn't been answered yet - show a subtle hint
+            const answerForm = document.getElementById('answerForm');
+            if (answerForm) {
+                // Add a subtle pulse animation to hint that user should answer
+                answerForm.classList.add('pulse-hint');
+                
+                // Remove the animation class after it completes
+                setTimeout(() => {
+                    answerForm.classList.remove('pulse-hint');
+                }, 1000);
+            }
         }
     }
 }
