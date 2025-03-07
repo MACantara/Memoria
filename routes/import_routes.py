@@ -5,8 +5,7 @@ from werkzeug.utils import secure_filename
 
 from config import Config
 from utils import allowed_file
-from models.flashcard import Flashcards
-from models import db
+from models import db, FlashcardDecks, Flashcards
 from services.file_service import FileProcessor
 from services.storage_service import ProcessingState
 from services.chunk_service import process_file_chunk_batch, get_file_state
