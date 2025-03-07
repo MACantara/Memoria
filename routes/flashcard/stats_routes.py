@@ -1,190 +1,167 @@
-from flask import Blueprint, jsonify, render_template, request, url_for, redirect
+from flask import Blueprint, render_template, jsonify, request, abort, redirect, url_for, flash
 from models import db, FlashcardDecks, Flashcards
-from services.fsrs_scheduler import get_stats, get_current_time
+from flask_login import login_required, current_user
+from ..auth.decorators import login_required_for_decks
+from sqlalchemy import func
 from datetime import datetime, timedelta
-from sqlalchemy import case
-import traceback
 
 stats_bp = Blueprint('stats', __name__)
 
-@stats_bp.route("/deck/<int:deck_id>/view_stats")
-@stats_bp.route("/deck/<int:deck_id>/view_stats/<int:page>")
-def view_deck_stats(deck_id, page=1):
-    """
-    View spaced repetition stats for a deck
-    Now supports an optional page parameter to maintain pagination state in the URL
-    """
+@stats_bp.route('/deck/<int:deck_id>/view_stats')
+@login_required_for_decks
+def view_deck_stats(deck_id):
+    """View statistics for a flashcard deck"""
+    # Get the deck and verify permissions
     deck = FlashcardDecks.query.get_or_404(deck_id)
     
-    return render_template("stats.html", deck=deck, current_page=page)
+    # Check if user has access to this deck
+    if deck.user_id and deck.user_id != current_user.id:
+        flash('You do not have permission to view stats for this deck', 'error')
+        return redirect(url_for('main.index'))
+    
+    return render_template('stats.html', deck=deck)
 
-@stats_bp.route("/deck/<int:deck_id>/stats")
-def deck_stats(deck_id):
-    """Get spaced repetition stats for a deck as JSON"""
-    deck = FlashcardDecks.query.get_or_404(deck_id)
-    stats = get_stats(deck_id)
-    return jsonify(stats)
-
-@stats_bp.route("/deck/<int:deck_id>/retention")
-def deck_retention(deck_id):
-    """Get retention analytics for a deck"""
-    deck = FlashcardDecks.query.get_or_404(deck_id)
-    
-    # Query for cards with retrievability values AND review history
-    cards_with_retention = Flashcards.query.filter_by(flashcard_deck_id=deck_id)\
-        .filter(
-            Flashcards.retrievability > 0,
-            Flashcards.last_reviewed.isnot(None)  # Only include cards that have been reviewed
-        ).all()
-    
-    # Calculate retention statistics
-    retention_data = {
-        'total_cards_studied': len(cards_with_retention),
-        'has_retention_data': len(cards_with_retention) > 0,
-    }
-    
-    # Only include average retention if there are cards with review history
-    if cards_with_retention:
-        retention_data['average_retention'] = sum(c.retrievability for c in cards_with_retention) / len(cards_with_retention)
-        retention_data['retention_distribution'] = get_retention_distribution(cards_with_retention)
-    else:
-        retention_data['average_retention'] = None
-        retention_data['retention_distribution'] = {}
-    
-    return jsonify(retention_data)
-
-def get_retention_distribution(cards):
-    """Calculate retention distribution in 10% buckets"""
-    distribution = {
-        '0-10%': 0,
-        '10-20%': 0,
-        '20-30%': 0,
-        '30-40%': 0,
-        '40-50%': 0,
-        '50-60%': 0,
-        '60-70%': 0,
-        '70-80%': 0,
-        '80-90%': 0,
-        '90-100%': 0
-    }
-    
-    for card in cards:
-        r = card.retrievability
-        if r < 0.1:
-            distribution['0-10%'] += 1
-        elif r < 0.2:
-            distribution['10-20%'] += 1
-        elif r < 0.3:
-            distribution['20-30%'] += 1
-        elif r < 0.4:
-            distribution['30-40%'] += 1
-        elif r < 0.5:
-            distribution['40-50%'] += 1
-        elif r < 0.6:
-            distribution['50-60%'] += 1
-        elif r < 0.7:
-            distribution['60-70%'] += 1
-        elif r < 0.8:
-            distribution['70-80%'] += 1
-        elif r < 0.9:
-            distribution['80-90%'] += 1
-        else:
-            distribution['90-100%'] += 1
-    
-    return distribution
-
-@stats_bp.route("/deck/<int:deck_id>/upcoming-reviews")
-def get_upcoming_reviews(deck_id):
-    """Get upcoming review cards data for a specific deck"""
+@stats_bp.route('/api/deck/<int:deck_id>/stats')
+@login_required
+def get_deck_stats(deck_id):
+    """API endpoint to get statistics for a deck"""
     try:
-        # Create recursive CTE to find all decks including this one and its sub-decks
-        cte = db.session.query(
-            FlashcardDecks.flashcard_deck_id.label('id')
-        ).filter(
-            FlashcardDecks.flashcard_deck_id == deck_id
-        ).cte(name='review_decks', recursive=True)
-
-        cte = cte.union_all(
-            db.session.query(
-                FlashcardDecks.flashcard_deck_id.label('id')
-            ).filter(
-                FlashcardDecks.parent_deck_id == cte.c.id
-            )
-        )
+        # Get the deck
+        deck = FlashcardDecks.query.get_or_404(deck_id)
         
-        # Get current time in UTC
-        current_time = get_current_time()
+        # Check if user has access to this deck
+        if deck.user_id and deck.user_id != current_user.id:
+            return jsonify({'error': 'Unauthorized access'}), 403
         
-        # Query for all cards
-        query = Flashcards.query.filter(
-            Flashcards.flashcard_deck_id.in_(db.session.query(cte.c.id))
-        )
+        # Get mastery stats
+        mastery_stats = deck.get_mastery_stats()
         
-        # Order the results by due date
-        query = query.order_by(
-            # Cards with no due date first, then by due date ascending
-            case((Flashcards.due_date == None, 0), else_=1),
-            Flashcards.due_date.asc()
-        )
+        # Calculate retention rate (if there have been any reviews)
+        total_reviews = 0  # Implement review count logic
+        correct_reviews = 0  # Implement correct review count logic
+        retention_rate = 0
         
-        # Get pagination parameters
-        page = request.args.get('page', 1, type=int)
-        per_page = request.args.get('per_page', 20, type=int)
-        
-        # Paginate the results
-        paginated_cards = query.paginate(page=page, per_page=per_page, error_out=False)
-        
-        # Format results
-        results = []
-        for card in paginated_cards.items:
-            # Determine card state name
-            state_name = "New"
-            if card.state == 1:
-                state_name = "Learning"
-            elif card.state == 2:
-                state_name = "Mastered"
-            elif card.state == 3:
-                state_name = "Forgotten"
+        if total_reviews > 0:
+            retention_rate = (correct_reviews / total_reviews) * 100
             
-            # Format due date
-            due_date_str = "Not scheduled" if card.due_date is None else card.due_date.isoformat()
-            last_reviewed_str = "Never" if card.last_reviewed is None else card.last_reviewed.isoformat()
+        # Get upcoming reviews
+        current_time = datetime.now()
+        next_day = current_time + timedelta(days=1)
+        next_week = current_time + timedelta(days=7)
+        
+        # Create recursive CTE query to get all cards in the deck hierarchy
+        from sqlalchemy.sql import text
+        
+        # Use SQLAlchemy to safely build the recursive query
+        cte_query = db.session.query(FlashcardDecks.flashcard_deck_id.label('id')) \
+            .filter(FlashcardDecks.flashcard_deck_id == deck_id) \
+            .cte(name='deck_hierarchy', recursive=True)
             
-            results.append({
-                'id': card.flashcard_id,
-                'question': card.question,
-                'due_date': due_date_str,
-                'last_reviewed': last_reviewed_str,
-                'state': state_name,
-                'state_value': card.state or 0,
-                'retrievability': card.retrievability or 0.0,
-                'deck_id': card.flashcard_deck_id
-            })
+        cte_query = cte_query.union_all(
+            db.session.query(FlashcardDecks.flashcard_deck_id) \
+            .filter(FlashcardDecks.parent_deck_id == cte_query.c.id)
+        )
         
-        # Update pagination URLs to use correct endpoint
-        pagination_urls = {
-            'current_url': url_for('stats.view_deck_stats', deck_id=deck_id, page=page),
-            'base_url': url_for('stats.view_deck_stats', deck_id=deck_id),
-            'next_url': url_for('stats.view_deck_stats', deck_id=deck_id, page=paginated_cards.next_num) if paginated_cards.has_next else None,
-            'prev_url': url_for('stats.view_deck_stats', deck_id=deck_id, page=paginated_cards.prev_num) if paginated_cards.has_prev else None,
-        }
+        # Get counts for upcoming reviews
+        due_today = db.session.query(func.count(Flashcards.flashcard_id)) \
+            .filter(
+                Flashcards.flashcard_deck_id.in_(db.session.query(cte_query.c.id)),
+                Flashcards.due_date <= current_time
+            ).scalar() or 0
+            
+        due_tomorrow = db.session.query(func.count(Flashcards.flashcard_id)) \
+            .filter(
+                Flashcards.flashcard_deck_id.in_(db.session.query(cte_query.c.id)),
+                Flashcards.due_date > current_time,
+                Flashcards.due_date <= next_day
+            ).scalar() or 0
+            
+        due_week = db.session.query(func.count(Flashcards.flashcard_id)) \
+            .filter(
+                Flashcards.flashcard_deck_id.in_(db.session.query(cte_query.c.id)),
+                Flashcards.due_date > next_day,
+                Flashcards.due_date <= next_week
+            ).scalar() or 0
         
+        # Return deck stats as JSON
         return jsonify({
-            'cards': results,
-            'pagination': {
-                'total': paginated_cards.total,
-                'pages': paginated_cards.pages,
-                'page': page,
-                'per_page': per_page,
-                'has_next': paginated_cards.has_next,
-                'has_prev': paginated_cards.has_prev,
-                'next_page': paginated_cards.next_num,
-                'prev_page': paginated_cards.prev_num,
-                'urls': pagination_urls
+            'success': True,
+            'stats': {
+                'total_cards': mastery_stats['total'],
+                'new_cards': mastery_stats['new'],
+                'learning_cards': mastery_stats['learning'],
+                'mastered_cards': mastery_stats['mastered'],
+                'forgotten_cards': mastery_stats['forgotten'],
+                'mastery_percentage': mastery_stats['mastery_percentage'],
+                'retention_rate': retention_rate,
+                'upcoming_reviews': {
+                    'due_today': due_today,
+                    'due_tomorrow': due_tomorrow,
+                    'due_week': due_week
+                }
             }
         })
         
     except Exception as e:
-        print(f"Error getting upcoming review cards: {e}")
-        print(traceback.format_exc())  # Now using correctly imported traceback
+        return jsonify({'error': str(e)}), 500
+
+@stats_bp.route('/api/deck/<int:deck_id>/upcoming_reviews')
+@login_required
+def get_upcoming_reviews(deck_id):
+    """Get paginated upcoming reviews for a deck"""
+    try:
+        # Get the deck
+        deck = FlashcardDecks.query.get_or_404(deck_id)
+        
+        # Check if user has access to this deck
+        if deck.user_id and deck.user_id != current_user.id:
+            return jsonify({'error': 'Unauthorized access'}), 403
+        
+        # Get pagination parameters
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 25))
+        
+        # Create recursive CTE query to get all cards in the deck hierarchy
+        cte_query = db.session.query(FlashcardDecks.flashcard_deck_id.label('id')) \
+            .filter(FlashcardDecks.flashcard_deck_id == deck_id) \
+            .cte(name='deck_hierarchy', recursive=True)
+            
+        cte_query = cte_query.union_all(
+            db.session.query(FlashcardDecks.flashcard_deck_id) \
+            .filter(FlashcardDecks.parent_deck_id == cte_query.c.id)
+        )
+        
+        # Get flashcards with due dates, ordered by due date
+        query = db.session.query(Flashcards) \
+            .filter(Flashcards.flashcard_deck_id.in_(db.session.query(cte_query.c.id))) \
+            .order_by(Flashcards.due_date.asc().nullslast())
+            
+        # Paginate the results
+        paginated = query.paginate(page=page, per_page=per_page, error_out=False)
+        
+        cards = []
+        for card in paginated.items:
+            cards.append({
+                'id': card.flashcard_id,
+                'question': card.question,
+                'last_reviewed': card.last_reviewed.isoformat() if card.last_reviewed else None,
+                'due_date': card.due_date.isoformat() if card.due_date else None,
+                'state': card.state or 0,
+                'state_name': card.get_state_name(),
+                'retrievability': card.retrievability or 0
+            })
+        
+        # Return paginated results
+        return jsonify({
+            'success': True,
+            'reviews': cards,
+            'pagination': {
+                'page': page,
+                'per_page': per_page,
+                'total': paginated.total,
+                'pages': paginated.pages
+            }
+        })
+        
+    except Exception as e:
         return jsonify({'error': str(e)}), 500
