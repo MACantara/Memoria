@@ -17,7 +17,9 @@ export function initializeFormHandlers(modals = {}) {
     if (createDeckForm) {
         // Remove any existing submit handlers
         createDeckForm.removeEventListener('submit', handleCreateSubdeckSubmit);
-        createDeckForm.addEventListener('submit', handleCreateSubdeckSubmit);
+        createDeckForm.addEventListener('submit', function(e) {
+            handleCreateSubdeckSubmit(e, deckModal);
+        });
     }
 
     // Create empty deck form handler
@@ -25,7 +27,9 @@ export function initializeFormHandlers(modals = {}) {
     if (createEmptyDeckForm) {
         // Remove any existing submit handlers
         createEmptyDeckForm.removeEventListener('submit', handleCreateEmptyDeckSubmit);
-        createEmptyDeckForm.addEventListener('submit', handleCreateEmptyDeckSubmit);
+        createEmptyDeckForm.addEventListener('submit', function(e) {
+            handleCreateEmptyDeckSubmit(e, emptyDeckModal);
+        });
     }
 
     // Generate flashcards form handler
@@ -33,14 +37,16 @@ export function initializeFormHandlers(modals = {}) {
     if (generateForm) {
         // Remove any existing submit handlers
         generateForm.removeEventListener('submit', handleGenerateSubmit);
-        generateForm.addEventListener('submit', handleGenerateSubmit);
+        generateForm.addEventListener('submit', function(e) {
+            handleGenerateSubmit(e, generateModal);
+        });
     }
 
     // Mark as initialized
     formHandlersInitialized = true;
 
     // Form submission handlers
-    function handleCreateSubdeckSubmit(e) {
+    async function handleCreateSubdeckSubmit(e, deckModalInstance) {
         e.preventDefault();
         const form = e.target;
         const submitButton = form.querySelector('button[type="submit"]');
@@ -49,8 +55,10 @@ export function initializeFormHandlers(modals = {}) {
         const statusDiv = document.getElementById('createDeckStatus');
 
         submitButton.disabled = true;
-        normalState.classList.add('d-none');
-        loadingState.classList.remove('d-none');
+        if (normalState && loadingState) {
+            normalState.classList.add('d-none');
+            loadingState.classList.remove('d-none');
+        }
 
         try {
             const response = await fetch('/deck/create', {
@@ -65,7 +73,7 @@ export function initializeFormHandlers(modals = {}) {
                     </div>
                 `;
                 setTimeout(() => {
-                    deckModal?.hide();
+                    if (deckModalInstance) deckModalInstance.hide();
                     location.reload();
                 }, 1000);
             } else {
@@ -79,12 +87,14 @@ export function initializeFormHandlers(modals = {}) {
                 </div>
             `;
             submitButton.disabled = false;
-            normalState.classList.remove('d-none');
-            loadingState.classList.add('d-none');
+            if (normalState && loadingState) {
+                normalState.classList.remove('d-none');
+                loadingState.classList.add('d-none');
+            }
         }
     }
 
-    function handleCreateEmptyDeckSubmit(e) {
+    async function handleCreateEmptyDeckSubmit(e, emptyDeckModalInstance) {
         e.preventDefault();
         const form = e.target;
         const submitButton = form.querySelector('button[type="submit"]');
@@ -93,8 +103,10 @@ export function initializeFormHandlers(modals = {}) {
         const statusDiv = document.getElementById('createEmptyDeckStatus');
 
         submitButton.disabled = true;
-        normalState.classList.add('d-none');
-        loadingState.classList.remove('d-none');
+        if (normalState && loadingState) {
+            normalState.classList.add('d-none');
+            loadingState.classList.remove('d-none');
+        }
         
         try {
             const response = await fetch('/deck/create_empty', {
@@ -115,7 +127,7 @@ export function initializeFormHandlers(modals = {}) {
                     </div>
                 `;
                 setTimeout(() => {
-                    emptyDeckModal?.hide();
+                    if (emptyDeckModalInstance) emptyDeckModalInstance.hide();
                     location.reload();
                 }, 1000);
             } else {
@@ -129,28 +141,35 @@ export function initializeFormHandlers(modals = {}) {
                 </div>
             `;
             submitButton.disabled = false;
-            normalState.classList.remove('d-none');
-            loadingState.classList.add('d-none');
+            if (normalState && loadingState) {
+                normalState.classList.remove('d-none');
+                loadingState.classList.add('d-none');
+            }
         }
     }
 
-    function handleGenerateSubmit(e) {
+    async function handleGenerateSubmit(e, generateModalInstance) {
         e.preventDefault();
         const form = e.target;
-        const formData = new FormData(e.target);
-        const submitButton = e.target.querySelector('button[type="submit"]');
+        const formData = new FormData(form);
+        const submitButton = form.querySelector('button[type="submit"]');
         const normalState = submitButton.querySelector('.normal-state');
         const loadingState = submitButton.querySelector('.loading-state');
-        const statusDiv = e.target.querySelector('#generateStatus');
+        const statusDiv = form.querySelector('#generateStatus');
 
         submitButton.disabled = true;
-        normalState.classList.add('d-none');
-        loadingState.classList.remove('d-none');
-        statusDiv.innerHTML = `
-            <div class="alert alert-info">
-                <i class="bi bi-info-circle"></i> Generating flashcards... This may take a minute.
-            </div>
-        `;
+        if (normalState && loadingState) {
+            normalState.classList.add('d-none');
+            loadingState.classList.remove('d-none');
+        }
+        
+        if (statusDiv) {
+            statusDiv.innerHTML = `
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> Generating flashcards... This may take a minute.
+                </div>
+            `;
+        }
 
         try {
             const action = form.getAttribute('action') || '/flashcard/generate-flashcards';
@@ -164,14 +183,16 @@ export function initializeFormHandlers(modals = {}) {
                 const contentType = response.headers.get('content-type');
                 if (contentType && contentType.includes('application/json')) {
                     const data = await response.json();
-                    statusDiv.innerHTML = `
-                        <div class="alert alert-success">
-                            <i class="bi bi-check-circle"></i> Flashcards generated successfully!
-                        </div>
-                    `;
+                    if (statusDiv) {
+                        statusDiv.innerHTML = `
+                            <div class="alert alert-success">
+                                <i class="bi bi-check-circle"></i> Flashcards generated successfully!
+                            </div>
+                        `;
+                    }
                     setTimeout(() => {
-                        generateModal?.hide();
-                        window.location.href = data.redirect_url || location.reload();
+                        if (generateModalInstance) generateModalInstance.hide();
+                        window.location.href = data.redirect_url || window.location.href;
                     }, 1000);
                 } else {
                     // Handle HTML response (direct page load)
@@ -182,15 +203,19 @@ export function initializeFormHandlers(modals = {}) {
             }
         } catch (error) {
             console.error('Error generating cards:', error);
-            statusDiv.innerHTML = `
-                <div class="alert alert-danger">
-                    <i class="bi bi-exclamation-triangle"></i> Failed to generate cards. Please try again.
-                </div>
-            `;
+            if (statusDiv) {
+                statusDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle"></i> Failed to generate cards. Please try again.
+                    </div>
+                `;
+            }
         } finally {
             submitButton.disabled = false;
-            normalState.classList.remove('d-none');
-            loadingState.classList.add('d-none');
+            if (normalState && loadingState) {
+                normalState.classList.remove('d-none');
+                loadingState.classList.add('d-none');
+            }
         }
     }
 }
