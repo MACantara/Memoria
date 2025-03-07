@@ -1,3 +1,22 @@
+// Define these functions globally so they can be called from HTML before initialization
+window.showImportModal = function() {
+    console.log("Import modal requested");
+    const modal = document.getElementById('importContentModal');
+    if (modal) {
+        const bsModal = new bootstrap.Modal(modal);
+        bsModal.show();
+    }
+};
+
+window.showGenerateModal = function() {
+    console.log("Generate modal requested");
+    const modal = document.getElementById('generateModal');
+    if (modal) {
+        const bsModal = new bootstrap.Modal(modal);
+        bsModal.show();
+    }
+};
+
 export function initializeModals() {
     const modals = {};
     
@@ -89,7 +108,7 @@ export function initializeModals() {
         });
     }
 
-    // Add import content modal handler
+    // Override the global functions now that we have proper modal instances
     if (modals.importModal) {
         window.showImportModal = () => {
             // Reset the form if needed
@@ -103,7 +122,6 @@ export function initializeModals() {
         };
     }
 
-    // Make showGenerateModal available globally if needed
     if (modals.generateModal) {
         window.showGenerateModal = () => {
             document.getElementById('generateForm').reset();
