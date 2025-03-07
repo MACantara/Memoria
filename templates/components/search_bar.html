@@ -1,5 +1,5 @@
 <div class="search-component">
-    <!-- Desktop search form -->
+    <!-- Desktop search form - only shown on medium screens and larger -->
     <form action="{{ url_for('search.search') }}" method="GET" class="d-none d-md-block">
         <div class="input-group">
             <input type="text" name="q" class="form-control" 
@@ -10,9 +10,4 @@
             </button>
         </div>
     </form>
-    
-    <!-- Mobile search - just an icon that links to search page -->
-    <a href="{{ url_for('search.search') }}" class="btn btn-link d-md-none text-decoration-none mobile-search-toggle">
-        <i class="bi bi-search"></i>
-    </a>
 </div>
