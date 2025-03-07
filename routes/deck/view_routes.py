@@ -1,29 +1,49 @@
-from flask import Blueprint, request, render_template, jsonify
-from models import FlashcardDecks, Flashcards
-from services.fsrs_scheduler import get_due_cards, get_current_time
-from routes.deck.utils import count_due_flashcards
+from flask import Blueprint, render_template, request, redirect, url_for, flash, abort, jsonify
+from models import db, FlashcardDecks, Flashcards
+from flask_login import login_required, current_user
+from ..auth.decorators import login_required_for_decks
+from services.fsrs_scheduler import get_current_time
+from .utils import count_due_flashcards, get_recursive_deck_ids
 
+# Change from 'view_bp' to 'deck_view_bp' to match the import in __init__.py
 deck_view_bp = Blueprint('deck_view', __name__)
 
-@deck_view_bp.route("/<int:deck_id>")
+@deck_view_bp.route('/<int:deck_id>')
+@login_required_for_decks
 def get_deck_flashcards(deck_id):
-    """View deck structure and its contents"""
+    # Get the deck and verify user has access
     deck = FlashcardDecks.query.get_or_404(deck_id)
+    
+    # Check if user has access to this deck
+    if deck.user_id and deck.user_id != current_user.id:
+        flash('You do not have permission to access this deck', 'error')
+        return redirect(url_for('main.index'))
+    
     flashcards = Flashcards.query.filter_by(flashcard_deck_id=deck_id).all()
     
     # Count due flashcards for this deck (including sub-decks)
-    current_time = get_current_time()
-    due_count = count_due_flashcards(deck_id, current_time)
+    due_count = count_due_flashcards(deck_id, get_current_time())
     
-    return render_template("deck.html", deck=deck, flashcards=flashcards, due_count=due_count)
+    return render_template('deck.html', 
+                          deck=deck, 
+                          flashcards=flashcards,
+                          due_count=due_count)
 
-@deck_view_bp.route("/<int:deck_id>/study")
+@deck_view_bp.route('/<int:deck_id>/study')
+@login_required_for_decks
 def study_deck(deck_id):
-    """Study flashcards in this deck and all nested sub-decks using FSRS scheduling"""
-    from models import db  # Import here to avoid circular imports
+    # Check if we should show only due cards
+    due_only = request.args.get('due_only') == 'true'
     
+    # Get the deck and verify user has access
     deck = FlashcardDecks.query.get_or_404(deck_id)
     
+    # Check if user has access to this deck
+    if deck.user_id and deck.user_id != current_user.id:
+        flash('You do not have permission to access this deck', 'error')
+        return redirect(url_for('main.index'))
+    
+    # Existing code to count flashcards and set up study session
     # Check if we should only get due cards
     due_only = request.args.get('due_only', 'false').lower() == 'true'
     
@@ -92,13 +112,11 @@ def study_deck(deck_id):
     # Pass batch size for loading
     batch_size = 20  # Set your desired batch size
     
-    return render_template(
-        "flashcards.html", 
-        deck=deck,
-        flashcards_count=flashcards_count,
-        batch_size=batch_size,
-        due_only=due_only
-    )
+    return render_template('flashcards.html', 
+                        deck=deck,
+                        flashcards_count=flashcards_count,
+                        due_only=due_only,
+                        batch_size=batch_size)
 
 # Update the get_due_cards function to support pagination
 def get_due_cards(deck_id, due_only=False, offset=0, limit=None):
