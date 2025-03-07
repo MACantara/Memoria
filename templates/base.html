@@ -5,41 +5,34 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Memoria | {% block title %}{% endblock %}</title>
     
-    <!-- Prevent theme flickering by setting theme before page renders -->
+    <!-- Optimized theme detection - inline to prevent flash -->
     <script>
         (function() {
-            // Check for saved theme preference
             const savedTheme = localStorage.getItem('theme');
-            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            
-            // Apply theme immediately to prevent flash
             if (savedTheme === 'dark') {
                 document.documentElement.setAttribute('data-bs-theme', 'dark');
             } else if (savedTheme === 'light') {
                 document.documentElement.setAttribute('data-bs-theme', 'light');
             } else if (savedTheme === 'auto' || !savedTheme) {
-                // For auto or no preference, follow system preference
+                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
                 document.documentElement.setAttribute('data-bs-theme', prefersDark ? 'dark' : 'light');
-                
-                // If no preference is saved yet, default to auto
-                if (!savedTheme) {
-                    localStorage.setItem('theme', 'auto');
-                }
+                if (!savedTheme) localStorage.setItem('theme', 'auto');
             }
         })();
     </script>
     
+    <!-- Critical CSS loaded first -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}"></link>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/deck-search.css') }}"></link>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/deck-search.css') }}">
     {% block styles %}{% endblock %}
+    
+    <!-- Defer jQuery loading -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js" defer></script>
 </head>
 <body>
-    <!-- Add a spacer div at the bottom of the body for extra padding on mobile -->
     <div class="container py-4">
-        <!-- Add search bar in header area for most pages -->
         {% if not request.path.startswith('/search') %}
         <div class="d-flex justify-content-end mb-4">
             {% include 'components/search_bar.html' %}
@@ -52,39 +45,30 @@
     <!-- Mobile-only spacer -->
     <div class="d-block d-md-none" style="height: 20px;"></div>
     
-    <!-- Mobile Bottom Navigation -->
+    <!-- Mobile Navigation Components -->
     {% include 'nav/mobile_bottom_nav.html' %}
-
-    <!-- Mobile Theme Menu (hidden by default) -->
     {% include 'menus/mobile_theme_menu.html' %}
-    
-    <!-- Mobile Add Actions Menu (hidden by default) -->
     {% include 'menus/mobile_add_actions_menu.html' %}
-    
-    <!-- Mobile Study & Stats Menu (hidden by default) -->
     {% include 'menus/mobile_study_stats_menu.html' %}
-    
-    <!-- Theme Toggle with Popup Menu -->
     {% include 'menus/theme_toggle_popup_menu.html' %}
 
-    <!-- Common Modals -->
+    <!-- Common Modals - loaded only when needed -->
     {% include 'components/import_content_modal.html' %}
     {% include 'components/rename_deck_modal.html' %}
     {% include 'components/delete_deck_modal.html' %}
     {% include 'components/move_deck_modal.html' %}
     
-    <!-- Deck-specific modals -->
+    <!-- Deck-specific modals - conditional loading -->
     {% if request.path.startswith('/deck/') and request.path.split('/')[-1].isdigit() %}
         {% include 'components/create_sub_deck_modal.html' %}
         {% include 'components/generate_cards_modal_deck.html' %}
     {% endif %}
     
-    <!-- Index-specific and Search-page modals -->
+    <!-- Index-specific and Search-page modals - conditional loading -->
     {% if request.path == '/' or request.path == '/index' or request.path.startswith('/search') %}
         {% include 'components/create_empty_deck_modal.html' %}
         {% include 'components/generate_cards_modal_index.html' %}
         
-        <!-- Study/Stats selection modals with variable passing -->
         {% if all_decks is defined %}
             {% with decks=all_decks %}
                 {% include 'components/select_deck_to_study_modal.html' %}
@@ -98,232 +82,199 @@
         {% endif %}
     {% endif %}
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script> 
+    <!-- Essential scripts with appropriate loading attributes -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" defer></script> 
     
-    <!-- Add essential JS modules globally for consistent functionality -->
+    <!-- Optimized JavaScript module loading with defer -->
     <script type="module">
         import { initializeModals } from "{{ url_for('static', filename='modules/deck/modal-handlers.js') }}";
         import { initializeFormHandlers } from "{{ url_for('static', filename='modules/deck/form-handlers.js') }}";
         import { initializeDeckOperations } from "{{ url_for('static', filename='modules/deck/deck-operations.js') }}";
         
-        // Use a single initialization point with a flag to prevent duplicates
+        // Single initialization point with deferred execution
         if (!window.memoria_initialized) {
-            console.log("Initializing Memoria components");
-            
-            // Set up basic global utility functions for modals
-            window.showImportModal = function() {
-                console.log("Import modal requested");
+            // Simple implementations first
+            window.showImportModal = () => {
                 const modal = document.getElementById('importContentModal');
-                if (modal) {
-                    const bsModal = new bootstrap.Modal(modal);
-                    bsModal.show();
-                }
+                if (modal) new bootstrap.Modal(modal).show();
             };
             
-            window.showGenerateModal = function() {
-                console.log("Generate modal requested");
+            window.showGenerateModal = () => {
                 const modal = document.getElementById('generateModal');
-                if (modal) {
-                    const bsModal = new bootstrap.Modal(modal);
-                    bsModal.show();
-                }
+                if (modal) new bootstrap.Modal(modal).show();
             };
             
-            document.addEventListener('DOMContentLoaded', () => {
-                // Initialize modals and handlers
+            // Use requestIdleCallback for non-critical initialization
+            const initializeComponents = () => {
+                console.log("Initializing Memoria components");
                 const modals = initializeModals();
                 initializeFormHandlers(modals);
                 initializeDeckOperations();
-                
-                // Mark as initialized
                 window.memoria_initialized = true;
-            });
-        } else {
-            console.log("Memoria components already initialized, skipping");
+            };
+            
+            // Initialize when DOM is loaded and idle
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', () => {
+                    if (window.requestIdleCallback) {
+                        requestIdleCallback(initializeComponents);
+                    } else {
+                        setTimeout(initializeComponents, 100);
+                    }
+                });
+            } else {
+                if (window.requestIdleCallback) {
+                    requestIdleCallback(initializeComponents);
+                } else {
+                    setTimeout(initializeComponents, 100);
+                }
+            }
         }
     </script>
     
+    <!-- Optimized theme management script -->
     <script>
-        // Enhanced theme management with popup menu
         document.addEventListener('DOMContentLoaded', function() {
-            const themeToggle = document.getElementById('themeToggle');
-            const themeMenu = document.getElementById('themeMenu');
-            const themeBackdrop = document.getElementById('themeBackdrop');
-            const themeMenuItems = document.querySelectorAll('.theme-menu-item');
-            const htmlElement = document.documentElement;
-            
-            // Media query for detecting system preference changes
-            const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)');
-            
-            // Initialize: mark active theme
-            updateActiveThemeInMenu();
-            
-            // Show/hide menu on button click
-            themeToggle.addEventListener('click', () => {
-                themeMenu.classList.toggle('show');
-                themeBackdrop.classList.toggle('show');
-            });
-            
-            // Hide menu when clicking outside
-            themeBackdrop.addEventListener('click', () => {
-                themeMenu.classList.remove('show');
-                themeBackdrop.classList.remove('show');
-            });
-            
-            // Theme menu item click handler
-            themeMenuItems.forEach(item => {
-                item.addEventListener('click', () => {
-                    const theme = item.getAttribute('data-theme');
-                    
-                    // Apply theme
-                    applyTheme(theme);
-                    
-                    // Save preference
-                    localStorage.setItem('theme', theme);
-                    
-                    // Update UI
-                    updateActiveThemeInMenu();
-                    
-                    // Close menu
-                    themeMenu.classList.remove('show');
-                    themeBackdrop.classList.remove('show');
-                });
-            });
-            
-            // Function to apply theme to document
-            function applyTheme(theme) {
-                if (theme === 'dark') {
-                    htmlElement.setAttribute('data-bs-theme', 'dark');
-                } else if (theme === 'light') {
-                    htmlElement.setAttribute('data-bs-theme', 'light');
-                } else if (theme === 'auto') {
-                    // For auto theme, follow system preference
-                    htmlElement.setAttribute('data-bs-theme', 
-                        prefersDarkScheme.matches ? 'dark' : 'light');
-                }
-            }
-            
-            // Update active theme in menu
-            function updateActiveThemeInMenu() {
-                const currentTheme = localStorage.getItem('theme') || 'auto';
+            // Theme toggle functionality - combined and optimized
+            const setupThemeToggle = () => {
+                const themeToggle = document.getElementById('themeToggle');
+                const themeMenu = document.getElementById('themeMenu');
+                const themeBackdrop = document.getElementById('themeBackdrop');
+                const themeMenuItems = document.querySelectorAll('.theme-menu-item');
+                const htmlElement = document.documentElement;
+                const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)');
                 
-                themeMenuItems.forEach(item => {
-                    const itemTheme = item.getAttribute('data-theme');
-                    if (itemTheme === currentTheme) {
-                        item.classList.add('active');
-                    } else {
-                        item.classList.remove('active');
+                if (!themeToggle) return;
+                
+                // Mark active theme
+                updateActiveThemeInMenu();
+                
+                // Event delegation for theme menu interactions
+                document.addEventListener('click', (e) => {
+                    // Toggle menu on button click
+                    if (e.target.closest('#themeToggle')) {
+                        themeMenu.classList.toggle('show');
+                        themeBackdrop.classList.toggle('show');
+                        return;
+                    }
+                    
+                    // Hide menu when clicking outside
+                    if (themeMenu && themeMenu.classList.contains('show') && 
+                        !e.target.closest('#themeMenu')) {
+                        themeMenu.classList.remove('show');
+                        themeBackdrop.classList.remove('show');
+                    }
+                    
+                    // Handle theme option click
+                    const themeItem = e.target.closest('.theme-menu-item');
+                    if (themeItem && themeMenu.classList.contains('show')) {
+                        const theme = themeItem.getAttribute('data-theme');
+                        
+                        // Apply and save theme
+                        applyTheme(theme);
+                        localStorage.setItem('theme', theme);
+                        updateActiveThemeInMenu();
+                        
+                        // Close menu
+                        themeMenu.classList.remove('show');
+                        themeBackdrop.classList.remove('show');
                     }
                 });
                 
-                // Update toggle button icon based on current applied theme
-                updateToggleIcon();
-            }
-            
-            // Update the toggle button icon based on current applied theme
-            function updateToggleIcon() {
-                const currentAppliedTheme = htmlElement.getAttribute('data-bs-theme');
-                const iconElement = themeToggle.querySelector('i');
-                
-                // Remove all icon classes
-                iconElement.className = '';
-                
-                // Add appropriate icon class based on current theme
-                if (currentAppliedTheme === 'dark') {
-                    iconElement.className = 'bi bi-moon-stars-fill';
-                } else {
-                    iconElement.className = 'bi bi-sun-fill';
+                // Function to apply theme to document
+                function applyTheme(theme) {
+                    if (theme === 'dark') {
+                        htmlElement.setAttribute('data-bs-theme', 'dark');
+                    } else if (theme === 'light') {
+                        htmlElement.setAttribute('data-bs-theme', 'light');
+                    } else if (theme === 'auto') {
+                        // For auto theme, follow system preference
+                        htmlElement.setAttribute('data-bs-theme', 
+                            prefersDarkScheme.matches ? 'dark' : 'light');
+                    }
                 }
-            }
-            
-            // Listen for system preference changes if using auto theme
-            prefersDarkScheme.addEventListener('change', () => {
-                const currentTheme = localStorage.getItem('theme') || 'auto';
-                if (currentTheme === 'auto') {
-                    applyTheme('auto');
-                    updateToggleIcon();
+                
+                // Update active theme in menu
+                function updateActiveThemeInMenu() {
+                    const currentTheme = localStorage.getItem('theme') || 'auto';
+                    
+                    themeMenuItems.forEach(item => {
+                        const itemTheme = item.getAttribute('data-theme');
+                        item.classList.toggle('active', itemTheme === currentTheme);
+                    });
+                    
+                    // Update toggle button icon
+                    const currentAppliedTheme = htmlElement.getAttribute('data-bs-theme');
+                    const iconElement = themeToggle.querySelector('i');
+                    iconElement.className = currentAppliedTheme === 'dark' 
+                        ? 'bi bi-moon-stars-fill'
+                        : 'bi bi-sun-fill';
                 }
-            });
-        });
-        
-        // Mobile Add Menu functionality
-        document.addEventListener('DOMContentLoaded', function() {
-            const mobileAddButton = document.getElementById('mobileAddButton');
-            const mobileAddMenu = document.getElementById('mobileAddMenu');
-            const mobileAddMenuClose = document.getElementById('mobileAddMenuClose');
-            const mobileAddMenuBackdrop = document.getElementById('mobileAddMenuBackdrop');
-            
-            if (mobileAddButton && mobileAddMenu) {
-                // Toggle menu when add button is clicked
-                mobileAddButton.addEventListener('click', function() {
-                    mobileAddMenu.classList.toggle('active');
+                
+                // Listen for system preference changes
+                prefersDarkScheme.addEventListener('change', () => {
+                    const currentTheme = localStorage.getItem('theme') || 'auto';
+                    if (currentTheme === 'auto') {
+                        applyTheme('auto');
+                        updateActiveThemeInMenu();
+                    }
                 });
+            };
+            
+            // Set up mobile menus with a more efficient approach
+            const setupMobileMenus = () => {
+                // Handle all similar menus with delegated events
+                const menuButtons = {
+                    'mobileAddButton': 'mobileAddMenu',
+                    'mobileThemeToggle': 'mobileThemeMenu',
+                    'mobileStudyStatsButton': 'mobileStudyStatsMenu'
+                };
                 
-                // Close menu when cancel button is clicked
-                if (mobileAddMenuClose) {
-                    mobileAddMenuClose.addEventListener('click', function() {
-                        mobileAddMenu.classList.remove('active');
-                    });
-                }
-                
-                // Close menu when backdrop is clicked
-                if (mobileAddMenuBackdrop) {
-                    mobileAddMenuBackdrop.addEventListener('click', function() {
-                        mobileAddMenu.classList.remove('active');
-                    });
-                }
-                
-                // Close menu when an action is selected
-                mobileAddMenu.querySelectorAll('.list-group-item').forEach(item => {
-                    item.addEventListener('click', function() {
+                // Use event delegation for better performance
+                document.addEventListener('click', (e) => {
+                    // Find if we clicked on a menu button
+                    let menuToToggle = null;
+                    for (const [btnId, menuId] of Object.entries(menuButtons)) {
+                        if (e.target.closest(`#${btnId}`)) {
+                            menuToToggle = document.getElementById(menuId);
+                            break;
+                        }
+                    }
+                    
+                    if (menuToToggle) {
+                        // Toggle the menu
+                        menuToToggle.classList.toggle('active');
+                        return;
+                    }
+                    
+                    // Close button handlers
+                    if (e.target.closest('[id$="MenuClose"]')) {
+                        const menu = e.target.closest('.mobile-add-menu, .mobile-theme-menu, .mobile-study-stats-menu');
+                        if (menu) menu.classList.remove('active');
+                        return;
+                    }
+                    
+                    // Backdrop handlers
+                    if (e.target.closest('[id$="MenuBackdrop"]')) {
+                        const menu = e.target.closest('.mobile-add-menu, .mobile-theme-menu, .mobile-study-stats-menu');
+                        if (menu) menu.classList.remove('active');
+                        return;
+                    }
+                    
+                    // Close menu when an action is selected
+                    if (e.target.closest('.mobile-add-menu .list-group-item, .mobile-theme-menu .mobile-theme-option, .mobile-study-stats-menu .list-group-item')) {
+                        const menu = e.target.closest('.mobile-add-menu, .mobile-theme-menu, .mobile-study-stats-menu');
                         setTimeout(() => {
-                            mobileAddMenu.classList.remove('active');
+                            if (menu) menu.classList.remove('active');
                         }, 100);
-                    });
+                    }
                 });
                 
-                // Highlight active section based on current URL
-                const currentPath = window.location.pathname;
-                const navItems = document.querySelectorAll('.mobile-nav-item');
-                
-                if (currentPath === '/' || currentPath === '/index') {
-                    navItems[0].classList.add('active'); // Decks
-                } else if (currentPath.includes('/deck/') && !currentPath.includes('/study') && !currentPath.includes('/stats')) {
-                    navItems[0].classList.add('active'); // Decks - still active when in deck view
-                } else if (currentPath.includes('/study')) {
-                    navItems[1].classList.add('active'); // Study
-                } else if (currentPath.includes('/stats')) {
-                    navItems[3].classList.add('active'); // Stats
-                }
-            }
-            
-            // Mobile theme toggle functionality - UPDATED
-            const mobileThemeToggle = document.getElementById('mobileThemeToggle');
-            const mobileThemeMenu = document.getElementById('mobileThemeMenu');
-            const mobileThemeMenuBackdrop = document.getElementById('mobileThemeMenuBackdrop');
-            const mobileThemeOptions = document.querySelectorAll('.mobile-theme-option');
-            
-            // Set initial icon based on current theme
-            if (mobileThemeToggle) {
-                updateMobileThemeIcon(mobileThemeToggle);
-                
-                // Changed to toggle the theme menu instead of cycling through themes
-                mobileThemeToggle.addEventListener('click', function() {
-                    mobileThemeMenu.classList.toggle('active');
-                    updateActiveThemeOption(); // Update checkmarks
-                });
-                
-                // Close menu when backdrop is clicked
-                if (mobileThemeMenuBackdrop) {
-                    mobileThemeMenuBackdrop.addEventListener('click', function() {
-                        mobileThemeMenu.classList.remove('active');
-                    });
-                }
-                
-                // Handle theme option selection
-                mobileThemeOptions.forEach(option => {
-                    option.addEventListener('click', function() {
-                        const theme = this.getAttribute('data-theme');
+                // Mobile theme options handling
+                document.addEventListener('click', (e) => {
+                    const themeOption = e.target.closest('.mobile-theme-option');
+                    if (themeOption) {
+                        const theme = themeOption.getAttribute('data-theme');
                         const htmlElement = document.documentElement;
                         
                         // Apply and save the theme
@@ -340,124 +291,113 @@
                         }
                         
                         // Update the theme toggle icon
-                        updateMobileThemeIcon(mobileThemeToggle);
+                        updateMobileThemeIcon();
                         
                         // Show toast notification
                         showThemeChangeToast(theme);
-                        
-                        // Close the menu
-                        mobileThemeMenu.classList.remove('active');
-                    });
+                    }
                 });
-            }
+                
+                // Highlight active navigation item
+                const highlightActiveNavItem = () => {
+                    const currentPath = window.location.pathname;
+                    const navItems = document.querySelectorAll('.mobile-nav-item');
+                    
+                    if (!navItems.length) return;
+                    
+                    if (currentPath === '/' || currentPath === '/index') {
+                        navItems[0].classList.add('active'); // Decks
+                    } else if (currentPath.includes('/deck/') && !currentPath.includes('/study') && !currentPath.includes('/stats')) {
+                        navItems[0].classList.add('active'); // Decks - still active when in deck view
+                    } else if (currentPath.includes('/study')) {
+                        navItems[1].classList.add('active'); // Study
+                    } else if (currentPath.includes('/stats')) {
+                        navItems[3].classList.add('active'); // Stats
+                    }
+                };
+                
+                highlightActiveNavItem();
+            };
             
-            function updateMobileThemeIcon(buttonElement) {
+            // Clean implementation of mobile theme update functions
+            const updateMobileThemeIcon = () => {
+                const buttonElement = document.getElementById('mobileThemeToggle');
+                if (!buttonElement) return;
+                
                 const currentTheme = localStorage.getItem('theme') || 'auto';
                 const iconElement = buttonElement.querySelector('i');
                 const textElement = buttonElement.querySelector('span');
                 
-                // Remove all icon classes
-                iconElement.className = '';
+                // Set icon and text based on theme
+                iconElement.className = {
+                    'dark': 'bi bi-moon-stars-fill',
+                    'light': 'bi bi-sun-fill',
+                    'auto': 'bi bi-circle-half'
+                }[currentTheme] || 'bi bi-circle-half';
                 
-                // Add appropriate icon and text based on theme
-                if (currentTheme === 'dark') {
-                    iconElement.className = 'bi bi-moon-stars-fill';
-                    textElement.textContent = 'Dark';
-                } else if (currentTheme === 'light') {
-                    iconElement.className = 'bi bi-sun-fill';
-                    textElement.textContent = 'Light';
-                } else { // auto
-                    iconElement.className = 'bi bi-circle-half';
-                    textElement.textContent = 'Theme';
-                }
-            }
+                textElement.textContent = {
+                    'dark': 'Dark',
+                    'light': 'Light',
+                    'auto': 'Theme'
+                }[currentTheme] || 'Theme';
+            };
             
             function showThemeChangeToast(theme) {
                 // Create toast element
                 const toast = document.createElement('div');
                 toast.className = 'theme-toast';
                 
-                let icon, text;
-                if (theme === 'dark') {
-                    icon = 'bi-moon-stars-fill';
-                    text = 'Dark Mode';
-                } else if (theme === 'light') {
-                    icon = 'bi-sun-fill';
-                    text = 'Light Mode';
-                } else { // auto
-                    icon = 'bi-circle-half';
-                    text = 'System Theme';
-                }
+                const iconClass = {
+                    'dark': 'bi-moon-stars-fill',
+                    'light': 'bi-sun-fill',
+                    'auto': 'bi-circle-half'
+                }[theme] || 'bi-circle-half';
                 
-                toast.innerHTML = `<i class="bi ${icon}"></i> ${text}`;
+                const text = {
+                    'dark': 'Dark Mode',
+                    'light': 'Light Mode',
+                    'auto': 'System Theme'
+                }[theme] || 'System Theme';
+                
+                toast.innerHTML = `<i class="bi ${iconClass}"></i> ${text}`;
                 document.body.appendChild(toast);
                 
-                // Animate in
-                setTimeout(() => {
+                // Animate in and out with efficient timing
+                requestAnimationFrame(() => {
                     toast.classList.add('show');
-                }, 10);
-                
-                // Animate out and remove
-                setTimeout(() => {
-                    toast.classList.remove('show');
                     setTimeout(() => {
-                        document.body.removeChild(toast);
-                    }, 300);
-                }, 2000);
+                        toast.classList.remove('show');
+                        setTimeout(() => toast.remove(), 300);
+                    }, 2000);
+                });
             }
             
             function updateActiveThemeOption() {
                 const currentTheme = localStorage.getItem('theme') || 'auto';
-                mobileThemeOptions.forEach(option => {
-                    const optionTheme = option.getAttribute('data-theme');
-                    if (optionTheme === currentTheme) {
-                        option.classList.add('active');
-                    } else {
-                        option.classList.remove('active');
-                    }
+                document.querySelectorAll('.mobile-theme-option').forEach(option => {
+                    option.classList.toggle('active', option.getAttribute('data-theme') === currentTheme);
                 });
             }
-        });
-        
-        // Mobile Study & Stats Menu functionality
-        document.addEventListener('DOMContentLoaded', function() {
-            const mobileStudyStatsButton = document.getElementById('mobileStudyStatsButton');
-            const mobileStudyStatsMenu = document.querySelector('.mobile-study-stats-menu');
-            const mobileStudyStatsMenuClose = document.getElementById('mobileStudyStatsMenuClose');
-            const mobileStudyStatsMenuBackdrop = document.getElementById('mobileStudyStatsMenuBackdrop');
             
-            if (mobileStudyStatsButton && mobileStudyStatsMenu) {
-                // Toggle menu when button is clicked
-                mobileStudyStatsButton.addEventListener('click', function() {
-                    mobileStudyStatsMenu.classList.toggle('active');
+            // Batch setup functions for better performance
+            if (window.requestIdleCallback) {
+                requestIdleCallback(() => {
+                    setupThemeToggle();
+                    setupMobileMenus();
+                    updateMobileThemeIcon();
+                    updateActiveThemeOption();
                 });
-                
-                // Close menu when close button is clicked
-                if (mobileStudyStatsMenuClose) {
-                    mobileStudyStatsMenuClose.addEventListener('click', function() {
-                        mobileStudyStatsMenu.classList.remove('active');
-                    });
-                }
-                
-                // Close menu when backdrop is clicked
-                if (mobileStudyStatsMenuBackdrop) {
-                    mobileStudyStatsMenuBackdrop.addEventListener('click', function() {
-                        mobileStudyStatsMenu.classList.remove('active');
-                    });
-                }
-                
-                // Close menu when an action is selected
-                mobileStudyStatsMenu.querySelectorAll('.list-group-item').forEach(item => {
-                    item.addEventListener('click', function() {
-                        setTimeout(() => {
-                            mobileStudyStatsMenu.classList.remove('active');
-                        }, 100);
-                    });
-                });
+            } else {
+                // Fallback for browsers without requestIdleCallback
+                setTimeout(() => {
+                    setupThemeToggle();
+                    setupMobileMenus();
+                    updateMobileThemeIcon();
+                    updateActiveThemeOption();
+                }, 50);
             }
         });
     </script>
     {% block scripts %}{% endblock %}
 </body>
 </html>
-<!-- Hello there :DD -->
