@@ -2,6 +2,7 @@ import os
 import tempfile
 from dotenv import load_dotenv
 from google.genai import types
+from datetime import timedelta
 
 load_dotenv()
 
@@ -63,6 +64,11 @@ class Config:
     )
     
     GEMINI_MODEL = "gemini-2.0-flash-lite"
+    
+    # Authentication settings
+    SECRET_KEY = os.getenv('SECRET_KEY', 'dev-key-change-in-production')
+    SESSION_TYPE = 'filesystem'
+    REMEMBER_COOKIE_DURATION = timedelta(days=14)
     
     @staticmethod
     def generate_prompt_template(topic, batch_size=None):
