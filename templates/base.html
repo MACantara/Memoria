@@ -66,6 +66,31 @@
     <!-- Theme Toggle with Popup Menu -->
     {% include 'menus/theme_toggle_popup_menu.html' %}
 
+    <!-- Common Modals -->
+    {% include 'components/import_content_modal.html' %}
+    {% include 'components/rename_deck_modal.html' %}
+    {% include 'components/delete_deck_modal.html' %}
+    {% include 'components/move_deck_modal.html' %}
+    
+    <!-- Deck-specific modals -->
+    {% if request.path.startswith('/deck/') and request.path.split('/')[-1].isdigit() %}
+        {% include 'components/create_sub_deck_modal.html' %}
+        {% include 'components/generate_cards_modal_deck.html' %}
+    {% endif %}
+    
+    <!-- Index-specific modals -->
+    {% if request.path == '/' or request.path == '/index' or request.path == '/search' %}
+        {% include 'components/create_empty_deck_modal.html' %}
+        {% include 'components/generate_cards_modal_index.html' %}
+        <!-- Study/Stats selection modals with variable passing -->
+        {% if all_decks is defined %}
+            {% with decks=all_decks %}
+                {% include 'components/select_deck_to_study_modal.html' %}
+                {% include 'components/select_deck_for_stats_modal.html' %}
+            {% endwith %}
+        {% endif %}
+    {% endif %}
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script> 
     <script>
         // Enhanced theme management with popup menu
