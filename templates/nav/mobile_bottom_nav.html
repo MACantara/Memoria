@@ -1,30 +1,26 @@
-<div class="mobile-bottom-nav">
-    <a href="{{ url_for('main.index') }}" class="mobile-nav-item">
+<nav class="mobile-bottom-nav" role="navigation" aria-label="Mobile navigation">
+    <a href="{{ url_for('main.index') }}" class="mobile-nav-item" aria-label="Decks">
         <i class="bi bi-collection"></i>
         <span>Decks</span>
     </a>
     
-    <!-- Combined Study & Stats button that opens a menu -->
-    <button class="mobile-nav-item" id="mobileStudyStatsButton">
+    <a href="#" class="mobile-nav-item" id="mobileStudyStatsButton" aria-label="Study">
         <i class="bi bi-book"></i>
         <span>Study</span>
-    </button>
+    </a>
     
-    <!-- Add button -->
-    <button class="mobile-nav-item" id="mobileAddButton">
+    <button type="button" class="mobile-nav-item" id="mobileAddButton" aria-label="Add content">
         <i class="bi bi-plus-circle"></i>
         <span>Add</span>
     </button>
     
-    <!-- Search button -->
-    <a href="{{ url_for('search.search') }}" class="mobile-nav-item">
+    <a href="{{ url_for('search.search') }}" class="mobile-nav-item" aria-label="Search">
         <i class="bi bi-search"></i>
         <span>Search</span>
     </a>
     
-    <!-- Theme toggle button -->
-    <button class="mobile-nav-item" id="mobileThemeToggle">
+    <a href="#" class="mobile-nav-item" id="mobileThemeToggle" aria-label="Theme">
         <i class="bi bi-circle-half"></i>
         <span>Theme</span>
-    </button>
-</div>
+    </a>
+</nav>

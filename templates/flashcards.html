@@ -16,7 +16,7 @@ Study {{ deck.name }} (All Cards)
 
 {% block content %}
 <!-- Compact navigation header -->
-<div class="flashcard-nav py-2 mb-2">
+<header class="flashcard-nav py-2 mb-2">
     <div class="d-flex justify-content-between align-items-center">
         <!-- Back button (icon only) -->
         <a href="{{ url_for('deck.deck_view.get_deck_flashcards', deck_id=deck.flashcard_deck_id) }}" class="btn btn-sm btn-outline-primary">
@@ -34,30 +34,26 @@ Study {{ deck.name }} (All Cards)
     
     <!-- Progress bar without text -->
     <div class="mt-2">
-        <div class="progress" style="height: 4px;">
-            <div id="progressBar" class="progress-bar bg-success" role="progressbar" 
-                 style="width: 0%;" aria-valuenow="0" aria-valuemin="0" 
-                 aria-valuemax="100"></div>
-        </div>
+        <progress id="progressBar" class="progress" value="0" max="100" aria-label="Study progress"></progress>
     </div>
-</div>
+</header>
 
 <!-- Flashcard counter and state badge -->
-<div class="d-flex justify-content-between align-items-center mb-2">
+<section class="d-flex justify-content-between align-items-center mb-2" aria-live="polite">
     <div id="cardCounter" class="text-muted small">
         <span id="scoreCount">0</span> / {{ flashcards_count }} completed 
         (<span id="remainingCount">{{ flashcards_count }}</span> remaining)
     </div>
     <div>
-        <span id="statusBadge" class="badge bg-secondary">New</span>
+        <span id="statusBadge" class="badge bg-secondary" aria-label="Card status">New</span>
     </div>
-</div>
+</section>
 
 <!-- Main container for flashcard content -->
-<div id="flashcardsContainer">
+<section id="flashcardsContainer" aria-live="assertive">
     {% if not flashcards_count %}
     <!-- No cards to study message -->
-    <div class="alert alert-info">
+    <article class="alert alert-info">
         <h3 class="h5"><i class="bi bi-info-circle me-2"></i>No Cards to Study</h3>
         <p class="mb-0">
             {% if due_only %}
@@ -72,39 +68,35 @@ Study {{ deck.name }} (All Cards)
             </a>
             {% endif %}
         </p>
-    </div>
+    </article>
     {% else %}
-    <!-- Single loading indicator that transitions between states -->
+    <!-- Initial loading state for when cards are being fetched -->
     <div id="loadingContainer">
-        <!-- Initial loading state -->
-        <div id="initialLoadingIndicator" class="text-center py-5">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Loading flashcards...</span>
-            </div>
+        <!-- Initial loading indicator -->
+        <div id="initialLoadingIndicator" class="text-center py-5" role="status" aria-live="polite">
+            <div class="spinner-border text-primary" aria-hidden="true"></div>
             <p class="mt-3">Loading your flashcards...</p>
             <p class="text-muted small">Preparing {{ flashcards_count }} cards for review</p>
         </div>
         
         <!-- Additional cards loading state (hidden initially) -->
-        <div id="loadingIndicator" class="text-center py-4 d-none">
-            <div class="spinner-border spinner-border-sm text-primary" role="status">
-                <span class="visually-hidden">Loading more cards...</span>
-            </div>
+        <div id="loadingIndicator" class="text-center py-4 d-none" role="status" aria-live="polite">
+            <div class="spinner-border spinner-border-sm text-primary" aria-hidden="true"></div>
             <p class="mt-2 small">Loading additional cards...</p>
         </div>
     </div>
     
     <!-- Single card template that will be dynamically populated -->
-    <div id="currentFlashcard" class="card flashcard mb-4" style="display: none;">
+    <article id="currentFlashcard" class="card flashcard mb-4" style="display: none;">
         <div class="card-body">
-            <div id="questionContainer" class="card-title h4"></div>
+            <h3 id="questionContainer" class="card-title h4"></h3>
             <form id="answerForm" class="answer-form mt-4">
                 <!-- Answer options will be dynamically inserted here -->
             </form>
         </div>
-    </div>
+    </article>
     {% endif %}
-</div>
+</section>
 
 <!-- Hidden metadata about the study session -->
 <input type="hidden" id="studyMode" value="{{ 'due_only' if due_only else 'all' }}">
