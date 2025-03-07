@@ -203,8 +203,8 @@ export class UIManager {
         // Add next button for manual advancement
         const nextButton = document.createElement('button');
         nextButton.type = 'button';
-        nextButton.classList.add('btn', 'btn-primary', 'w-100');
-        nextButton.innerHTML = '<i class="bi bi-arrow-right"></i> Next Question';
+        nextButton.className = 'btn btn-primary w-100';
+        nextButton.innerHTML = 'Next Question <i class="bi bi-arrow-right"></i>';
         nextButton.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -213,6 +213,12 @@ export class UIManager {
             }
         });
         feedbackContainer.appendChild(nextButton);
+        
+        // Add subtle keyboard hint text with Bootstrap styling and icon
+        const keyboardHint = document.createElement('div');
+        keyboardHint.className = 'text-center text-muted small mt-2 py-1';
+        keyboardHint.innerHTML = '<i class="bi bi-keyboard me-1"></i> Press any key to continue';
+        feedbackContainer.appendChild(keyboardHint);
         
         // Add container to the form
         this.answerForm.appendChild(feedbackContainer);

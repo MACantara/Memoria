@@ -73,6 +73,18 @@ export class FlashcardManager {
                 
                 // Dispatch event when first batch is loaded
                 this.dispatchEvent('firstBatchLoaded');
+                
+                // Hide the initial loading indicator
+                const initialLoader = document.getElementById('initialLoadingIndicator');
+                if (initialLoader) {
+                    initialLoader.classList.add('d-none');
+                }
+                
+                // Show the first card
+                const currentCard = document.getElementById('currentFlashcard');
+                if (currentCard) {
+                    currentCard.style.display = 'block';
+                }
             }
         }
         
@@ -88,7 +100,12 @@ export class FlashcardManager {
             if (!this.hasMoreCards || this.isLoading) return;
             
             this.isLoading = true;
-            this.ui.showLoading(true);
+            
+            // Show the more compact loading indicator for additional batches
+            // Not the initial loading indicator which is larger
+            if (this.currentCardIndex > 0 || this.flashcards.length > 0) {
+                this.ui.showLoading(true);
+            }
             
             // Build the URL with parameters
             const url = new URL(`/deck/${this.deckId}/study`, window.location.origin);

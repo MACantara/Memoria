@@ -33,7 +33,7 @@
 </head>
 <body>
     <div class="container py-4">
-        {% if not request.path.startswith('/search') %}
+        {% if not request.path.startswith('/search') and not request.path.endswith('/study') %}
         <div class="d-flex justify-content-end mb-4">
             {% include 'components/search_bar.html' %}
         </div>
