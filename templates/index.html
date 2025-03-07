@@ -68,13 +68,11 @@
     import { initializeModals } from "{{ url_for('static', filename='modules/deck/modal-handlers.js') }}";
     import { initializeFormHandlers } from "{{ url_for('static', filename='modules/deck/form-handlers.js') }}";
     import { initializeDeckOperations } from "{{ url_for('static', filename='modules/deck/deck-operations.js') }}";
-    import { initializeImportModal } from "{{ url_for('static', filename='modules/deck/import-handlers.js') }}";
 
     document.addEventListener('DOMContentLoaded', () => {
         const modals = initializeModals();
         initializeFormHandlers(modals);
         initializeDeckOperations();
-        initializeImportModal();
     });
 </script>
 {% endblock %}

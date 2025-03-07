@@ -4,6 +4,39 @@ from sqlalchemy.types import TypeDecorator
 from . import db
 import json
 import traceback
+from dataclasses import dataclass
+import json
+from typing import List, Set
+
+class FlashcardSet:
+    """Manage unique flashcards with deduplication"""
+    def __init__(self):
+        self._cards: set = set()
+        self._count: int = 0
+    
+    def add(self, card: str) -> bool:
+        """Add card if unique, return True if added"""
+        card_normalized = self._normalize_card(card)
+        if card_normalized not in self._cards:
+            self._cards.add(card_normalized)
+            self._count += 1
+            return True
+        return False
+    
+    @staticmethod
+    def _normalize_card(card: str) -> str:
+        """Normalize card text for comparison"""
+        q, a = card.split('|')
+        return f"{' '.join(q.split()).lower()}|{' '.join(a.split()).lower()}"
+    
+    def __len__(self) -> int:
+        return self._count
+
+class FlashcardGenerator:
+    """Generate and process flashcards"""
+    def __init__(self, client):
+        self.client = client
+        self.unique_cards = FlashcardSet()
 
 class JSONEncodedDict(TypeDecorator):
     """Represents a JSON-encoded dictionary as a text column."""

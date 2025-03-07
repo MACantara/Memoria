@@ -2,7 +2,8 @@ from flask import Blueprint, request, jsonify
 from models import db, FlashcardDecks, Flashcards
 from routes.deck.utils import is_descendant
 
-deck_management_bp = Blueprint('deck_management', __name__)
+# Change the URL prefix to match how it's being called
+deck_management_bp = Blueprint('deck_management', __name__, url_prefix='')
 
 @deck_management_bp.route("/create", methods=["POST"])
 def create_deck():

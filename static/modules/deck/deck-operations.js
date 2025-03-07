@@ -383,18 +383,29 @@ async function handleMoveConfirm(deckId) {
 // Add this new function to load due counts
 async function loadDueCounts() {
     try {
+        console.log("Loading due counts...");
         const response = await fetch('/deck/api/due-counts');
         if (!response.ok) {
             throw new Error('Failed to load due counts');
         }
         
-        const dueCounts = await response.json();
+        const data = await response.json();
+        console.log("Due counts loaded:", data);
+        
+        if (!data.success) {
+            throw new Error(data.error || 'Error receiving due counts');
+        }
+        
+        const dueCounts = data.counts;
         
         // Update all due today menu items
         const dueItems = document.querySelectorAll('.due-today-item');
+        console.log(`Found ${dueItems.length} due-today-item elements to update`);
+        
         dueItems.forEach(item => {
             const deckId = item.dataset.deckId;
             const dueCount = dueCounts[deckId] || 0;
+            console.log(`Deck ${deckId}: ${dueCount} due cards`);
             
             // Update the badge
             const badge = item.querySelector('.due-badge');

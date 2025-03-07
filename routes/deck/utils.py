@@ -41,10 +41,12 @@ def count_due_flashcards(deck_id, current_time=None):
         )
     )
     
-    # Count cards that are due now
+    # Count cards that are due now, but exclude cards already in "mastered" state (2) 
+    # even if they have a due date in the past
     due_count = Flashcards.query.filter(
         Flashcards.flashcard_deck_id.in_(db.session.query(cte.c.id)),
-        (Flashcards.due_date <= current_time) | (Flashcards.due_date == None)
+        (Flashcards.due_date <= current_time) | (Flashcards.due_date == None),
+        Flashcards.state != 2  # Exclude cards already mastered
     ).count()
     
     return due_count

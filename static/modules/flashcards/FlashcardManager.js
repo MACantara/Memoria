@@ -50,8 +50,47 @@ export class FlashcardManager {
         
         const answersForm = flashcard.querySelector('.answer-form');
         const correctAnswer = flashcard.dataset.correct;
-        const incorrectAnswers = JSON.parse(flashcard.dataset.incorrect)
-            .map(answer => answer.trim());
+        
+        // Improved incorrect_answers parsing with error handling
+        let incorrectAnswers = [];
+        try {
+            const incorrectData = flashcard.dataset.incorrect;
+            
+            // Handle different formats: actual array, JSON string with double quotes, string with single quotes
+            if (typeof incorrectData === 'object') {
+                // Already an array
+                incorrectAnswers = incorrectData;
+            } else if (typeof incorrectData === 'string') {
+                if (incorrectData.trim().startsWith('[')) {
+                    try {
+                        // Attempt to parse as JSON
+                        incorrectAnswers = JSON.parse(incorrectData);
+                    } catch (e) {
+                        console.warn("Failed to parse incorrect answers as JSON:", e);
+                        // Try to handle if it's using single quotes instead of double quotes
+                        try {
+                            // Convert single quotes to double quotes and parse
+                            const fixedJson = incorrectData.replace(/'/g, '"');
+                            incorrectAnswers = JSON.parse(fixedJson);
+                        } catch (e2) {
+                            console.error("Failed to parse incorrect answers after fixing quotes:", e2);
+                            // Fallback to simple string splitting
+                            incorrectAnswers = incorrectData.replace(/[\[\]']/g, '').split(',').map(s => s.trim());
+                        }
+                    }
+                } else {
+                    // Not JSON format, split by comma
+                    incorrectAnswers = incorrectData.split(',').map(s => s.trim());
+                }
+            }
+        } catch (error) {
+            console.error("Error parsing incorrect answers:", error);
+            incorrectAnswers = ["Error parsing answers"];
+        }
+        
+        // Ensure we have an array and filter out empty items
+        incorrectAnswers = Array.isArray(incorrectAnswers) ? 
+            incorrectAnswers.filter(answer => answer && answer.length > 0) : [];
         
         // Simplify answer preprocessing - no longer remove markdown formatting
         const allAnswers = [correctAnswer, ...incorrectAnswers]

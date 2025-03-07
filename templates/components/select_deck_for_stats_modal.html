@@ -11,17 +11,14 @@
                     <select class="form-select" id="statsDeckSelect">
                         <option value="" disabled selected>Select a deck...</option>
                         
-                        <!-- Flat list of ALL decks at any level -->
-                        {% for deck in decks recursive %}
+                        <!-- Show all decks without indentation -->
+                        {% for deck in decks %}
                             <option value="{{ deck.flashcard_deck_id }}" 
                                     data-card-count="{{ deck.count_all_flashcards() }}"
                                     data-has-cards="{{ 'true' if deck.count_all_flashcards() > 0 else 'false' }}"
                                     data-parent="{{ deck.parent_deck.name if deck.parent_deck_id else '' }}">
                                 {{ deck.name }} ({{ deck.count_all_flashcards() }} cards)
                             </option>
-                            
-                            <!-- Recursively add all children decks -->
-                            {{ loop(deck.child_decks) }}
                         {% endfor %}
                     </select>
                 </div>

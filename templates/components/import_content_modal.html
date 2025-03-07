@@ -1,160 +1,608 @@
-<div class="modal fade" id="importContentModal" tabindex="-1" aria-labelledby="importContentModalLabel" aria-hidden="true" data-bs-backdrop="static">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
+<div class="modal fade" id="importContentModal" tabindex="-1" aria-labelledby="importContentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="importContentModalLabel">Import Content for Flashcards</h5>
+                <h5 class="modal-title" id="importContentModalLabel">Import Content</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <ul class="nav nav-tabs mb-3" id="importTabs" role="tablist">
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="file-tab" data-bs-toggle="tab" data-bs-target="#file-content" 
-                                type="button" role="tab" aria-controls="file-content" aria-selected="true">
-                            <i class="bi bi-file-earmark"></i> Upload Text File
-                        </button>
+                <!-- Add a workflow explanation at the top -->
+                <div class="alert alert-info workflow-guide">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <strong>How this works:</strong>
+                    <ol class="mb-0">
+                        <li>Upload a file and select a deck</li>
+                        <li>Generate flashcards from the content</li>
+                        <li>Review the flashcards</li>
+                        <li>Click "Save Flashcards" when you're satisfied</li>
+                    </ol>
+                </div>
+
+                <ul class="nav nav-tabs mb-3" role="tablist">
+                    <li class="nav-item">
+                        <a class="nav-link active" id="upload-tab" data-bs-toggle="tab" href="#uploadContent" role="tab">
+                            <i class="bi bi-cloud-upload me-1"></i> 1. Upload File
+                        </a>
                     </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="text-tab" data-bs-toggle="tab" data-bs-target="#text-content" 
-                                type="button" role="tab" aria-controls="text-content" aria-selected="false">
-                            <i class="bi bi-text-paragraph"></i> Paste Text
-                        </button>
+                    <li class="nav-item">
+                        <a class="nav-link" id="results-tab" data-bs-toggle="tab" href="#resultsContent" role="tab">
+                            <i class="bi bi-card-list me-1"></i> 2. Review Results
+                        </a>
                     </li>
                 </ul>
                 
-                <div class="tab-content" id="importTabContent">
-                    <!-- File Upload Tab -->
-                    <div class="tab-pane fade show active" id="file-content" role="tabpanel" aria-labelledby="file-tab">
-                        <!-- Update form action to use the correct endpoint -->
-                        <form id="fileUploadForm" action="{{ url_for('import.upload_file') }}" method="POST" enctype="multipart/form-data">
+                <div class="tab-content">
+                    <!-- Upload Tab -->
+                    <div class="tab-pane fade show active" id="uploadContent" role="tabpanel">
+                        <form id="importFileForm">
                             <div class="mb-3">
-                                <label for="deckName" class="form-label">Deck Name</label>
-                                <input type="text" class="form-control" id="deckName" name="deck_name" 
-                                       placeholder="Name for the new flashcard deck" required>
-                            </div>
-                            
-                            <div class="mb-3" id="fileParentDeckContainer">
-                                <label for="parentDeckId" class="form-label">Parent Deck (Optional)</label>
-                                <div class="position-relative">
-                                    <select class="form-select" id="parentDeckId" name="parent_deck_id">
-                                        <option value="">Loading decks...</option>
+                                <label for="deckSelector" class="form-label">Select Deck:</label>
+                                <div class="select-container">
+                                    <select class="form-select" id="deckSelector" name="deck_id" required>
+                                        <option value="" selected disabled>Choose a deck...</option>
+                                        <!-- Deck options will be populated dynamically -->
                                     </select>
-                                    <div class="loading-spinner">
-                                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                    <div class="loading-spinner spinner-border spinner-border-sm text-primary d-none" role="status">
+                                        <span class="visually-hidden">Loading...</span>
                                     </div>
                                 </div>
                             </div>
                             
                             <div class="mb-3">
-                                <label class="form-label">Upload Text File</label>
-                                <div class="drag-area" id="drop-area">
-                                    <i class="bi bi-cloud-arrow-up"></i>
-                                    <p>Drag & Drop your text file here or</p>
-                                    <div class="mb-3">
-                                        <input class="form-control" type="file" id="fileInput" name="file" 
-                                               accept=".txt" required>
+                                <div class="drag-area" id="dragArea">
+                                    <div class="drag-area-inner">
+                                        <i class="bi bi-cloud-arrow-up fs-3 mb-2"></i>
+                                        <h5>Drag & Drop Files Here</h5>
+                                        <p class="text-muted">or</p>
+                                        <button type="button" class="btn btn-primary" id="browseBtn">Browse Files</button>
+                                        <input type="file" hidden id="fileInput" name="file" accept=".txt,.pdf" />
+                                        <p class="mt-2 text-muted small">Supported formats: PDF, TXT</p>
                                     </div>
-                                    <small class="text-muted">
-                                        Supported file type: TXT
-                                    </small>
+                                </div>
+                                <div id="fileInfo" class="mt-2 d-none">
+                                    <div class="alert alert-info">
+                                        <i class="bi bi-file-earmark-text me-2"></i>
+                                        <span id="fileName"></span>
+                                        <button type="button" class="btn-close float-end" id="removeFile"></button>
+                                    </div>
                                 </div>
                             </div>
                             
-                            <div id="uploadResult" class="mt-3"></div>
-                            
-                            <div class="d-flex justify-content-end gap-2">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                <button type="submit" class="btn btn-primary" id="uploadBtn">
-                                    <span class="normal-state">
-                                        <i class="bi bi-magic"></i> Generate Flashcards
-                                    </span>
-                                    <span class="loading-state d-none">
-                                        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                                        Processing...
-                                    </span>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary" id="importBtn" disabled>
+                                    <i class="bi bi-magic"></i> Generate Flashcards
                                 </button>
                             </div>
                         </form>
                     </div>
                     
-                    <!-- Text Input Tab -->
-                    <div class="tab-pane fade" id="text-content" role="tabpanel" aria-labelledby="text-tab">
-                        <!-- The text form will use JavaScript to submit to the process-text endpoint -->
-                        <form id="textForm">
-                            <div class="mb-3">
-                                <label for="textDeckName" class="form-label">Deck Name</label>
-                                <input type="text" class="form-control" id="textDeckName" 
-                                       placeholder="Name for the new flashcard deck" required>
-                            </div>
-                            
-                            <div class="mb-3" id="textParentDeckContainer">
-                                <label for="textParentDeckId" class="form-label">Parent Deck (Optional)</label>
-                                <div class="position-relative">
-                                    <select class="form-select" id="textParentDeckId">
-                                        <option value="">Loading decks...</option>
-                                    </select>
-                                    <div class="loading-spinner">
-                                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                                    </div>
+                    <!-- Results Tab -->
+                    <div class="tab-pane fade" id="resultsContent" role="tabpanel">
+                        <div id="processingInfo" class="d-none">
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle me-2"></i>
+                                <span id="processingStatus">Processing file...</span>
+                                <div class="progress mt-2">
+                                    <div class="progress-bar" role="progressbar" style="width: 0%;" 
+                                         id="processingProgress" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
                                 </div>
                             </div>
-                            
-                            <div class="mb-3">
-                                <label for="textContent" class="form-label">Content</label>
-                                <textarea class="form-control" id="textContent" rows="7" 
-                                          placeholder="Paste your text content here..." required></textarea>
-                            </div>
-                            
-                            <div id="textResult" class="mt-3"></div>
-                            
-                            <div class="d-flex justify-content-end gap-2">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                <button type="submit" class="btn btn-primary" id="textBtn">
-                                    <span class="normal-state">
-                                        <i class="bi bi-magic"></i> Generate Flashcards
-                                    </span>
-                                    <span class="loading-state d-none">
-                                        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                                        Processing...
-                                    </span>
-                                </button>
-                            </div>
-                        </form>
+                        </div>
+                        
+                        <div id="importResults" class="mt-3">
+                            <!-- Generated flashcards will appear here -->
+                        </div>
+
+                        <!-- Add clear instructions for the next step -->
+                        <div id="nextStepInstructions" class="alert alert-success d-none mt-3">
+                            <i class="bi bi-arrow-down-circle-fill me-2"></i>
+                            <strong>Next Step:</strong> Review the flashcards above. If you're satisfied, click the "Save Flashcards" button below to add them to your selected deck.
+                        </div>
                     </div>
                 </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success d-none" id="saveFlashcardsBtn">
+                    <i class="bi bi-save me-1"></i> Save Flashcards to Deck
+                </button>
             </div>
         </div>
     </div>
 </div>
 
 <style>
+    /* Enhanced drag and drop styling */
     .drag-area {
-        border: 2px dashed var(--bs-border-color);
-        border-radius: 5px;
-        padding: 2rem;
+        border: 2px dashed #6c757d;
+        border-radius: 8px;
+        background-color: rgba(0,0,0,0.02);
         text-align: center;
+        min-height: 180px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
         transition: all 0.3s ease;
     }
+    
+    .drag-area-inner {
+        padding: 30px;
+        width: 100%;
+    }
+    
     .drag-area.active {
-        border-color: var(--bs-primary);
+        border-color: #0d6efd;
         background-color: rgba(13, 110, 253, 0.05);
+        animation: pulse 1.5s infinite;
     }
-    .drag-area i {
-        font-size: 2.5rem;
-        color: var(--bs-secondary);
-        margin-bottom: 1rem;
+    
+    .drag-area:hover {
+        border-color: #0d6efd;
+        background-color: rgba(13, 110, 253, 0.03);
     }
-    /* Additional styles for the deck selector loading state */
-    .select-loading {
+    
+    @keyframes pulse {
+        0% {
+            box-shadow: 0 0 0 0 rgba(13, 110, 253, 0.3);
+        }
+        70% {
+            box-shadow: 0 0 0 10px rgba(13, 110, 253, 0);
+        }
+        100% {
+            box-shadow: 0 0 0 0 rgba(13, 110, 253, 0);
+        }
+    }
+    
+    /* Make the loading spinner hidden by default */
+    .select-container {
         position: relative;
     }
-    .loading-spinner {
-        display: none;
+    
+    .select-container .loading-spinner {
         position: absolute;
         right: 30px;
         top: 50%;
         transform: translateY(-50%);
+        z-index: 10;
+        /* Ensure spinner rotates correctly */
+        animation: spinner-border-dropdown 0.75s linear infinite;
+        border-radius: 50%;
     }
-    .select-loading .loading-spinner {
-        display: inline-block;
+    
+    /* Ensure proper spinner animation for dropdown spinners */
+    @keyframes spinner-border-dropdown {
+        to { transform: rotate(360deg); }
+    }
+    
+    /* Add a separate animation for button spinners without translateY */
+    .btn .spinner-border {
+        animation: spinner-border-button 0.75s linear infinite;
+    }
+    
+    /* Button spinner animation - rotation only, no vertical translation */
+    @keyframes spinner-border-button {
+        to { transform: rotate(360deg); }
+    }
+    
+    .select-container.select-loading .loading-spinner {
+        display: block !important;
+    }
+    
+    /* File info styling */
+    #fileInfo .alert {
+        display: flex;
+        align-items: center;
+        padding: 10px 15px;
+    }
+    
+    #fileInfo .alert i {
+        font-size: 1.2em;
+        margin-right: 8px;
     }
 </style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // DOM elements
+        const dragArea = document.getElementById('dragArea');
+        const browseBtn = document.getElementById('browseBtn');
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const removeFile = document.getElementById('removeFile');
+        const importBtn = document.getElementById('importBtn');
+        const deckSelector = document.getElementById('deckSelector');
+        const importFileForm = document.getElementById('importFileForm');
+        const processingInfo = document.getElementById('processingInfo');
+        const processingStatus = document.getElementById('processingStatus');
+        const processingProgress = document.getElementById('processingProgress');
+        const importResults = document.getElementById('importResults');
+        const saveFlashcardsBtn = document.getElementById('saveFlashcardsBtn');
+        const resultsTab = document.getElementById('results-tab');
+        
+        // Global variables
+        let fileKey = null;
+        let generatedFlashcards = [];
+        
+        // Initialize deck selector
+        function loadDecks() {
+            deckSelector.closest('.select-container').classList.add('select-loading');
+            
+            // Show the loading spinner by removing d-none
+            const loadingSpinner = deckSelector.closest('.select-container').querySelector('.loading-spinner');
+            loadingSpinner.classList.remove('d-none');
+            
+            fetch('/deck/api/list')
+                .then(response => response.json())
+                .then(data => {
+                    deckSelector.innerHTML = '<option value="" selected disabled>Choose a deck...</option>';
+                    
+                    // Make sure we have an array of decks
+                    const decks = Array.isArray(data) ? data : (data.decks || []);
+                    
+                    decks.forEach(deck => {
+                        const option = document.createElement('option');
+                        option.value = deck.id;
+                        option.textContent = deck.name;
+                        deckSelector.appendChild(option);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error loading decks:', error);
+                    deckSelector.innerHTML = '<option value="" selected disabled>Error loading decks</option>';
+                })
+                .finally(() => {
+                    // Hide the spinner when done
+                    deckSelector.closest('.select-container').classList.remove('select-loading');
+                    loadingSpinner.classList.add('d-none');
+                });
+        }
+        
+        // Initialize when modal is shown
+        $('#importContentModal').on('shown.bs.modal', function () {
+            loadDecks();
+            
+            // Reset drag area and file input
+            resetFileInput();
+            
+            // Call attention to drag area with subtle pulse
+            const dragArea = document.getElementById('dragArea');
+            dragArea.classList.add('pulse-once');
+            setTimeout(() => dragArea.classList.remove('pulse-once'), 1500);
+        });
+        
+        // Drag and Drop events
+        dragArea.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            this.classList.add('active');
+        });
+        
+        dragArea.addEventListener('dragleave', function() {
+            this.classList.remove('active');
+        });
+        
+        dragArea.addEventListener('drop', function(e) {
+            e.preventDefault();
+            this.classList.remove('active');
+            
+            const file = e.dataTransfer.files[0];
+            handleFile(file);
+        });
+        
+        // Make dragArea also clickable to open file dialog
+        dragArea.addEventListener('click', function(e) {
+            if (e.target !== browseBtn) {
+                fileInput.click();
+            }
+        });
+        
+        // Browse button
+        browseBtn.addEventListener('click', function() {
+            fileInput.click();
+        });
+        
+        // File input change
+        fileInput.addEventListener('change', function() {
+            if (this.files.length > 0) {
+                handleFile(this.files[0]);
+            }
+        });
+        
+        // Remove file
+        removeFile.addEventListener('click', function() {
+            resetFileInput();
+        });
+        
+        // Handle selected file with improved UI feedback
+        function handleFile(file) {
+            const validTypes = ['.txt', '.pdf'];
+            const extension = '.' + file.name.split('.').pop().toLowerCase();
+            
+            if (!validTypes.includes(extension)) {
+                // Show invalid file type error
+                fileInfo.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        Invalid file type. Please upload a TXT or PDF file.
+                    </div>
+                `;
+                fileInfo.classList.remove('d-none');
+                importBtn.disabled = true;
+                return;
+            }
+            
+            // Show file info with enhanced styling
+            fileName.textContent = file.name;
+            const fileSize = (file.size / 1024).toFixed(2);
+            const fileIcon = file.name.toLowerCase().endsWith('.pdf') ? 'bi-file-earmark-pdf' : 'bi-file-earmark-text';
+            
+            fileInfo.innerHTML = `
+                <div class="alert alert-info">
+                    <i class="${fileIcon} me-2"></i>
+                    <div class="d-flex justify-content-between align-items-center w-100">
+                        <div>
+                            <strong>${file.name}</strong>
+                            <div class="small text-muted">${fileSize} KB</div>
+                        </div>
+                        <button type="button" class="btn-close" id="removeFile"></button>
+                    </div>
+                </div>
+            `;
+            
+            fileInfo.classList.remove('d-none');
+            dragArea.classList.add('d-none');
+            
+            // Attach remove button listener again since we recreated the button
+            document.getElementById('removeFile').addEventListener('click', resetFileInput);
+            
+            // Enable import button if deck is selected
+            importBtn.disabled = !deckSelector.value;
+            
+            // Store file in input for form submission
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(file);
+            fileInput.files = dataTransfer.files;
+        }
+        
+        // Reset file input
+        function resetFileInput() {
+            fileInput.value = '';
+            fileInfo.classList.add('d-none');
+            dragArea.classList.remove('d-none');
+            importBtn.disabled = true;
+        }
+        
+        // Enable import button only when both file and deck are selected
+        deckSelector.addEventListener('change', function() {
+            importBtn.disabled = !this.value || !fileInput.files.length;
+        });
+        
+        // Import form submission
+        importFileForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            if (!fileInput.files.length || !deckSelector.value) {
+                return;
+            }
+            
+            // Show results tab
+            const resultsTabInstance = new bootstrap.Tab(resultsTab);
+            resultsTabInstance.show();
+            
+            // Show processing info
+            processingInfo.classList.remove('d-none');
+            processingProgress.style.width = '0%';
+            processingProgress.textContent = '0%';
+            processingStatus.textContent = 'Uploading file...';
+            importResults.innerHTML = '';
+            
+            // Upload file
+            const formData = new FormData(this);
+            
+            fetch('/import/upload-file', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Upload failed');
+                return response.json();
+            })
+            .then(data => {
+                if (data.error) throw new Error(data.error);
+                
+                fileKey = data.file_key;
+                processingStatus.textContent = `Processing file ${data.filename}... 0/${data.total_chunks} chunks`;
+                
+                // Start processing chunks
+                return processNextChunk(fileKey);
+            })
+            .catch(error => {
+                processingInfo.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        Error: ${error.message}
+                    </div>
+                `;
+            });
+        });
+        
+        // Process file chunks
+        function processNextChunk(fileKey) {
+            return fetch('/import/generate-chunk', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ file_key: fileKey })
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Processing failed');
+                return response.json();
+            })
+            .then(data => {
+                if (data.error) throw new Error(data.error);
+                
+                // Update progress
+                const progress = Math.round((data.chunk_index + 1) / data.total_chunks * 100);
+                processingProgress.style.width = `${progress}%`;
+                processingProgress.textContent = `${progress}%`;
+                processingStatus.textContent = `Processing file... (${data.chunk_index + 1}/${data.total_chunks} chunks)`;
+                
+                // Update results
+                return updateResults(fileKey)
+                    .then(() => {
+                        // Continue processing or complete
+                        if (!data.is_complete) {
+                            return processNextChunk(fileKey);
+                        } else {
+                            processingStatus.textContent = 'Processing complete!';
+                            processingInfo.innerHTML = `
+                                <div class="alert alert-success">
+                                    <i class="bi bi-check-circle me-2"></i>
+                                    <strong>Generation Complete!</strong> Generated ${generatedFlashcards.length} flashcards successfully!
+                                </div>
+                            `;
+                            saveFlashcardsBtn.classList.remove('d-none');
+                            
+                            // Show the next step instructions
+                            document.getElementById('nextStepInstructions').classList.remove('d-none');
+                            
+                            return Promise.resolve();
+                        }
+                    });
+            });
+        }
+        
+        // Update flashcard results
+        function updateResults(fileKey) {
+            return fetch(`/import/all-file-flashcards?file_key=${fileKey}&format=mc`)
+                .then(response => {
+                    if (!response.ok) throw new Error('Failed to fetch flashcards');
+                    return response.json();
+                })
+                .then(data => {
+                    generatedFlashcards = data.mc_flashcards || [];
+                    importResults.innerHTML = '';
+                    
+                    // Display a limited number of flashcards as preview
+                    const previewLimit = Math.min(10, generatedFlashcards.length);
+                    const preview = generatedFlashcards.slice(0, previewLimit);
+                    
+                    if (preview.length === 0) {
+                        importResults.innerHTML = '<p class="text-muted">No flashcards generated yet...</p>';
+                        return;
+                    }
+                    
+                    const cardRows = [];
+                    for (let i = 0; i < preview.length; i += 2) {
+                        const row = document.createElement('div');
+                        row.className = 'row g-3 mb-3';
+                        
+                        // First card in row
+                        const card1 = previewCardHTML(preview[i], i);
+                        row.innerHTML += card1;
+                        
+                        // Second card in row (if exists)
+                        if (i + 1 < preview.length) {
+                            const card2 = previewCardHTML(preview[i + 1], i + 1);
+                            row.innerHTML += card2;
+                        }
+                        
+                        cardRows.push(row);
+                    }
+                    
+                    // Show preview and count message
+                    const totalMessage = document.createElement('p');
+                    totalMessage.className = 'alert alert-info';
+                    totalMessage.innerHTML = `<i class="bi bi-info-circle me-2"></i> Showing ${previewLimit} of ${generatedFlashcards.length} flashcards generated`;
+                    
+                    importResults.appendChild(totalMessage);
+                    cardRows.forEach(row => importResults.appendChild(row));
+                });
+        }
+        
+        // Generate HTML for preview card
+        function previewCardHTML(card, index) {
+            return `
+                <div class="col-md-6">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title text-primary">
+                                <i class="bi bi-question-circle"></i> ${card.q}
+                            </h5>
+                            <hr>
+                            <p class="card-text">
+                                <i class="bi bi-check-circle-fill text-success"></i> <strong>${card.ca}</strong>
+                            </p>
+                            <p class="card-text small text-muted">
+                                <i class="bi bi-x-circle"></i> ${card.ia.join(', ')}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Save flashcards to deck
+        saveFlashcardsBtn.addEventListener('click', function() {
+            if (!fileKey || !deckSelector.value) {
+                return;
+            }
+            
+            this.disabled = true;
+            this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
+            
+            fetch('/import/save-to-deck', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    file_key: fileKey,
+                    deck_id: deckSelector.value
+                })
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Save failed');
+                return response.json();
+            })
+            .then(data => {
+                if (data.error) throw new Error(data.error);
+                
+                // Show success message
+                processingInfo.innerHTML = `
+                    <div class="alert alert-success">
+                        <i class="bi bi-check-circle me-2"></i>
+                        <strong>Success!</strong> ${data.message || 'Flashcards saved successfully!'}
+                    </div>
+                `;
+                
+                // Hide the next step instructions after saving
+                document.getElementById('nextStepInstructions').classList.add('d-none');
+                
+                // Close modal after delay
+                setTimeout(() => {
+                    const modalInstance = bootstrap.Modal.getInstance(document.getElementById('importContentModal'));
+                    modalInstance.hide();
+                    
+                    // Refresh page or update deck list if needed
+                    if (window.location.href.includes('/deck/')) {
+                        window.location.reload();
+                    }
+                }, 2000);
+            })
+            .catch(error => {
+                this.disabled = false;
+                this.innerHTML = '<i class="bi bi-save"></i> Save Flashcards';
+                
+                processingInfo.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        Error: ${error.message}
+                    </div>
+                `;
+            });
+        });
+    });
+</script>

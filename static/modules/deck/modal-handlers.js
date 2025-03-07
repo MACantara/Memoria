@@ -1,3 +1,22 @@
+// Define these functions globally so they can be called from HTML before initialization
+window.showImportModal = function() {
+    console.log("Import modal requested");
+    const modal = document.getElementById('importContentModal');
+    if (modal) {
+        const bsModal = new bootstrap.Modal(modal);
+        bsModal.show();
+    }
+};
+
+window.showGenerateModal = function() {
+    console.log("Generate modal requested");
+    const modal = document.getElementById('generateModal');
+    if (modal) {
+        const bsModal = new bootstrap.Modal(modal);
+        bsModal.show();
+    }
+};
+
 export function initializeModals() {
     const modals = {};
     
@@ -13,6 +32,7 @@ export function initializeModals() {
     modals.noCardsModal = createModal('noCardsModal');
     modals.emptyDeckModal = createModal('createEmptyDeckModal');
     modals.deleteModal = createModal('deleteDeckModal');
+    modals.importModal = createModal('importContentModal');  // Add import modal
 
     let currentDeckId = null;
 
@@ -88,7 +108,20 @@ export function initializeModals() {
         });
     }
 
-    // Make showGenerateModal available globally if needed
+    // Override the global functions now that we have proper modal instances
+    if (modals.importModal) {
+        window.showImportModal = () => {
+            // Reset the form if needed
+            const importFileForm = document.getElementById('importFileForm');
+            if (importFileForm) {
+                importFileForm.reset();
+            }
+            
+            // Show the modal
+            modals.importModal.show();
+        };
+    }
+
     if (modals.generateModal) {
         window.showGenerateModal = () => {
             document.getElementById('generateForm').reset();
