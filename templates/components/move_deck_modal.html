@@ -23,33 +23,39 @@
                         </label>
                     </div>
                     
-                    <div id="parentDeckSelectContainer" class="mt-3 ms-4 d-none">
-                        <label for="parentDeckSelect" class="form-label">Select parent deck:</label>
-                        <select class="form-select" id="parentDeckSelect" disabled>
-                            <option value="" disabled selected>Select a parent deck...</option>
+                    <div id="parentDeckSelectContainer" class="mb-3 d-none">
+                        <label for="parentDeckSelect" class="form-label">Choose a new parent deck:</label>
+                        <select class="form-select searchable-select deck-search-select" id="parentDeckSelect" disabled>
+                            <option value="" disabled selected>Type to search decks...</option>
                             
-                            <!-- List all potential parent decks -->
-                            {% for deck in all_decks recursive %}
-                                <option value="{{ deck.flashcard_deck_id }}" 
-                                        data-parent="{{ deck.parent_deck.name if deck.parent_deck_id else '' }}">
-                                    {{ deck.name }}
-                                </option>
-                                
-                                <!-- Recursively add children decks -->
-                                {{ loop(deck.child_decks) }}
+                            <!-- List of possible parent decks -->
+                            {% for deck in g.all_decks %}
+                                {% if not deck.parent_deck_id %}  <!-- Show only top-level decks -->
+                                    <option value="{{ deck.flashcard_deck_id }}" 
+                                            data-parent="">{{ deck.name }}</option>
+                                    
+                                    <!-- First level of child decks -->
+                                    {% for child in deck.child_decks %}
+                                        <option value="{{ child.flashcard_deck_id }}" 
+                                                data-parent="{{ deck.name }}">{{ child.name }}</option>
+                                    {% endfor %}
+                                {% endif %}
                             {% endfor %}
                         </select>
-                        
-                        <!-- Display information about the selected parent deck -->
-                        <div id="parentDeckInfo" class="small text-muted mt-2 d-none">
-                            <i class="bi bi-info-circle"></i> 
-                            <span id="parentDeckPath"></span>
+                        <div class="form-text">
+                            <i class="bi bi-keyboard"></i> Type to search, press ESC to clear search
                         </div>
+                    </div>
                         
-                        <div class="alert alert-warning mt-2 d-none" id="circularReferenceWarning">
-                            <i class="bi bi-exclamation-triangle-fill"></i>
-                            Cannot move a deck into its own subdeck.
-                        </div>
+                    <!-- Display information about the selected parent deck -->
+                    <div id="parentDeckInfo" class="small text-muted mt-2 d-none">
+                        <i class="bi bi-info-circle"></i> 
+                        <span id="parentDeckPath"></span>
+                    </div>
+                        
+                    <div class="alert alert-warning mt-2 d-none" id="circularReferenceWarning">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                        Cannot move a deck into its own subdeck.
                     </div>
                 </div>
                 

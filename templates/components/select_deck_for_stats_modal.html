@@ -8,8 +8,8 @@
             <div class="modal-body">
                 <div class="mb-3">
                     <label for="statsDeckSelect" class="form-label">Choose a deck to view statistics:</label>
-                    <select class="form-select" id="statsDeckSelect">
-                        <option value="" disabled selected>Select a deck...</option>
+                    <select class="form-select searchable-select deck-search-select" id="statsDeckSelect">
+                        <option value="" disabled selected>Type to search decks...</option>
                         
                         <!-- Show all decks without indentation -->
                         {% for deck in decks %}
@@ -21,6 +21,9 @@
                             </option>
                         {% endfor %}
                     </select>
+                    <div class="form-text">
+                        <i class="bi bi-keyboard"></i> Type to search, press ESC to clear search
+                    </div>
                 </div>
                 
                 <div id="statsDeckInfo" class="small text-muted mb-3 d-none">

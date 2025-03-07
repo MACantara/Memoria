@@ -8,8 +8,8 @@
             <div class="modal-body">
                 <div class="mb-3">
                     <label for="studyDeckSelect" class="form-label">Choose a deck to study:</label>
-                    <select class="form-select" id="studyDeckSelect">
-                        <option value="" disabled selected>Select a deck...</option>
+                    <select class="form-select searchable-select deck-search-select" id="studyDeckSelect">
+                        <option value="" disabled selected>Type to search decks...</option>
                         
                         <!-- Show all decks with due counts -->
                         {% for deck in decks %}
@@ -23,6 +23,9 @@
                             </option>
                         {% endfor %}
                     </select>
+                    <div class="form-text">
+                        <i class="bi bi-keyboard"></i> Type to search, press ESC to clear search
+                    </div>
                 </div>
                 
                 <div class="d-flex justify-content-between mt-4">
