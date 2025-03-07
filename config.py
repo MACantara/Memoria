@@ -66,7 +66,7 @@ class Config:
     GEMINI_MODEL = "gemini-2.0-flash-lite"
     
     # Authentication settings
-    SECRET_KEY = os.getenv('SECRET_KEY', 'dev-key-change-in-production')
+    SECRET_KEY = os.getenv('SECRET_KEY')
     SESSION_TYPE = 'filesystem'
     REMEMBER_COOKIE_DURATION = timedelta(days=14)
     
