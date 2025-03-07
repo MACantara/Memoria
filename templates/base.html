@@ -38,6 +38,13 @@
 <body>
     <!-- Add a spacer div at the bottom of the body for extra padding on mobile -->
     <div class="container py-4">
+        <!-- Add search bar in header area for most pages -->
+        {% if not request.path.startswith('/search') %}
+        <div class="d-flex justify-content-end mb-4">
+            {% include 'components/search_bar.html' %}
+        </div>
+        {% endif %}
+
         {% block content %}{% endblock %}
     </div>
     

@@ -33,6 +33,12 @@
         <span>Add</span>
     </button>
     
+    <!-- Add search button after Add button -->
+    <a href="{{ url_for('search.search') }}" class="mobile-nav-item">
+        <i class="bi bi-search"></i>
+        <span>Search</span>
+    </a>
+    
     <!-- Context-aware Stats button -->
     {% if request.path.startswith('/deck/') and request.path.split('/')[-1].isdigit() %}
         <!-- In deck view - Link directly to stats for this deck -->
