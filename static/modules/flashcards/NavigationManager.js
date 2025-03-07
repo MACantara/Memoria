@@ -1,5 +1,5 @@
 /**
- * NavigationManager - Handles keyboard navigation and movement between flashcards
+ * NavigationManager - Handles navigation through flashcards
  */
 export class NavigationManager {
     /**
@@ -7,19 +7,6 @@ export class NavigationManager {
      */
     constructor(flashcardManager) {
         this.manager = flashcardManager;
-        this.keybindings = {
-            // Number keys 1-4 for answer selection
-            '1': this.selectAnswerByNumber.bind(this, 0),
-            '2': this.selectAnswerByNumber.bind(this, 1),
-            '3': this.selectAnswerByNumber.bind(this, 2),
-            '4': this.selectAnswerByNumber.bind(this, 3),
-            
-            // Space for advancing
-            ' ': this.advanceCard.bind(this),
-            
-            // Arrow keys for navigation (future enhancement)
-            'ArrowRight': this.advanceCard.bind(this),
-        };
     }
 
     initialize() {
@@ -41,64 +28,76 @@ export class NavigationManager {
 
     /**
      * Handle keyboard navigation
-     * @param {string} key - The key that was pressed
+     * @param {string} key - The pressed key
      */
     handleKeyPress(key) {
-        if (this.keybindings[key]) {
-            this.keybindings[key]();
-        }
-    }
-    
-    /**
-     * Select an answer option by its number (1-4)
-     * @param {number} index - The zero-based index of the answer to select
-     */
-    selectAnswerByNumber(index) {
-        if (!this.manager.currentCard) return;
-        
-        // Find all answer options
-        const answerForm = document.getElementById('answerForm');
-        if (!answerForm) return;
-        
-        const answerOptions = answerForm.querySelectorAll('.answer-option');
-        if (index >= 0 && index < answerOptions.length) {
-            // Simulate a click on the answer option
-            answerOptions[index].click();
-        }
-    }
-    
-    /**
-     * Advance to the next card or trigger the Next button if present
-     */
-    advanceCard() {
-        if (!this.manager.currentCard) return;
-        
-        // Check if we have a next button (for incorrect answers)
+        // Get current state
+        const isReviewingCard = !!document.querySelector('.answer-option');
+        const hasSelectedAnswer = !!document.querySelector('input[type="radio"]:checked');
         const nextButton = document.querySelector('.feedback-container .btn');
-        if (nextButton) {
+        const hasAnswerFeedback = !!document.querySelector('.feedback-container');
+        
+        console.log(`Key pressed: ${key}, isReviewing: ${isReviewingCard}, hasSelected: ${hasSelectedAnswer}, hasNext: ${!!nextButton}`);
+        
+        // Handle Next Question - if we have answer feedback showing with next button, ANY key advances
+        if (hasAnswerFeedback && nextButton) {
+            // Proceed to next question when any key is pressed after seeing feedback
             nextButton.click();
             return;
         }
         
-        // Check if the current card has been answered before allowing advancement
-        const currentCardId = this.manager.currentCard.id;
-        if (this.manager.completedCards.has(currentCardId)) {
-            // If current card is complete, we can safely move to the next card
-            if (this.manager.completedCards.size < this.manager.totalDueCards) {
-                this.manager.moveToNextCard();
-            }
-        } else {
-            // Card hasn't been answered yet - show a subtle hint
-            const answerForm = document.getElementById('answerForm');
-            if (answerForm) {
-                // Add a subtle pulse animation to hint that user should answer
-                answerForm.classList.add('pulse-hint');
+        // Handle keyboard shortcuts based on context - only if we're not in answer feedback mode
+        switch (key) {
+            case 'Enter':
+            case ' ': // Space
+                // If viewing a card but no answer selected, pulse the options to indicate need to select
+                if (isReviewingCard && !hasSelectedAnswer && !hasAnswerFeedback) {
+                    this.pulseOptions();
+                    return;
+                }
+                break;
                 
-                // Remove the animation class after it completes
-                setTimeout(() => {
-                    answerForm.classList.remove('pulse-hint');
-                }, 1000);
-            }
+            case 'ArrowRight':
+            case 'n':
+            case 'N':
+                // These keys are now redundant for next question (any key works in feedback state)
+                // But we keep them for consistency in the UI hints
+                break;
+                
+            // Number keys for quick answer selection (1-4)
+            case '1':
+            case '2':
+            case '3':
+            case '4':
+                // Only work if viewing options and haven't already selected
+                if (isReviewingCard && !hasSelectedAnswer && !hasAnswerFeedback) {
+                    const optionIndex = parseInt(key) - 1;
+                    const options = document.querySelectorAll('.answer-option');
+                    
+                    if (optionIndex >= 0 && optionIndex < options.length) {
+                        console.log(`Selecting option ${optionIndex + 1}`);
+                        const radioInput = options[optionIndex].querySelector('input[type="radio"]');
+                        if (radioInput) {
+                            radioInput.checked = true;
+                            // Trigger a click event on the answer option to activate the handler
+                            options[optionIndex].click();
+                        }
+                    }
+                }
+                break;
         }
+    }
+    
+    /**
+     * Visual feedback when trying to advance without selecting an answer
+     */
+    pulseOptions() {
+        const options = document.querySelectorAll('.answer-option');
+        options.forEach(option => {
+            option.classList.add('pulse-hint');
+            setTimeout(() => {
+                option.classList.remove('pulse-hint');
+            }, 1000);
+        });
     }
 }
