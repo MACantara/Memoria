@@ -364,4 +364,20 @@ export class UIManager {
             this.statusBadge.className = 'badge bg-success';
         }
     }
+
+    showNoCardsMessage() {
+        if (!this.flashcardContainer) return;
+        
+        this.flashcardContainer.innerHTML = `
+            <div class="alert alert-info">
+                <h3 class="h5"><i class="bi bi-info-circle me-2"></i>No Cards to Study</h3>
+                <p class="mb-0">
+                    There are no cards available for study in this deck.
+                    <a href="/deck/${document.getElementById('deckId').value}" class="btn btn-sm btn-primary mt-2">
+                        <i class="bi bi-arrow-left me-1"></i> Back to Deck
+                    </a>
+                </p>
+            </div>
+        `;
+    }
 }

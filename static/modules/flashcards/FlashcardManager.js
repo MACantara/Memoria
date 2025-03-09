@@ -12,12 +12,8 @@ export class FlashcardManager {
         this.ui = new UIManager();
         this.completedCards = new Set();  // Track cards completed in this session
         this.totalDueCards = parseInt(document.getElementById('totalFlashcards')?.value || 0);
-        this.loadedAllCards = false; // Add new flag to track if all cards are loaded
         this.deckId = document.getElementById('deckId')?.value;
         this.studyMode = document.getElementById('studyMode')?.value === 'due_only';
-        this.batchSize = parseInt(document.getElementById('batchSize')?.value || 20);
-        this.currentPage = 1;
-        this.hasMoreCards = true;
         this.isLoading = false;
         this.currentCard = null;  // Store the current card data
         
@@ -62,11 +58,11 @@ export class FlashcardManager {
     async initialize() {
         if (!this.container) return;
         
-        console.log(`Initializing flashcard manager. Total cards: ${this.totalDueCards}`);
+        console.log(`Initializing flashcard manager. Total expected cards: ${this.totalDueCards}`);
         
         if (this.totalDueCards > 0) {
-            // Load the first batch of flashcards
-            await this.loadFlashcardBatch();
+            // Load all flashcards at once
+            await this.loadAllFlashcards();
             
             // Show the first card if we loaded any
             if (this.flashcards.length > 0) {
@@ -75,7 +71,10 @@ export class FlashcardManager {
                 this.ui.renderCard(this.currentCard);
                 this.updateCardCounter();
                 
-                // Dispatch event when first batch is loaded
+                // Update the total count with the actual cards loaded
+                this.totalDueCards = this.flashcards.length;
+                
+                // Dispatch event when cards are loaded
                 this.dispatchEvent('firstBatchLoaded');
                 
                 // Hide the initial loading indicator
@@ -89,6 +88,9 @@ export class FlashcardManager {
                 if (currentCard) {
                     currentCard.style.display = 'block';
                 }
+            } else {
+                // No cards were loaded, show a message
+                this.ui.showNoCardsMessage();
             }
         }
         
@@ -99,32 +101,22 @@ export class FlashcardManager {
         this.events.setupEventListeners();
     }
 
-    async loadFlashcardBatch() {
+    async loadAllFlashcards() {
         try {
-            if (!this.hasMoreCards || this.isLoading) return;
+            if (this.isLoading) return;
             
             this.isLoading = true;
+            this.ui.showLoading(true);
             
-            // Show the more compact loading indicator for additional batches
-            // Not the initial loading indicator which is larger
-            if (this.currentCardIndex > 0 || this.flashcards.length > 0) {
-                this.ui.showLoading(true);
-            }
+            // Build the URL for loading all cards at once
+            const url = new URL(`/deck/study/${this.deckId}`, window.location.origin);
             
-            // Fix: Use proper routing for API endpoint
-            const baseUrl = `/deck/study/${this.deckId}`;
-            
-            // Add query parameters
-            const params = new URLSearchParams();
-            params.append('page', this.currentPage);
-            params.append('batch_size', this.batchSize);
+            // Add query parameter for due only
             if (this.studyMode) {
-                params.append('due_only', 'true');
+                url.searchParams.append('due_only', 'true');
             }
             
-            const url = `${baseUrl}?${params.toString()}`;
-            
-            console.log(`Loading flashcards batch page ${this.currentPage} from URL: ${url}`);
+            console.log(`Loading all flashcards from: ${url}`);
             
             const response = await fetch(url, {
                 headers: {
@@ -140,28 +132,18 @@ export class FlashcardManager {
             
             const data = await response.json();
             
-            // Add new flashcards to our array
-            const newCards = data.flashcards;
-            console.log(`Successfully loaded ${newCards.length} flashcards, has more: ${data.has_more}`);
+            // Store all flashcards
+            this.flashcards = data.flashcards;
+            console.log(`Successfully loaded ${this.flashcards.length} flashcards`);
             
-            // Filter out any cards we've already completed (could happen if cards are reloaded)
-            const uniqueNewCards = newCards.filter(card => !this.completedCards.has(card.id));
-            console.log(`Adding ${uniqueNewCards.length} unique new cards to queue`);
-            
-            this.flashcards = [...this.flashcards, ...uniqueNewCards];
-            
-            // Update pagination info
-            this.hasMoreCards = data.has_more;
-            this.currentPage++;
-            
-            // Update flag if we've loaded all available cards
-            if (!data.has_more) {
-                this.loadedAllCards = true;
+            // Update the total now that we know the actual count
+            if (this.flashcards.length !== this.totalDueCards) {
+                console.log(`Updating total from ${this.totalDueCards} to ${this.flashcards.length}`);
+                this.totalDueCards = this.flashcards.length;
             }
             
         } catch (error) {
             console.error("Error loading flashcards:", error);
-            // Show error message to user
             this.ui.showLoadingError(error.message);
         } finally {
             this.isLoading = false;
@@ -170,29 +152,23 @@ export class FlashcardManager {
     }
 
     updateCardCounter() {
-        // Calculate cards left to review in this session more accurately
-        const totalCards = Math.max(this.totalDueCards, this.flashcards.length);
-        const remaining = Math.max(0, totalCards - this.score);
+        // Calculate cards left to review in this session
+        const remaining = Math.max(0, this.totalDueCards - this.score);
         
         // Use getDisplayIndex to get the correct 1-based card number for display
         const currentIndex = this.getDisplayIndex(this.currentCardIndex);
         
-        // Update UI manager's counter with correct display index and total count from server
-        this.ui.updateCardCounter(currentIndex - 1, totalCards, this.score, remaining);
+        // Update UI manager's counter with correct display index
+        this.ui.updateCardCounter(currentIndex - 1, this.totalDueCards, this.score, remaining);
         
         // Log counter state for debugging
-        console.log(`Card counter: ${this.score}/${totalCards}, ${remaining} remaining`);
+        console.log(`Card counter: ${this.score}/${this.totalDueCards}, ${remaining} remaining`);
     }
 
     async moveToNextCard() {
         // Debug info
         console.log("Moving to next card. Completed cards:", this.completedCards.size);
-        console.log("Total cards to review: ${this.totalDueCards, completed: ${this.score}");
-        
-        // Check if we need to load more cards
-        if (this.currentCardIndex + 1 >= this.flashcards.length && this.hasMoreCards) {
-            await this.loadFlashcardBatch();
-        }
+        console.log(`Total cards to review: ${this.totalDueCards}, completed: ${this.score}`);
         
         // Find the next uncompleted card
         for (let i = 0; i < this.flashcards.length; i++) {
@@ -219,43 +195,9 @@ export class FlashcardManager {
             }
         }
         
-        // If we reach here, all loaded cards have been completed
-        // Check if we have more cards to load
-        if (this.hasMoreCards) {
-            console.log("All loaded cards completed, attempting to load more cards");
-            await this.loadFlashcardBatch();
-            
-            // Try finding an uncompleted card again
-            for (let i = 0; i < this.flashcards.length; i++) {
-                const card = this.flashcards[i];
-                if (!this.completedCards.has(card.id)) {
-                    this.currentCardIndex = i;
-                    this.currentCard = card;
-                    this.ui.renderCard(card);
-                    this.updateCardCounter();
-                    return;
-                }
-            }
-        }
-        
-        // Only show completion screen if we've actually completed all cards
-        // or if we've loaded all cards and completed all loaded ones
-        if (this.completedCards.size >= this.totalDueCards || 
-            (this.loadedAllCards && this.completedCards.size === this.flashcards.length)) {
-            console.log("All cards completed. Showing completion screen.");
-            this.checkRemainingDueCards();
-        } else {
-            console.warn("No more cards found but session not complete. This is unexpected.");
-            // Try loading another batch in case there was a synchronization issue
-            if (this.hasMoreCards) {
-                console.log("Attempting to load more cards as fallback");
-                await this.loadFlashcardBatch();
-                this.moveToNextCard();
-            } else {
-                console.log("No more cards to load. Showing completion screen anyway.");
-                this.checkRemainingDueCards();
-            }
-        }
+        // If we reach here, all cards have been completed
+        console.log("All cards completed. Showing completion screen.");
+        this.checkRemainingDueCards();
     }
 
     async handleAnswer(selectedAnswer) {
@@ -380,13 +322,11 @@ export class FlashcardManager {
         const isDueOnly = this.studyMode;
         
         // Make sure score reflects completion - set score to total cards
-        // But don't artificially inflate it - use the actual completed count
         this.score = this.completedCards.size;
         
-        // Update UI to show completed state
-        const totalCards = Math.max(this.totalDueCards, this.completedCards.size);
-        this.ui.updateScore(this.score, totalCards);
-        this.ui.updateCardCounter(this.score - 1, totalCards, this.score, 0);
+        // Update UI to show all cards completed and 0 remaining
+        this.ui.updateScore(this.score, this.totalDueCards);
+        this.ui.updateCardCounter(this.score - 1, this.totalDueCards, this.score, 0);
         
         // In "Study All" mode, we know we've completed everything, so no need to check server
         if (!isDueOnly) {
