@@ -27,10 +27,10 @@ def get_deck_flashcards(deck_id):
     
     # Get parent decks for breadcrumb trail
     parent_decks = []
-    current_parent = deck.parent
+    current_parent = deck.parent_deck
     while current_parent is not None:
         parent_decks.insert(0, current_parent)
-        current_parent = current_parent.parent
+        current_parent = current_parent.parent_deck
     
     # Get child decks
     child_decks = FlashcardDecks.query.filter_by(parent_deck_id=deck_id).all()

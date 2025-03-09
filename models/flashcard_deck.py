@@ -16,7 +16,7 @@ class FlashcardDecks(db.Model):
     # Define relationships
     flashcards = relationship("Flashcards", backref="deck", cascade="all, delete-orphan")
     child_decks = relationship("FlashcardDecks", 
-                              backref=db.backref('parent', remote_side=[flashcard_deck_id]),
+                              backref=db.backref('parent_deck', remote_side=[flashcard_deck_id]),
                               cascade="all, delete-orphan")
 
     def count_all_flashcards(self):
