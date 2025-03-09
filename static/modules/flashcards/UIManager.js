@@ -103,6 +103,41 @@ export class UIManager {
         }
     }
 
+    showLoadingError(message) {
+        // Create an error alert that appears where the loading indicator would be
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'alert alert-danger my-3';
+        errorDiv.innerHTML = `
+            <div class="d-flex align-items-center">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                <div>
+                    <p class="mb-0">Error loading flashcards</p>
+                    <small>${message}</small>
+                </div>
+            </div>
+            <div class="mt-2">
+                <button class="btn btn-sm btn-outline-danger" onclick="window.location.reload()">
+                    Retry
+                </button>
+            </div>
+        `;
+        
+        // Find the loading container and replace its contents
+        const loadingContainer = document.getElementById('loadingContainer');
+        if (loadingContainer) {
+            // First clear the container
+            loadingContainer.innerHTML = '';
+            // Then add the error message
+            loadingContainer.appendChild(errorDiv);
+        } else {
+            // If no loading container, try to add it to the flashcard container
+            const container = document.getElementById('flashcardsContainer');
+            if (container) {
+                container.appendChild(errorDiv);
+            }
+        }
+    }
+
     updateStatusBadge(state) {
         if (!this.statusBadge) return;
         
@@ -223,8 +258,8 @@ export class UIManager {
 
     showCompletionScreen(deckId, score, totalDue, isDueOnly, remainingDueCards) {
         // Update card counters first to show all completed
-        this.updateCardCounter(totalDue - 1, totalDue, totalDue);
-        this.updateScore(totalDue, totalDue);
+        this.updateCardCounter(totalDue - 1, totalDue, score, 0);
+        this.updateScore(score, totalDue);
         
         // Create different completion screens depending on the mode and whether there are more due cards
         if (!this.flashcardContainer) return;
@@ -328,5 +363,21 @@ export class UIManager {
             this.statusBadge.textContent = 'Completed';
             this.statusBadge.className = 'badge bg-success';
         }
+    }
+
+    showNoCardsMessage() {
+        if (!this.flashcardContainer) return;
+        
+        this.flashcardContainer.innerHTML = `
+            <div class="alert alert-info">
+                <h3 class="h5"><i class="bi bi-info-circle me-2"></i>No Cards to Study</h3>
+                <p class="mb-0">
+                    There are no cards available for study in this deck.
+                    <a href="/deck/${document.getElementById('deckId').value}" class="btn btn-sm btn-primary mt-2">
+                        <i class="bi bi-arrow-left me-1"></i> Back to Deck
+                    </a>
+                </p>
+            </div>
+        `;
     }
 }

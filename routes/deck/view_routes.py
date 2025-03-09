@@ -64,17 +64,13 @@ def study_deck(deck_id):
     # Check if studying due cards only
     due_only = request.args.get('due_only') == 'true'
     
-    # AJAX request for batch loading flashcards
+    # AJAX request for loading flashcards - modified to load all at once
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        page = int(request.args.get('page', 1))
-        batch_size = int(request.args.get('batch_size', 20))
-        offset = (page - 1) * batch_size
-        
-        # Get cards based on the due_only parameter with pagination
+        # Get all cards without pagination
         if due_only:
-            flashcards = get_due_cards(deck_id, due_only=True, offset=offset, limit=batch_size)
+            flashcards = get_due_cards(deck_id, due_only=True)
         else:
-            flashcards = get_due_cards(deck_id, due_only=False, offset=offset, limit=batch_size)
+            flashcards = get_due_cards(deck_id, due_only=False)
         
         # Serialize flashcards to JSON
         flashcard_data = []
@@ -98,10 +94,10 @@ def study_deck(deck_id):
                 'subdeck': deck_info
             })
         
+        # Return all cards at once
         return jsonify({
             'flashcards': flashcard_data,
-            'page': page,
-            'has_more': len(flashcards) == batch_size
+            'total': len(flashcard_data)
         })
     
     # Normal page load - calculate the count of cards for rendering the template
@@ -142,9 +138,9 @@ def study_deck(deck_id):
         due_only=due_only
     )
 
-# Update the get_due_cards function to support pagination
-def get_due_cards(deck_id, due_only=False, offset=0, limit=None):
-    """Get cards due for review with pagination support"""
+# Update the get_due_cards function to remove pagination parameters
+def get_due_cards(deck_id, due_only=False):
+    """Get cards due for review"""
     from models import db  # Import here to avoid circular imports
     
     # Create recursive CTE to find all decks including this one and its sub-decks
@@ -174,11 +170,5 @@ def get_due_cards(deck_id, due_only=False, offset=0, limit=None):
             db.or_(Flashcards.due_date <= current_time, Flashcards.due_date == None),
             Flashcards.state != 2  # Exclude cards already mastered
         )
-    
-    # Apply pagination
-    if offset > 0:
-        query = query.offset(offset)
-    if limit:
-        query = query.limit(limit)
         
     return query.all()

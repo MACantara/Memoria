@@ -14,9 +14,6 @@ export class FlashcardManager {
         this.totalDueCards = parseInt(document.getElementById('totalFlashcards')?.value || 0);
         this.deckId = document.getElementById('deckId')?.value;
         this.studyMode = document.getElementById('studyMode')?.value === 'due_only';
-        this.batchSize = parseInt(document.getElementById('batchSize')?.value || 20);
-        this.currentPage = 1;
-        this.hasMoreCards = true;
         this.isLoading = false;
         this.currentCard = null;  // Store the current card data
         
@@ -61,11 +58,11 @@ export class FlashcardManager {
     async initialize() {
         if (!this.container) return;
         
-        console.log(`Initializing flashcard manager. Total cards: ${this.totalDueCards}`);
+        console.log(`Initializing flashcard manager. Total expected cards: ${this.totalDueCards}`);
         
         if (this.totalDueCards > 0) {
-            // Load the first batch of flashcards
-            await this.loadFlashcardBatch();
+            // Load all flashcards at once
+            await this.loadAllFlashcards();
             
             // Show the first card if we loaded any
             if (this.flashcards.length > 0) {
@@ -74,7 +71,10 @@ export class FlashcardManager {
                 this.ui.renderCard(this.currentCard);
                 this.updateCardCounter();
                 
-                // Dispatch event when first batch is loaded
+                // Update the total count with the actual cards loaded
+                this.totalDueCards = this.flashcards.length;
+                
+                // Dispatch event when cards are loaded
                 this.dispatchEvent('firstBatchLoaded');
                 
                 // Hide the initial loading indicator
@@ -88,6 +88,9 @@ export class FlashcardManager {
                 if (currentCard) {
                     currentCard.style.display = 'block';
                 }
+            } else {
+                // No cards were loaded, show a message
+                this.ui.showNoCardsMessage();
             }
         }
         
@@ -98,29 +101,22 @@ export class FlashcardManager {
         this.events.setupEventListeners();
     }
 
-    async loadFlashcardBatch() {
+    async loadAllFlashcards() {
         try {
-            if (!this.hasMoreCards || this.isLoading) return;
+            if (this.isLoading) return;
             
             this.isLoading = true;
+            this.ui.showLoading(true);
             
-            // Show the more compact loading indicator for additional batches
-            // Not the initial loading indicator which is larger
-            if (this.currentCardIndex > 0 || this.flashcards.length > 0) {
-                this.ui.showLoading(true);
-            }
-            
-            // Build the URL with parameters
+            // Build the URL for loading all cards at once
             const url = new URL(`/deck/study/${this.deckId}`, window.location.origin);
             
-            // Add query parameters
-            url.searchParams.append('page', this.currentPage);
-            url.searchParams.append('batch_size', this.batchSize);
+            // Add query parameter for due only
             if (this.studyMode) {
                 url.searchParams.append('due_only', 'true');
             }
             
-            console.log(`Loading flashcards batch page ${this.currentPage}`);
+            console.log(`Loading all flashcards from: ${url}`);
             
             const response = await fetch(url, {
                 headers: {
@@ -129,22 +125,26 @@ export class FlashcardManager {
             });
             
             if (!response.ok) {
-                throw new Error('Network response was not ok');
+                const errorText = await response.text();
+                console.error(`Server returned ${response.status}: ${errorText}`);
+                throw new Error(`Network response was not ok (${response.status})`);
             }
             
             const data = await response.json();
             
-            // Add new flashcards to our array
-            this.flashcards = [...this.flashcards, ...data.flashcards];
+            // Store all flashcards
+            this.flashcards = data.flashcards;
+            console.log(`Successfully loaded ${this.flashcards.length} flashcards`);
             
-            // Update pagination info
-            this.hasMoreCards = data.has_more;
-            this.currentPage++;
-            
-            console.log(`Loaded ${data.flashcards.length} flashcards, has more: ${this.hasMoreCards}`);
+            // Update the total now that we know the actual count
+            if (this.flashcards.length !== this.totalDueCards) {
+                console.log(`Updating total from ${this.totalDueCards} to ${this.flashcards.length}`);
+                this.totalDueCards = this.flashcards.length;
+            }
             
         } catch (error) {
             console.error("Error loading flashcards:", error);
+            this.ui.showLoadingError(error.message);
         } finally {
             this.isLoading = false;
             this.ui.showLoading(false);
@@ -158,7 +158,7 @@ export class FlashcardManager {
         // Use getDisplayIndex to get the correct 1-based card number for display
         const currentIndex = this.getDisplayIndex(this.currentCardIndex);
         
-        // Update UI manager's counter with correct display index and total count from server
+        // Update UI manager's counter with correct display index
         this.ui.updateCardCounter(currentIndex - 1, this.totalDueCards, this.score, remaining);
         
         // Log counter state for debugging
@@ -168,11 +168,7 @@ export class FlashcardManager {
     async moveToNextCard() {
         // Debug info
         console.log("Moving to next card. Completed cards:", this.completedCards.size);
-        
-        // Check if we need to load more cards
-        if (this.currentCardIndex + 1 >= this.flashcards.length && this.hasMoreCards) {
-            await this.loadFlashcardBatch();
-        }
+        console.log(`Total cards to review: ${this.totalDueCards}, completed: ${this.score}`);
         
         // Find the next uncompleted card
         for (let i = 0; i < this.flashcards.length; i++) {
@@ -189,7 +185,6 @@ export class FlashcardManager {
                 
                 this.currentCardIndex = i;
                 this.currentCard = card;
-                // Fix log message to use the visible card index (1-based) instead of array index
                 const visibleCardIndex = this.getDisplayIndex(i);
                 console.log(`Moving to card ${visibleCardIndex}/${this.totalDueCards} with ID ${card.id}`);
                 
@@ -200,33 +195,8 @@ export class FlashcardManager {
             }
         }
         
-        // If we reach here, all loaded cards have been completed
-        // Check if we have more cards to load
-        if (this.hasMoreCards) {
-            console.log("All loaded cards completed, attempting to load more cards");
-            await this.loadFlashcardBatch();
-            
-            // Try finding an uncompleted card again
-            for (let i = 0; i < this.flashcards.length; i++) {
-                const card = this.flashcards[i];
-                if (!this.completedCards.has(card.id)) {
-                    this.currentCardIndex = i;
-                    this.currentCard = card;
-                    this.ui.renderCard(card);
-                    this.updateCardCounter();
-                    return;
-                }
-            }
-        }
-        
-        // If we still don't have any cards to show, we're done
-        console.log("No more cards to show. All completed.");
-        
-        // Make sure score reflects completion
-        this.score = this.totalDueCards;
-        this.ui.updateScore(this.score, this.totalDueCards);
-        
-        // Show completion screen
+        // If we reach here, all cards have been completed
+        console.log("All cards completed. Showing completion screen.");
         this.checkRemainingDueCards();
     }
 
@@ -260,6 +230,7 @@ export class FlashcardManager {
             
             // Debug info
             console.log(`Card ${card.id} completed. Score: ${this.score}/${this.totalDueCards}`);
+            console.log(`Completed cards: ${this.completedCards.size}, Total flashcards: ${this.flashcards.length}`);
             
             // Update the progress display
             this.ui.updateScore(this.score, this.totalDueCards);
@@ -351,11 +322,11 @@ export class FlashcardManager {
         const isDueOnly = this.studyMode;
         
         // Make sure score reflects completion - set score to total cards
-        this.score = this.totalDueCards;
+        this.score = this.completedCards.size;
         
         // Update UI to show all cards completed and 0 remaining
         this.ui.updateScore(this.score, this.totalDueCards);
-        this.ui.updateCardCounter(this.totalDueCards - 1, this.totalDueCards, this.score);
+        this.ui.updateCardCounter(this.score - 1, this.totalDueCards, this.score, 0);
         
         // In "Study All" mode, we know we've completed everything, so no need to check server
         if (!isDueOnly) {
