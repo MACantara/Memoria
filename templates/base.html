@@ -32,7 +32,13 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js" defer></script>
 </head>
 <body>
-    {% include 'nav/desktop_top_nav.html' %}
+    <header>
+        {% include 'nav/top-nav.html' %}
+    </header>
+    
+    <main class="container py-4">
+        {% block content %}{% endblock %}
+    </ma>
     
     <!-- Mobile-only spacer -->
     <div class="d-block d-md-none" style="height: 20px;"></div>
