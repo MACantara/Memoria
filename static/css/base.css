@@ -6,12 +6,6 @@
 }
 
 /* Theme toggle button updated for three modes */
-.theme-toggle-container {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    z-index: 1050;
-}
 
 .theme-toggle-btn {
     width: 45px;
