@@ -36,16 +36,22 @@
                     <div class="tab-pane fade show active" id="uploadContent" role="tabpanel">
                         <form id="importFileForm">
                             <div class="mb-3">
-                                <label for="deckSelector" class="form-label">Select Deck:</label>
+                                <label for="importDeckSelect" class="form-label">Choose a deck:</label>
                                 <div class="select-container">
-                                    <select class="form-select" id="deckSelector" name="deck_id" required>
-                                        <option value="" selected disabled>Choose a deck...</option>
-                                        <!-- Deck options will be populated dynamically -->
+                                    <select class="form-select deck-search-select" id="importDeckSelect" name="deck_id" required>
+                                        <option value="" disabled selected>Select a deck...</option>
+                                        {% for deck in g.all_decks if not deck.parent_deck_id %} <!-- Only top-level decks -->
+                                            <option value="{{ deck.flashcard_deck_id }}">{{ deck.name }}</option>
+                                            {% for subdeck in deck.child_decks %}
+                                                <option value="{{ subdeck.flashcard_deck_id }}">&nbsp;&nbsp;└ {{ subdeck.name }}</option>
+                                            {% endfor %}
+                                        {% endfor %}
                                     </select>
                                     <div class="loading-spinner spinner-border spinner-border-sm text-primary d-none" role="status">
                                         <span class="visually-hidden">Loading...</span>
                                     </div>
                                 </div>
+                                <!-- Help text is automatically added by the component -->
                             </div>
                             
                             <div class="mb-3">
@@ -68,20 +74,6 @@
                                 </div>
                             </div>
                             
-                            <div class="mb-3">
-                                <label for="importDeckSelect" class="form-label">Choose a deck:</label>
-                                <select class="form-select deck-search-select" id="importDeckSelect" name="deck_id" required>
-                                    <option value="" disabled selected>Select a deck...</option>
-                                    {% for deck in g.all_decks if not deck.parent_deck_id %} <!-- Only top-level decks -->
-                                        <option value="{{ deck.flashcard_deck_id }}">{{ deck.name }}</option>
-                                        {% for subdeck in deck.child_decks %}
-                                            <option value="{{ subdeck.flashcard_deck_id }}">&nbsp;&nbsp;└ {{ subdeck.name }}</option>
-                                        {% endfor %}
-                                    {% endfor %}
-                                </select>
-                                <!-- Help text is automatically added by the component -->
-                            </div>
-
                             <div class="d-grid">
                                 <button type="submit" class="btn btn-primary" id="importBtn" disabled>
                                     <i class="bi bi-magic"></i> Generate Flashcards
@@ -226,7 +218,7 @@
         const fileName = document.getElementById('fileName');
         const removeFile = document.getElementById('removeFile');
         const importBtn = document.getElementById('importBtn');
-        const deckSelector = document.getElementById('deckSelector');
+        const importDeckSelect = document.getElementById('importDeckSelect');
         const importFileForm = document.getElementById('importFileForm');
         const processingInfo = document.getElementById('processingInfo');
         const processingStatus = document.getElementById('processingStatus');
@@ -239,18 +231,19 @@
         let fileKey = null;
         let generatedFlashcards = [];
         
-        // Initialize deck selector
+        // Initialize deck selector with API data
         function loadDecks() {
-            deckSelector.closest('.select-container').classList.add('select-loading');
+            const selectContainer = importDeckSelect.closest('.select-container');
+            selectContainer.classList.add('select-loading');
             
             // Show the loading spinner by removing d-none
-            const loadingSpinner = deckSelector.closest('.select-container').querySelector('.loading-spinner');
+            const loadingSpinner = selectContainer.querySelector('.loading-spinner');
             loadingSpinner.classList.remove('d-none');
             
             fetch('/deck/api/list')
                 .then(response => response.json())
                 .then(data => {
-                    deckSelector.innerHTML = '<option value="" selected disabled>Choose a deck...</option>';
+                    importDeckSelect.innerHTML = '<option value="" selected disabled>Choose a deck...</option>';
                     
                     // Make sure we have an array of decks
                     const decks = Array.isArray(data) ? data : (data.decks || []);
@@ -259,16 +252,16 @@
                         const option = document.createElement('option');
                         option.value = deck.id;
                         option.textContent = deck.name;
-                        deckSelector.appendChild(option);
+                        importDeckSelect.appendChild(option);
                     });
                 })
                 .catch(error => {
                     console.error('Error loading decks:', error);
-                    deckSelector.innerHTML = '<option value="" selected disabled>Error loading decks</option>';
+                    importDeckSelect.innerHTML = '<option value="" selected disabled>Error loading decks</option>';
                 })
                 .finally(() => {
                     // Hide the spinner when done
-                    deckSelector.closest('.select-container').classList.remove('select-loading');
+                    selectContainer.classList.remove('select-loading');
                     loadingSpinner.classList.add('d-none');
                 });
         }
@@ -281,7 +274,6 @@
             resetFileInput();
             
             // Call attention to drag area with subtle pulse
-            const dragArea = document.getElementById('dragArea');
             dragArea.classList.add('pulse-once');
             setTimeout(() => dragArea.classList.remove('pulse-once'), 1500);
         });
@@ -371,7 +363,7 @@
             document.getElementById('removeFile').addEventListener('click', resetFileInput);
             
             // Enable import button if deck is selected
-            importBtn.disabled = !deckSelector.value;
+            importBtn.disabled = !importDeckSelect.value;
             
             // Store file in input for form submission
             const dataTransfer = new DataTransfer();
@@ -388,7 +380,7 @@
         }
         
         // Enable import button only when both file and deck are selected
-        deckSelector.addEventListener('change', function() {
+        importDeckSelect.addEventListener('change', function() {
             importBtn.disabled = !this.value || !fileInput.files.length;
         });
         
@@ -396,7 +388,7 @@
         importFileForm.addEventListener('submit', function(e) {
             e.preventDefault();
             
-            if (!fileInput.files.length || !deckSelector.value) {
+            if (!fileInput.files.length || !importDeckSelect.value) {
                 return;
             }
             
@@ -560,7 +552,7 @@
         
         // Save flashcards to deck
         saveFlashcardsBtn.addEventListener('click', function() {
-            if (!fileKey || !deckSelector.value) {
+            if (!fileKey || !importDeckSelect.value) {
                 return;
             }
             
@@ -574,7 +566,7 @@
                 },
                 body: JSON.stringify({
                     file_key: fileKey,
-                    deck_id: deckSelector.value
+                    deck_id: importDeckSelect.value  // Updated to use the remaining select
                 })
             })
             .then(response => {
