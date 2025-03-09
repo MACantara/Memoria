@@ -68,26 +68,23 @@ export class FlashcardManager {
             if (this.flashcards.length > 0) {
                 this.currentCardIndex = 0;
                 this.currentCard = this.flashcards[0];
+                
+                // Hide loading indicator and show the first card
+                const loadingContainer = document.getElementById('loadingContainer');
+                if (loadingContainer) {
+                    loadingContainer.style.display = 'none';
+                }
+                
+                const currentCard = document.getElementById('currentFlashcard');
+                if (currentCard) {
+                    currentCard.style.display = 'block';
+                }
+                
                 this.ui.renderCard(this.currentCard);
                 this.updateCardCounter();
                 
                 // Update the total count with the actual cards loaded
                 this.totalDueCards = this.flashcards.length;
-                
-                // Dispatch event when cards are loaded
-                this.dispatchEvent('firstBatchLoaded');
-                
-                // Hide the initial loading indicator
-                const initialLoader = document.getElementById('initialLoadingIndicator');
-                if (initialLoader) {
-                    initialLoader.classList.add('d-none');
-                }
-                
-                // Show the first card
-                const currentCard = document.getElementById('currentFlashcard');
-                if (currentCard) {
-                    currentCard.style.display = 'block';
-                }
             } else {
                 // No cards were loaded, show a message
                 this.ui.showNoCardsMessage();
@@ -106,7 +103,6 @@ export class FlashcardManager {
             if (this.isLoading) return;
             
             this.isLoading = true;
-            this.ui.showLoading(true);
             
             // Build the URL for loading all cards at once
             const url = new URL(`/deck/study/${this.deckId}`, window.location.origin);
@@ -142,12 +138,14 @@ export class FlashcardManager {
                 this.totalDueCards = this.flashcards.length;
             }
             
+            // Dispatch event to indicate first load completion
+            this.dispatchEvent('firstBatchLoaded');
+            
         } catch (error) {
             console.error("Error loading flashcards:", error);
             this.ui.showLoadingError(error.message);
         } finally {
             this.isLoading = false;
-            this.ui.showLoading(false);
         }
     }
 
