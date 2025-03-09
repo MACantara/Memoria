@@ -3,28 +3,27 @@
         <i class="bi bi-collection"></i>
         <span>Decks</span>
     </a>
-    
-    <!-- Combined Study & Stats button that opens a menu -->
-    <button class="mobile-nav-item" id="mobileStudyStatsButton">
-        <i class="bi bi-book"></i>
+    <button id="mobileStudyStatsButton" class="mobile-nav-item">
+        <i class="bi bi-journal-bookmark"></i>
         <span>Study</span>
     </button>
-    
-    <!-- Add button -->
-    <button class="mobile-nav-item" id="mobileAddButton">
+    <button id="mobileAddButton" class="mobile-nav-item">
         <i class="bi bi-plus-circle"></i>
         <span>Add</span>
     </button>
-    
-    <!-- Search button -->
     <a href="{{ url_for('search.search') }}" class="mobile-nav-item">
         <i class="bi bi-search"></i>
         <span>Search</span>
     </a>
-    
-    <!-- Theme toggle button -->
-    <button class="mobile-nav-item" id="mobileThemeToggle">
-        <i class="bi bi-circle-half"></i>
-        <span>Theme</span>
-    </button>
+    {% if current_user.is_authenticated %}
+        <button id="mobileUserButton" class="mobile-nav-item">
+            <i class="bi bi-person-circle"></i>
+            <span>Account</span>
+        </button>
+    {% else %}
+        <a href="{{ url_for('auth.login') }}" class="mobile-nav-item">
+            <i class="bi bi-box-arrow-in-right"></i>
+            <span>Login</span>
+        </a>
+    {% endif %}
 </div>
