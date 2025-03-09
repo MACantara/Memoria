@@ -1,0 +1,234 @@
+{% if pagination %}
+<nav aria-label="Pagination navigation" class="mt-4">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center">
+        <!-- Pagination info - responsive styling -->
+        <div class="pagination-info mb-3 mb-md-0 text-muted">
+            <span class="d-none d-sm-inline">Showing </span>{{ pagination.start_idx }}-{{ pagination.end_idx }} 
+            of {{ pagination.total }} {{ items_name|default('items') }}
+        </div>
+        
+        <div class="d-flex flex-column flex-sm-row align-items-start align-items-sm-center gap-3">
+            <!-- Pagination controls with improved accessibility -->
+            <ul class="pagination {{ pagination_size|default('pagination-sm') }} mb-0">
+                <!-- First page - Hide on mobile to save space -->
+                {% set url_args = entity_params or {} %}
+                {% set _ = url_args.update({'page': 1}) %}
+                {% set _ = url_args.update(pagination.other_args or {}) %}
+                <li class="page-item d-none d-sm-block {% if pagination.page == 1 %}disabled{% endif %}" 
+                    {% if pagination.page == 1 %}aria-disabled="true"{% endif %}>
+                    <a class="page-link" href="{{ url_for(request.endpoint, **url_args) }}" 
+                       aria-label="Go to first page" {% if pagination.page != 1 %}tabindex="0"{% endif %}>
+                        <span aria-hidden="true"><i class="bi bi-chevron-double-left"></i></span>
+                    </a>
+                </li>
+                
+                <!-- Previous page - With clear icon -->
+                {% set url_args = entity_params or {} %}
+                {% set _ = url_args.update({'page': pagination.page-1}) %}
+                {% set _ = url_args.update(pagination.other_args or {}) %}
+                <li class="page-item {% if pagination.page == 1 %}disabled{% endif %}"
+                    {% if pagination.page == 1 %}aria-disabled="true"{% endif %}>
+                    <a class="page-link" href="{{ url_for(request.endpoint, **url_args) }}" 
+                       aria-label="Go to previous page" {% if pagination.page != 1 %}tabindex="0"{% endif %}>
+                        <span aria-hidden="true"><i class="bi bi-chevron-left"></i></span>
+                    </a>
+                </li>
+                
+                <!-- Responsive page numbers - Show fewer on small screens -->
+                {% set mobile_range = 1 if pagination.page < 100 else 0 %} <!-- Less pages on mobile -->
+                {% set show_ellipsis_start = pagination.page_range_start > 1 %}
+                {% set show_ellipsis_end = pagination.page_range_end < pagination.pages %}
+                
+                <!-- First page number if not in range and we have many pages -->
+                {% if show_ellipsis_start %}
+                    {% set url_args = entity_params or {} %}
+                    {% set _ = url_args.update({'page': 1}) %}
+                    {% set _ = url_args.update(pagination.other_args or {}) %}
+                    <li class="page-item d-none d-md-block">
+                        <a class="page-link" href="{{ url_for(request.endpoint, **url_args) }}" 
+                           aria-label="Page 1">1</a>
+                    </li>
+                    <li class="page-item disabled d-none d-md-block">
+                        <span class="page-link">...</span>
+                    </li>
+                {% endif %}
+                
+                <!-- Page numbers with responsive display logic -->
+                {% for p in range(pagination.page_range_start, pagination.page_range_end + 1) %}
+                    {% set url_args = entity_params or {} %}
+                    {% set _ = url_args.update({'page': p}) %}
+                    {% set _ = url_args.update(pagination.other_args or {}) %}
+                    
+                    <!-- On mobile, show limited range around current page -->
+                    {% if p == pagination.page or 
+                          (p >= pagination.page-mobile_range and p <= pagination.page+mobile_range) or
+                          p == pagination.page_range_start or 
+                          p == pagination.page_range_end %}
+                        <li class="page-item {% if p == pagination.page %}active{% endif %}" 
+                            {% if p == pagination.page %}aria-current="page" aria-label="Current page, page {{ p }}"{% endif %}>
+                            <a class="page-link" href="{{ url_for(request.endpoint, **url_args) }}" 
+                               {% if p != pagination.page %}aria-label="Go to page {{ p }}"{% endif %}>
+                                {{ p }}
+                            </a>
+                        </li>
+                    {% elif (p == pagination.page-mobile_range-1 or p == pagination.page+mobile_range+1) and p > 1 and p < pagination.pages %}
+                        <!-- Show ellipsis when skipping pages on mobile -->
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                    {% else %}
+                        <!-- These pages only show on larger screens -->
+                        <li class="page-item d-none d-md-block">
+                            <a class="page-link" href="{{ url_for(request.endpoint, **url_args) }}" 
+                               aria-label="Go to page {{ p }}">{{ p }}</a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+                
+                <!-- Last page number if not in range and we have many pages -->
+                {% if show_ellipsis_end %}
+                    <li class="page-item disabled d-none d-md-block">
+                        <span class="page-link">...</span>
+                    </li>
+                    {% set url_args = entity_params or {} %}
+                    {% set _ = url_args.update({'page': pagination.pages}) %}
+                    {% set _ = url_args.update(pagination.other_args or {}) %}
+                    <li class="page-item d-none d-md-block">
+                        <a class="page-link" href="{{ url_for(request.endpoint, **url_args) }}" 
+                           aria-label="Page {{ pagination.pages }}">{{ pagination.pages }}</a>
+                    </li>
+                {% endif %}
+                
+                <!-- Next page - With clear icon -->
+                {% set url_args = entity_params or {} %}
+                {% set _ = url_args.update({'page': pagination.page+1}) %}
+                {% set _ = url_args.update(pagination.other_args or {}) %}
+                <li class="page-item {% if pagination.page == pagination.pages %}disabled{% endif %}"
+                    {% if pagination.page == pagination.pages %}aria-disabled="true"{% endif %}>
+                    <a class="page-link" href="{{ url_for(request.endpoint, **url_args) }}" 
+                       aria-label="Go to next page" {% if pagination.page != pagination.pages %}tabindex="0"{% endif %}>
+                        <span aria-hidden="true"><i class="bi bi-chevron-right"></i></span>
+                    </a>
+                </li>
+                
+                <!-- Last page - Hide on mobile to save space -->
+                {% set url_args = entity_params or {} %}
+                {% set _ = url_args.update({'page': pagination.pages}) %}
+                {% set _ = url_args.update(pagination.other_args or {}) %}
+                <li class="page-item d-none d-sm-block {% if pagination.page == pagination.pages %}disabled{% endif %}"
+                    {% if pagination.page == pagination.pages %}aria-disabled="true"{% endif %}>
+                    <a class="page-link" href="{{ url_for(request.endpoint, **url_args) }}" 
+                       aria-label="Go to last page" {% if pagination.page != pagination.pages %}tabindex="0"{% endif %}>
+                        <span aria-hidden="true"><i class="bi bi-chevron-double-right"></i></span>
+                    </a>
+                </li>
+            </ul>
+            
+            <!-- Per page selector with improved UI -->
+            {% if show_per_page %}
+            <div>
+                <form class="d-flex align-items-center per-page-form" method="GET">
+                    <label for="per_page" class="visually-hidden">Items per page</label>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text border-end-0 bg-transparent">Show</span>
+                        <select id="per_page" name="per_page" class="form-select form-select-sm rounded-0" style="max-width: 80px;" onchange="this.form.submit()">
+                            {% for option in per_page_options|default([10, 20, 50, 100]) %}
+                            <option value="{{ option }}" {% if pagination.per_page == option %}selected{% endif %}>{{ option }}</option>
+                            {% endfor %}
+                        </select>
+                        <span class="input-group-text border-start-0 bg-transparent">per page</span>
+                    </div>
+                    <!-- Preserve existing query parameters -->
+                    {% for key, value in request.args.items() if key != 'per_page' %}
+                    <input type="hidden" name="{{ key }}" value="{{ value }}">
+                    {% endfor %}
+                </form>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</nav>
+
+<style>
+    /* Custom pagination styling */
+    .pagination .page-link {
+        border-radius: 4px;
+        margin: 0 2px;
+        color: var(--bs-primary);
+    }
+    
+    .pagination .page-item.active .page-link {
+        background-color: var(--bs-primary);
+        border-color: var(--bs-primary);
+        color: #fff;
+        font-weight: 500;
+    }
+    
+    /* Hover effect */
+    .pagination .page-link:hover:not(.disabled) {
+        background-color: var(--bs-primary-bg-subtle);
+        border-color: var(--bs-primary-border-subtle);
+    }
+    
+    /* Focus ring for accessibility */
+    .pagination .page-link:focus {
+        box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.25);
+    }
+    
+    /* Customize per-page selector */
+    .per-page-form .input-group-text {
+        color: var(--bs-secondary);
+    }
+    
+    /* Improve padding for small screens */
+    @media (max-width: 576px) {
+        .pagination .page-link {
+            padding: 0.25rem 0.5rem;
+        }
+    }
+</style>
+
+<script>
+    // Add keyboard navigation to pagination
+    document.addEventListener('DOMContentLoaded', function() {
+        // Find all page links
+        const pageLinks = document.querySelectorAll('.pagination .page-link');
+        const activePageItem = document.querySelector('.pagination .page-item.active');
+        
+        // Set up keyboard navigation
+        if (pageLinks.length > 0) {
+            document.addEventListener('keydown', function(e) {
+                // Only trigger when not in input/select/textarea
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') {
+                    return;
+                }
+                
+                // Right arrow - next page
+                if (e.key === 'ArrowRight') {
+                    const nextLink = document.querySelector('.pagination .page-item:not(.disabled):not(.active) + li:not(.disabled) .page-link');
+                    if (nextLink) {
+                        e.preventDefault();
+                        nextLink.click();
+                    }
+                }
+                
+                // Left arrow - previous page
+                if (e.key === 'ArrowLeft') {
+                    const prevLinks = Array.from(document.querySelectorAll('.pagination .page-item:not(.disabled) .page-link'));
+                    const activeIndex = prevLinks.findIndex(link => link.parentElement.classList.contains('active'));
+                    
+                    if (activeIndex > 0) {
+                        e.preventDefault();
+                        prevLinks[activeIndex - 1].click();
+                    }
+                }
+            });
+            
+            // Set focus to active page when tab navigation reaches pagination
+            if (activePageItem) {
+                activePageItem.querySelector('.page-link').setAttribute('tabindex', '0');
+            }
+        }
+    });
+</script>
+{% endif %}

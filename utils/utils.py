@@ -7,17 +7,6 @@ from services.fsrs_scheduler import get_current_time
 from flask import current_app
 import math
 
-# Re-export utilities from utils package for backwards compatibility
-from utils import (
-    chunk_text,
-    allowed_file,
-    clean_flashcard_text,
-    is_descendant,
-    count_due_flashcards,
-    batch_count_due_cards,
-    create_pagination_metadata
-)
-
 def chunk_text(text: str, size: int = Config.CHUNK_SIZE) -> List[str]:
     """Split text into chunks of approximately given size"""
     words = text.split()
@@ -57,7 +46,7 @@ def clean_flashcard_text(text: str) -> Optional[str]:
     if not q_part.startswith('Q:') or not a_part.startswith('A:'):
         return None
         
-    question = q_part[2:].trip()
+    question = q_part[2:].strip()
     answer = a_part[2:].strip()
     
     if not question or not answer:

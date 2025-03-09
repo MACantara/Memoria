@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request
 from models import db, FlashcardDecks, Flashcards
 from services.fsrs_scheduler import get_current_time
-from routes.deck.utils import count_due_flashcards
+from utils import count_due_flashcards
 from flask_login import login_required, current_user
 
 deck_api_bp = Blueprint('deck_api', __name__, url_prefix='/api')

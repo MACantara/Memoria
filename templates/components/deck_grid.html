@@ -103,3 +103,13 @@
     </div>
     {% endfor %}
 </div>
+
+<!-- Use the shared pagination component -->
+{% with 
+    items_name='decks',
+    entity_params={},
+    show_per_page=false,
+    pagination_size=''
+%}
+    {% include 'components/pagination.html' %}
+{% endwith %}
