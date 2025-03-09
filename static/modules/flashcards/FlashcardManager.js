@@ -110,17 +110,20 @@ export class FlashcardManager {
                 this.ui.showLoading(true);
             }
             
-            // Build the URL with parameters
-            const url = new URL(`/deck/study/${this.deckId}`, window.location.origin);
+            // Fix: Use proper routing for API endpoint
+            const baseUrl = `/deck/study/${this.deckId}`;
             
             // Add query parameters
-            url.searchParams.append('page', this.currentPage);
-            url.searchParams.append('batch_size', this.batchSize);
+            const params = new URLSearchParams();
+            params.append('page', this.currentPage);
+            params.append('batch_size', this.batchSize);
             if (this.studyMode) {
-                url.searchParams.append('due_only', 'true');
+                params.append('due_only', 'true');
             }
             
-            console.log(`Loading flashcards batch page ${this.currentPage}`);
+            const url = `${baseUrl}?${params.toString()}`;
+            
+            console.log(`Loading flashcards batch page ${this.currentPage} from URL: ${url}`);
             
             const response = await fetch(url, {
                 headers: {
@@ -129,10 +132,13 @@ export class FlashcardManager {
             });
             
             if (!response.ok) {
-                throw new Error('Network response was not ok');
+                const errorText = await response.text();
+                console.error(`Server returned ${response.status}: ${errorText}`);
+                throw new Error(`Network response was not ok (${response.status})`);
             }
             
             const data = await response.json();
+            console.log(`Successfully loaded ${data.flashcards.length} flashcards, has more: ${data.has_more}`);
             
             // Add new flashcards to our array
             this.flashcards = [...this.flashcards, ...data.flashcards];
@@ -141,10 +147,10 @@ export class FlashcardManager {
             this.hasMoreCards = data.has_more;
             this.currentPage++;
             
-            console.log(`Loaded ${data.flashcards.length} flashcards, has more: ${this.hasMoreCards}`);
-            
         } catch (error) {
             console.error("Error loading flashcards:", error);
+            // Show error message to user
+            this.ui.showLoadingError(error.message);
         } finally {
             this.isLoading = false;
             this.ui.showLoading(false);
