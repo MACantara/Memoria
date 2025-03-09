@@ -1,31 +1,68 @@
-from flask import Blueprint, request, render_template, jsonify
+from flask import Blueprint, request, render_template, jsonify, g, abort
 from models import FlashcardDecks, Flashcards
 from services.fsrs_scheduler import get_due_cards, get_current_time
 from routes.deck.utils import count_due_flashcards
+from flask_login import login_required, current_user
 
 deck_view_bp = Blueprint('deck_view', __name__)
 
+@deck_view_bp.before_request
+def load_all_decks():
+    """Load all decks for the current user for use in templates"""
+    if current_user.is_authenticated:
+        g.all_decks = FlashcardDecks.query.filter_by(user_id=current_user.id).all()
+    else:
+        g.all_decks = []
+
 @deck_view_bp.route("/<int:deck_id>")
+@login_required
 def get_deck_flashcards(deck_id):
-    """View deck structure and its contents"""
+    """View all flashcards in a deck"""
+    # Get the deck with its sub-decks
     deck = FlashcardDecks.query.get_or_404(deck_id)
+    
+    # Check ownership
+    if deck.user_id != current_user.id:
+        abort(403)  # Unauthorized
+    
+    # Get parent decks for breadcrumb trail
+    parent_decks = []
+    current_parent = deck.parent
+    while current_parent is not None:
+        parent_decks.insert(0, current_parent)
+        current_parent = current_parent.parent
+    
+    # Get child decks
+    child_decks = FlashcardDecks.query.filter_by(parent_deck_id=deck_id).all()
+    
+    # Get flashcards
     flashcards = Flashcards.query.filter_by(flashcard_deck_id=deck_id).all()
     
-    # Count due flashcards for this deck (including sub-decks)
-    current_time = get_current_time()
-    due_count = count_due_flashcards(deck_id, current_time)
+    # Import due counts function
+    from routes.deck.utils import count_due_flashcards
+    due_count = count_due_flashcards(deck_id)
     
-    return render_template("deck.html", deck=deck, flashcards=flashcards, due_count=due_count)
+    return render_template(
+        'deck/view_deck.html',
+        deck=deck,
+        parent_decks=parent_decks,
+        child_decks=child_decks,
+        flashcards=flashcards,
+        due_count=due_count
+    )
 
-@deck_view_bp.route("/<int:deck_id>/study")
+@deck_view_bp.route("/study/<int:deck_id>")
+@login_required
 def study_deck(deck_id):
-    """Study flashcards in this deck and all nested sub-decks using FSRS scheduling"""
-    from models import db  # Import here to avoid circular imports
-    
+    """Study a specific deck"""
     deck = FlashcardDecks.query.get_or_404(deck_id)
     
-    # Check if we should only get due cards
-    due_only = request.args.get('due_only', 'false').lower() == 'true'
+    # Check ownership
+    if deck.user_id != current_user.id:
+        abort(403)  # Unauthorized
+        
+    # Check if studying due cards only
+    due_only = request.args.get('due_only') == 'true'
     
     # AJAX request for batch loading flashcards
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
