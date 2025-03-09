@@ -130,11 +130,8 @@ export class UIManager {
         }
     }
 
-    updateCardCounter(index, total, score) {
-        // Calculate cards left to review in this session
-        const remaining = Math.max(0, total - score);
-        
-        // Update the score and remaining counts
+    updateCardCounter(index, total, score, remaining) {
+        // Update the score and remaining counts with accurate numbers
         const scoreCountElement = document.getElementById('scoreCount');
         const remainingCountElement = document.getElementById('remainingCount');
         

@@ -29,6 +29,9 @@ export class FlashcardManager {
         
         // Make this instance available globally for event handlers
         window.flashcardManager = this;
+        
+        // Log the total due cards for debugging
+        console.log(`Total cards to study: ${this.totalDueCards}`);
     }
 
     // Add event listener system
@@ -155,8 +158,11 @@ export class FlashcardManager {
         // Use getDisplayIndex to get the correct 1-based card number for display
         const currentIndex = this.getDisplayIndex(this.currentCardIndex);
         
-        // Update UI manager's counter with correct display index
-        this.ui.updateCardCounter(currentIndex - 1, this.totalDueCards, this.score);
+        // Update UI manager's counter with correct display index and total count from server
+        this.ui.updateCardCounter(currentIndex - 1, this.totalDueCards, this.score, remaining);
+        
+        // Log counter state for debugging
+        console.log(`Card counter: ${this.score}/${this.totalDueCards}, ${remaining} remaining`);
     }
 
     async moveToNextCard() {
