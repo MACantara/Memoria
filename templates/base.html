@@ -48,6 +48,7 @@
     {% include 'menus/mobile_theme_menu.html' %}
     {% include 'menus/mobile_add_actions_menu.html' %}
     {% include 'menus/mobile_study_stats_menu.html' %}
+    {% include 'menus/mobile_user_menu.html' %}
 
     <!-- Common Modals - loaded only when needed -->
     {% include 'components/import_content_modal.html' %}
@@ -224,7 +225,8 @@
                 const menuButtons = {
                     'mobileAddButton': 'mobileAddMenu',
                     'mobileThemeToggle': 'mobileThemeMenu',
-                    'mobileStudyStatsButton': 'mobileStudyStatsMenu'
+                    'mobileStudyStatsButton': 'mobileStudyStatsMenu',
+                    'mobileUserButton': 'mobileUserMenu'
                 };
                 
                 // Use event delegation for better performance
@@ -246,21 +248,21 @@
                     
                     // Close button handlers
                     if (e.target.closest('[id$="MenuClose"]')) {
-                        const menu = e.target.closest('.mobile-add-menu, .mobile-theme-menu, .mobile-study-stats-menu');
+                        const menu = e.target.closest('.mobile-add-menu, .mobile-theme-menu, .mobile-study-stats-menu, .mobile-user-menu');
                         if (menu) menu.classList.remove('active');
                         return;
                     }
                     
                     // Backdrop handlers
                     if (e.target.closest('[id$="MenuBackdrop"]')) {
-                        const menu = e.target.closest('.mobile-add-menu, .mobile-theme-menu, .mobile-study-stats-menu');
+                        const menu = e.target.closest('.mobile-add-menu, .mobile-theme-menu, .mobile-study-stats-menu, .mobile-user-menu');
                         if (menu) menu.classList.remove('active');
                         return;
                     }
                     
                     // Close menu when an action is selected
-                    if (e.target.closest('.mobile-add-menu .list-group-item, .mobile-theme-menu .mobile-theme-option, .mobile-study-stats-menu .list-group-item')) {
-                        const menu = e.target.closest('.mobile-add-menu, .mobile-theme-menu, .mobile-study-stats-menu');
+                    if (e.target.closest('.mobile-add-menu .list-group-item, .mobile-theme-menu .mobile-theme-option, .mobile-study-stats-menu .list-group-item, .mobile-user-menu .list-group-item')) {
+                        const menu = e.target.closest('.mobile-add-menu, .mobile-theme-menu, .mobile-study-stats-menu, .mobile-user-menu');
                         setTimeout(() => {
                             if (menu) menu.classList.remove('active');
                         }, 100);
