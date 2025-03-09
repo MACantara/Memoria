@@ -43,7 +43,7 @@ def get_deck_flashcards(deck_id):
     due_count = count_due_flashcards(deck_id)
     
     return render_template(
-        'deck/view_deck.html',
+        'deck.html',
         deck=deck,
         parent_decks=parent_decks,
         child_decks=child_decks,
