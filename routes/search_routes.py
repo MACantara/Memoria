@@ -1,7 +1,7 @@
 from flask import Blueprint, request, render_template, jsonify, g
 from models import db, FlashcardDecks, Flashcards
 from sqlalchemy import or_, and_
-from routes.deck.utils import count_due_flashcards
+from utils import count_due_flashcards
 
 search_bp = Blueprint('search', __name__, url_prefix='/search')
 
