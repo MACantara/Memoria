@@ -14,28 +14,26 @@
 }
 
 .theme-toggle-btn {
-    width: 36px;
-    height: 36px;
+    width: 38px;
+    height: 38px;
     border-radius: 50%;
-    background-color: var(--bs-primary-bg-subtle, #e7f1ff);
-    color: var(--bs-primary, #0d6efd);
+    background-color: var(--bs-primary);
+    color: white;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    transition: background-color 0.2s ease;
     border: none;
 }
 
 .theme-toggle-btn:hover {
-    transform: scale(1.05);
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-    background-color: var(--bs-primary-bg-subtle, #d0e3ff);
+    background-color: var(--bs-primary-emphasis, #0a58ca);
 }
 
 .theme-toggle-btn i {
-    font-size: 1.1rem;
+    font-size: 1.2rem;
 }
 
 /* Theme menu positioning for navbar */
@@ -50,15 +48,13 @@
     width: 200px;
     box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
     opacity: 0;
-    transform: translateY(-10px);
     visibility: hidden;
-    transition: all 0.2s ease-in-out;
+    transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
     z-index: 1050;
 }
 
 .theme-menu.show {
     opacity: 1;
-    transform: translateY(0);
     visibility: visible;
 }
 
