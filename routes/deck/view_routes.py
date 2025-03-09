@@ -104,28 +104,33 @@ def study_deck(deck_id):
             'has_more': len(flashcards) == batch_size
         })
     
-    # Normal page load - just get the count of cards for rendering the template
+    # Normal page load - calculate the count of cards for rendering the template
+    # Create recursive CTE to find all decks including this one and its sub-decks
+    cte = db.session.query(
+        FlashcardDecks.flashcard_deck_id.label('id')
+    ).filter(
+        FlashcardDecks.flashcard_deck_id == deck_id
+    ).cte(name='study_deck_hierarchy', recursive=True)
+
+    cte = cte.union_all(
+        db.session.query(
+            FlashcardDecks.flashcard_deck_id.label('id')
+        ).filter(
+            FlashcardDecks.parent_deck_id == cte.c.id
+        )
+    )
+    
+    # Build a query that includes all cards in this deck and its subdecks
     if due_only:
         flashcards_count = db.session.query(db.func.count(Flashcards.flashcard_id)).filter(
-            db.or_(
-                Flashcards.flashcard_deck_id == deck_id,
-                FlashcardDecks.query.filter(
-                    FlashcardDecks.parent_deck_id == deck_id
-                ).exists()
-            ),
+            Flashcards.flashcard_deck_id.in_(db.session.query(cte.c.id)),
             db.or_(Flashcards.due_date <= get_current_time(), Flashcards.due_date == None),
             Flashcards.state != 2  # Exclude cards already mastered
         ).scalar()
     else:
         flashcards_count = db.session.query(db.func.count(Flashcards.flashcard_id)).filter(
-            db.or_(
-                Flashcards.flashcard_deck_id == deck_id,
-                FlashcardDecks.query.filter(
-                    FlashcardDecks.parent_deck_id == deck_id
-                ).exists()
-            )
+            Flashcards.flashcard_deck_id.in_(db.session.query(cte.c.id))
         ).scalar()
-    
     # Pass batch size for loading
     batch_size = 20  # Set your desired batch size
     
