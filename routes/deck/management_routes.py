@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, abort
 from models import db, FlashcardDecks, Flashcards
-from routes.deck.utils import is_descendant
+from utils import is_descendant  # Updated import path
 from flask_login import current_user, login_required
 
 # Change the URL prefix to match how it's being called

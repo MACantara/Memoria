@@ -1,8 +1,10 @@
-from flask import Blueprint, request, render_template, jsonify, g, abort
+from flask import Blueprint, request, render_template, jsonify, g, abort, current_app
 from models import db, FlashcardDecks, Flashcards
-from services.fsrs_scheduler import get_due_cards, get_current_time
-from routes.deck.utils import count_due_flashcards
+from services.fsrs_scheduler import get_current_time
+from utils import count_due_flashcards, create_pagination_metadata  # Updated import path
 from flask_login import login_required, current_user
+from sqlalchemy.orm import joinedload, contains_eager, defer, load_only
+from sqlalchemy import func, desc
 
 deck_view_bp = Blueprint('deck_view', __name__)
 
@@ -17,9 +19,12 @@ def load_all_decks():
 @deck_view_bp.route("/<int:deck_id>")
 @login_required
 def get_deck_flashcards(deck_id):
-    """View all flashcards in a deck"""
-    # Get the deck with its sub-decks
-    deck = FlashcardDecks.query.get_or_404(deck_id)
+    """View all flashcards in a deck with pagination"""
+    # Get the deck with its sub-decks using eager loading
+    deck = FlashcardDecks.query.options(
+        joinedload(FlashcardDecks.parent_deck),
+        joinedload(FlashcardDecks.child_decks)
+    ).get_or_404(deck_id)
     
     # Check ownership
     if deck.user_id != current_user.id:
@@ -33,13 +38,40 @@ def get_deck_flashcards(deck_id):
         current_parent = current_parent.parent_deck
     
     # Get child decks
-    child_decks = FlashcardDecks.query.filter_by(parent_deck_id=deck_id).all()
+    child_decks = deck.child_decks
     
-    # Get flashcards
-    flashcards = Flashcards.query.filter_by(flashcard_deck_id=deck_id).all()
+    # Get pagination parameters
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
     
-    # Import due counts function
-    from routes.deck.utils import count_due_flashcards
+    # Limit per_page to reasonable values
+    per_page = min(max(per_page, 10), 100) 
+    
+    # For AJAX requests, return paginated flashcards JSON
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({"error": "Use the /flashcard/lazy_load endpoint for AJAX requests"})
+    
+    # Get total count for pagination info
+    total_flashcards = db.session.query(
+        func.count(Flashcards.flashcard_id)
+    ).filter_by(
+        flashcard_deck_id=deck_id
+    ).scalar()
+    
+    # Get flashcards with pagination
+    flashcards = Flashcards.query.filter_by(flashcard_deck_id=deck_id).order_by(
+        desc(Flashcards.created_at)
+    ).offset((page-1) * per_page).limit(per_page).all()
+    
+    # Create pagination metadata
+    pagination = create_pagination_metadata(
+        page, 
+        per_page, 
+        total_flashcards,
+        {key: value for key, value in request.args.items() if key not in ['page']}
+    )
+    
+    # Get due count
     due_count = count_due_flashcards(deck_id)
     
     return render_template(
@@ -48,6 +80,8 @@ def get_deck_flashcards(deck_id):
         parent_decks=parent_decks,
         child_decks=child_decks,
         flashcards=flashcards,
+        pagination=pagination,
+        total_flashcards=total_flashcards,
         due_count=due_count
     )
 
