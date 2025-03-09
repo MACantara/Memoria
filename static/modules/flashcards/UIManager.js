@@ -94,12 +94,13 @@ export class UIManager {
     }
     
     showLoading(isLoading) {
-        if (!this.loadingIndicator) return;
+        const loadingContainer = document.getElementById('loadingContainer');
+        if (!loadingContainer) return;
         
         if (isLoading) {
-            this.loadingIndicator.classList.remove('d-none');
+            loadingContainer.style.display = 'block';
         } else {
-            this.loadingIndicator.classList.add('d-none');
+            loadingContainer.style.display = 'none';
         }
     }
 
@@ -129,12 +130,20 @@ export class UIManager {
             loadingContainer.innerHTML = '';
             // Then add the error message
             loadingContainer.appendChild(errorDiv);
+            // Make sure it's visible
+            loadingContainer.style.display = 'block';
         } else {
             // If no loading container, try to add it to the flashcard container
             const container = document.getElementById('flashcardsContainer');
             if (container) {
                 container.appendChild(errorDiv);
             }
+        }
+        
+        // Also hide the flashcard container if it exists
+        const flashcardContainer = document.getElementById('currentFlashcard');
+        if (flashcardContainer) {
+            flashcardContainer.style.display = 'none';
         }
     }
 
