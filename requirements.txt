@@ -6,3 +6,5 @@ psycopg2-binary
 vercel
 fsrs
 PyPDF2
+flask-login
+argon2-cffi
