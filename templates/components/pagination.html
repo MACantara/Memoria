@@ -9,36 +9,51 @@
         <!-- Pagination controls -->
         <ul class="pagination {{ pagination_size|default('') }}">
             <!-- First page -->
+            {% set url_args = entity_params or {} %}
+            {% set _ = url_args.update({'page': 1}) %}
+            {% set _ = url_args.update(pagination.other_args or {}) %}
             <li class="page-item {% if pagination.page == 1 %}disabled{% endif %}">
-                <a class="page-link" href="{{ url_for(request.endpoint, page=1, **(entity_params | pagination.other_args)) }}" aria-label="First">
+                <a class="page-link" href="{{ url_for(request.endpoint, **url_args) }}" aria-label="First">
                     <span aria-hidden="true">&laquo;&laquo;</span>
                 </a>
             </li>
             
             <!-- Previous page -->
+            {% set url_args = entity_params or {} %}
+            {% set _ = url_args.update({'page': pagination.page-1}) %}
+            {% set _ = url_args.update(pagination.other_args or {}) %}
             <li class="page-item {% if pagination.page == 1 %}disabled{% endif %}">
-                <a class="page-link" href="{{ url_for(request.endpoint, page=pagination.page-1, **(entity_params | pagination.other_args)) }}" aria-label="Previous">
+                <a class="page-link" href="{{ url_for(request.endpoint, **url_args) }}" aria-label="Previous">
                     <span aria-hidden="true">&laquo;</span>
                 </a>
             </li>
             
             <!-- Page numbers -->
             {% for p in range(pagination.page_range_start, pagination.page_range_end + 1) %}
+                {% set url_args = entity_params or {} %}
+                {% set _ = url_args.update({'page': p}) %}
+                {% set _ = url_args.update(pagination.other_args or {}) %}
                 <li class="page-item {% if p == pagination.page %}active{% endif %}">
-                    <a class="page-link" href="{{ url_for(request.endpoint, page=p, **(entity_params | pagination.other_args)) }}">{{ p }}</a>
+                    <a class="page-link" href="{{ url_for(request.endpoint, **url_args) }}">{{ p }}</a>
                 </li>
             {% endfor %}
             
             <!-- Next page -->
+            {% set url_args = entity_params or {} %}
+            {% set _ = url_args.update({'page': pagination.page+1}) %}
+            {% set _ = url_args.update(pagination.other_args or {}) %}
             <li class="page-item {% if pagination.page == pagination.pages %}disabled{% endif %}">
-                <a class="page-link" href="{{ url_for(request.endpoint, page=pagination.page+1, **(entity_params | pagination.other_args)) }}" aria-label="Next">
+                <a class="page-link" href="{{ url_for(request.endpoint, **url_args) }}" aria-label="Next">
                     <span aria-hidden="true">&raquo;</span>
                 </a>
             </li>
             
             <!-- Last page -->
+            {% set url_args = entity_params or {} %}
+            {% set _ = url_args.update({'page': pagination.pages}) %}
+            {% set _ = url_args.update(pagination.other_args or {}) %}
             <li class="page-item {% if pagination.page == pagination.pages %}disabled{% endif %}">
-                <a class="page-link" href="{{ url_for(request.endpoint, page=pagination.pages, **(entity_params | pagination.other_args)) }}" aria-label="Last">
+                <a class="page-link" href="{{ url_for(request.endpoint, **url_args) }}" aria-label="Last">
                     <span aria-hidden="true">&raquo;&raquo;</span>
                 </a>
             </li>
