@@ -32,25 +32,22 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js" defer></script>
 </head>
 <body>
-    <div class="container py-4">
-        {% if not request.path.startswith('/search') and not request.path.endswith('/study') %}
-        <div class="d-flex justify-content-end mb-4">
-            {% include 'components/search_bar.html' %}
-        </div>
-        {% endif %}
-
+    <header>
+        {% include 'nav/top-nav.html' %}
+    </header>
+    
+    <main class="container py-4">
         {% block content %}{% endblock %}
-    </div>
+    </main>
     
     <!-- Mobile-only spacer -->
     <div class="d-block d-md-none" style="height: 20px;"></div>
     
     <!-- Mobile Navigation Components -->
     {% include 'nav/mobile_bottom_nav.html' %}
-    {% include 'menus/mobile_theme_menu.html' %}
     {% include 'menus/mobile_add_actions_menu.html' %}
     {% include 'menus/mobile_study_stats_menu.html' %}
-    {% include 'menus/theme_toggle_popup_menu.html' %}
+    {% include 'menus/mobile_user_menu.html' %}
 
     <!-- Common Modals - loaded only when needed -->
     {% include 'components/import_content_modal.html' %}
@@ -226,8 +223,8 @@
                 // Handle all similar menus with delegated events
                 const menuButtons = {
                     'mobileAddButton': 'mobileAddMenu',
-                    'mobileThemeToggle': 'mobileThemeMenu',
-                    'mobileStudyStatsButton': 'mobileStudyStatsMenu'
+                    'mobileStudyStatsButton': 'mobileStudyStatsMenu',
+                    'mobileUserButton': 'mobileUserMenu'
                 };
                 
                 // Use event delegation for better performance
@@ -249,28 +246,28 @@
                     
                     // Close button handlers
                     if (e.target.closest('[id$="MenuClose"]')) {
-                        const menu = e.target.closest('.mobile-add-menu, .mobile-theme-menu, .mobile-study-stats-menu');
+                        const menu = e.target.closest('.mobile-add-menu, .mobile-theme-menu, .mobile-study-stats-menu, .mobile-user-menu');
                         if (menu) menu.classList.remove('active');
                         return;
                     }
                     
                     // Backdrop handlers
                     if (e.target.closest('[id$="MenuBackdrop"]')) {
-                        const menu = e.target.closest('.mobile-add-menu, .mobile-theme-menu, .mobile-study-stats-menu');
+                        const menu = e.target.closest('.mobile-add-menu, .mobile-theme-menu, .mobile-study-stats-menu, .mobile-user-menu');
                         if (menu) menu.classList.remove('active');
                         return;
                     }
                     
                     // Close menu when an action is selected
-                    if (e.target.closest('.mobile-add-menu .list-group-item, .mobile-theme-menu .mobile-theme-option, .mobile-study-stats-menu .list-group-item')) {
-                        const menu = e.target.closest('.mobile-add-menu, .mobile-theme-menu, .mobile-study-stats-menu');
+                    if (e.target.closest('.mobile-add-menu .list-group-item, .mobile-theme-menu .mobile-theme-option, .mobile-study-stats-menu .list-group-item, .mobile-user-menu .list-group-item')) {
+                        const menu = e.target.closest('.mobile-add-menu, .mobile-theme-menu, .mobile-study-stats-menu, .mobile-user-menu');
                         setTimeout(() => {
                             if (menu) menu.classList.remove('active');
                         }, 100);
                     }
                 });
                 
-                // Mobile theme options handling
+                // Mobile theme options handling - now inside the user menu
                 document.addEventListener('click', (e) => {
                     const themeOption = e.target.closest('.mobile-theme-option');
                     if (themeOption) {
@@ -290,8 +287,8 @@
                             htmlElement.setAttribute('data-bs-theme', prefersDark ? 'dark' : 'light');
                         }
                         
-                        // Update the theme toggle icon
-                        updateMobileThemeIcon();
+                        // Update active theme option
+                        updateActiveThemeOption();
                         
                         // Show toast notification
                         showThemeChangeToast(theme);

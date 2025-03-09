@@ -1,69 +1,49 @@
 from datetime import datetime
 from sqlalchemy.sql import func, text
 from . import db
+from sqlalchemy.orm import relationship
 
 class FlashcardDecks(db.Model):
     __tablename__ = 'flashcard_decks'
     
     flashcard_deck_id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     description = db.Column(db.Text)
-    parent_deck_id = db.Column(db.Integer, db.ForeignKey('flashcard_decks.flashcard_deck_id'), nullable=True)
+    parent_deck_id = db.Column(db.Integer, db.ForeignKey('flashcard_decks.flashcard_deck_id'))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     
-    parent_deck = db.relationship('FlashcardDecks', 
-                                remote_side=[flashcard_deck_id],
-                                backref=db.backref('child_decks', 
-                                                  lazy=True,
-                                                  cascade='all, delete-orphan'),
-                                lazy=True)
-    
-    flashcards = db.relationship('Flashcards', 
-                               backref='deck',
-                               lazy=True,
-                               cascade='all, delete-orphan')
-    
+    # Define relationships
+    flashcards = relationship("Flashcards", backref="deck", cascade="all, delete-orphan")
+    child_decks = relationship("FlashcardDecks", 
+                              backref=db.backref('parent', remote_side=[flashcard_deck_id]),
+                              cascade="all, delete-orphan")
+
     def count_all_flashcards(self):
-        from .flashcard import Flashcards  # Keep this local import to avoid circular imports
-        
-        cte = db.session.query(
-            FlashcardDecks.flashcard_deck_id.label('id')
-        ).filter(
-            FlashcardDecks.flashcard_deck_id == self.flashcard_deck_id
-        ).cte(name='cte', recursive=True)
-
-        cte = cte.union_all(
-            db.session.query(
-                FlashcardDecks.flashcard_deck_id.label('id')
-            ).filter(
-                FlashcardDecks.parent_deck_id == cte.c.id
-            )
-        )
-
-        count = db.session.query(func.count(Flashcards.flashcard_id)).filter(
-            Flashcards.flashcard_deck_id.in_(db.session.query(cte.c.id))
-        ).scalar()
-
+        """Count flashcards in this deck and all sub-decks"""
+        count = len(self.flashcards)
+        for sub_deck in self.child_decks:
+            count += sub_deck.count_all_flashcards()
         return count
-
+    
     def count_all_sub_decks(self):
-        """Count all sub-decks recursively using CTE"""
-        cte = db.session.query(
-            FlashcardDecks.flashcard_deck_id.label('id')
-        ).filter(
-            FlashcardDecks.parent_deck_id == self.flashcard_deck_id
-        ).cte(name='sub_decks', recursive=True)
-
-        cte = cte.union_all(
-            db.session.query(
-                FlashcardDecks.flashcard_deck_id.label('id')
-            ).filter(
-                FlashcardDecks.parent_deck_id == cte.c.id
-            )
-        )
-
-        count = db.session.query(func.count(cte.c.id)).scalar()
+        """Count all sub-decks recursively"""
+        count = len(self.child_decks)
+        for sub_deck in self.child_decks:
+            count += sub_deck.count_all_sub_decks()
         return count
+    
+    def to_dict(self):
+        """Convert deck to dictionary for API responses"""
+        return {
+            'id': self.flashcard_deck_id,
+            'name': self.name,
+            'description': self.description,
+            'parent_deck_id': self.parent_deck_id,
+            'user_id': self.user_id,
+            'card_count': len(self.flashcards) if self.flashcards else 0,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+        }
         
     def get_mastery_stats(self):
         """Get mastery statistics for the deck"""

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Flashcard Decks{% endblock %}
+{% block title %}{% if current_user.is_authenticated %}Flashcard Decks{% else %}Welcome to Memoria{% endif %}{% endblock %}
 
 {% block styles %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
@@ -8,6 +8,8 @@
 {% endblock %}
 
 {% block content %}
+{% if current_user.is_authenticated %}
+<!-- Content for authenticated users -->
 <h1 class="display-4 mb-4">Memoria</h1>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -37,9 +39,58 @@
     {% endif %}
 </div>
 
+{% else %}
+<!-- Content for visitors (not authenticated) -->
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 text-center">
+            <h1 class="display-4 mb-4">Welcome to Memoria</h1>
+            <p class="lead mb-4">The intelligent flashcard system that helps you remember everything.</p>
+            
+            <div class="my-5">
+                <div class="row g-4 justify-content-center">
+                    <div class="col-md-4">
+                        <div class="card h-100 shadow-sm feature-card">
+                            <div class="card-body text-center">
+                                <i class="bi bi-lightning-charge text-primary display-5 mb-3 feature-icon"></i>
+                                <h5>Smart Learning</h5>
+                                <p class="text-muted">Optimize your study time with our spaced repetition algorithm.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card h-100 shadow-sm feature-card">
+                            <div class="card-body text-center">
+                                <i class="bi bi-robot text-primary display-5 mb-3 feature-icon"></i>
+                                <h5>AI-Assisted</h5>
+                                <p class="text-muted">Generate high-quality flashcards from any content with AI.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card h-100 shadow-sm feature-card">
+                            <div class="card-body text-center">
+                                <i class="bi bi-graph-up text-primary display-5 mb-3 feature-icon"></i>
+                                <h5>Track Progress</h5>
+                                <p class="text-muted">Detailed analytics to understand your learning performance.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="my-5">
+                <a href="{{ url_for('auth.signup') }}" class="btn btn-primary btn-lg me-2 px-4">Sign Up</a>
+                <a href="{{ url_for('auth.login') }}" class="btn btn-outline-primary btn-lg px-4">Login</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
+{% if current_user.is_authenticated %}
 <script type="module">
     import { initializeModals } from "{{ url_for('static', filename='modules/deck/modal-handlers.js') }}";
     import { initializeFormHandlers } from "{{ url_for('static', filename='modules/deck/form-handlers.js') }}";
@@ -51,4 +102,5 @@
         initializeDeckOperations();
     });
 </script>
+{% endif %}
 {% endblock %}

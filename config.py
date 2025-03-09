@@ -6,6 +6,9 @@ from google.genai import types
 load_dotenv()
 
 class Config:
+    # Secret key for session management
+    SECRET_KEY = os.getenv('SECRET_KEY')
+    
     # Database configuration
     SQLALCHEMY_DATABASE_URI = os.getenv('POSTGRES_URL_NON_POOLING', '').replace('postgres://', 'postgresql://')
     SQLALCHEMY_TRACK_MODIFICATIONS = False

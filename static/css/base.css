@@ -5,56 +5,56 @@
     --bs-secondary-color: #adb5bd;
 }
 
-/* Theme toggle button updated for three modes */
+/* Theme toggle button - Optimized for navbar placement */
 .theme-toggle-container {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    z-index: 1050;
+    position: relative;
+    display: flex;
+    align-items: center;
+    margin-right: 0.5rem;
 }
 
 .theme-toggle-btn {
-    width: 45px;
-    height: 45px;
+    width: 38px;
+    height: 38px;
     border-radius: 50%;
-    background-color: #0d6efd;
+    background-color: var(--bs-primary);
     color: white;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    transition: background-color 0.2s ease;
     border: none;
 }
 
 .theme-toggle-btn:hover {
-    transform: scale(1.05);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    background-color: var(--bs-primary-emphasis, #0a58ca);
 }
 
 .theme-toggle-btn i {
-    font-size: 1.25rem;
+    font-size: 1.2rem;
 }
 
+/* Theme menu positioning for navbar */
 .theme-menu {
     position: absolute;
-    bottom: 60px;
+    top: 100%;
     right: 0;
+    margin-top: 0.5rem;
     background-color: var(--bs-body-bg);
     border: 1px solid var(--bs-border-color);
     border-radius: 0.375rem;
     width: 200px;
     box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
     opacity: 0;
-    transform: translateY(10px);
     visibility: hidden;
-    transition: all 0.2s ease-in-out;
+    transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
+    z-index: 1050;
 }
 
 .theme-menu.show {
     opacity: 1;
-    transform: translateY(0);
     visibility: visible;
 }
 
@@ -72,6 +72,16 @@
 
 .theme-menu-item:hover {
     background-color: var(--bs-tertiary-bg);
+}
+
+.theme-menu-item:first-child {
+    border-top-left-radius: 0.375rem;
+    border-top-right-radius: 0.375rem;
+}
+
+.theme-menu-item:last-child {
+    border-bottom-left-radius: 0.375rem;
+    border-bottom-right-radius: 0.375rem;
 }
 
 .theme-menu-item i.theme-icon {
@@ -95,7 +105,7 @@
     margin: 0.5rem 0;
 }
 
-/* Automatically hide theme menu when clicking elsewhere */
+/* Backdrop for closing the theme menu when clicking outside */
 .theme-backdrop {
     position: fixed;
     top: 0;
@@ -110,26 +120,25 @@
     display: block;
 }
 
-/* Mini tooltip for theme toggle */
-.theme-tooltip {
-    position: fixed;
-    bottom: 70px;
-    right: 20px;
-    padding: 5px 10px;
-    background-color: rgba(0, 0, 0, 0.7);
-    color: white;
-    border-radius: 4px;
-    font-size: 0.8rem;
-    opacity: 0;
-    transition: opacity 0.2s ease;
-    pointer-events: none;
-    z-index: 1050;
-    text-align: center;
-    width: 120px;
+/* Responsive adjustments for the theme toggle in navbar */
+@media (max-width: 768px) {
+    /* Hide the navbar theme toggle on mobile - use the mobile theme menu instead */
+    .navbar .theme-toggle-container {
+        display: none !important;
+    }
 }
 
-.theme-toggle:hover + .theme-tooltip {
-    opacity: 1;
+@media (min-width: 769px) {
+    /* Better spacing in desktop navbar */
+    .theme-toggle-container {
+        margin-right: 1rem;
+    }
+    
+    /* Ensure menu doesn't get cut off at top of viewport */
+    .theme-menu {
+        max-height: calc(100vh - 80px);
+        overflow-y: auto;
+    }
 }
 
 /* Mobile Bottom Navigation */
@@ -385,6 +394,63 @@
 
 .mobile-study-stats-menu .list-group-item-action:last-child {
     border-bottom: none;
+}
+
+/* Mobile User Menu */
+.mobile-user-menu {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1040;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.3s, visibility 0s 0.3s;
+}
+
+.mobile-user-menu.active {
+    visibility: visible;
+    opacity: 1;
+    transition: opacity 0.3s, visibility 0s;
+}
+
+.mobile-user-menu-backdrop {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1041;
+}
+
+.mobile-user-menu-content {
+    position: absolute;
+    bottom: 70px;
+    left: 10px;
+    right: 10px;
+    background-color: var(--bs-body-bg);
+    border-radius: 10px;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+    padding: 15px;
+    z-index: 1042;
+    transform: translateY(20px);
+    transition: transform 0.3s;
+}
+
+.mobile-user-menu.active .mobile-user-menu-content {
+    transform: translateY(0);
+}
+
+/* Highlight active user button when menu is open */
+.mobile-user-menu.active + .mobile-bottom-nav #mobileUserButton {
+    color: var(--bs-primary);
+    background-color: rgba(13, 110, 253, 0.1);
+}
+
+.mobile-user-menu .user-info {
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--bs-border-color);
 }
 
 /* Add bottom padding to container on mobile to account for the nav bar */
