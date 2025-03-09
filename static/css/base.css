@@ -5,45 +5,55 @@
     --bs-secondary-color: #adb5bd;
 }
 
-/* Theme toggle button updated for three modes */
+/* Theme toggle button - Optimized for navbar placement */
+.theme-toggle-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+    margin-right: 0.5rem;
+}
 
 .theme-toggle-btn {
-    width: 45px;
-    height: 45px;
+    width: 36px;
+    height: 36px;
     border-radius: 50%;
-    background-color: #0d6efd;
-    color: white;
+    background-color: var(--bs-primary-bg-subtle, #e7f1ff);
+    color: var(--bs-primary, #0d6efd);
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     transition: all 0.2s ease;
     border: none;
 }
 
 .theme-toggle-btn:hover {
     transform: scale(1.05);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    background-color: var(--bs-primary-bg-subtle, #d0e3ff);
 }
 
 .theme-toggle-btn i {
-    font-size: 1.25rem;
+    font-size: 1.1rem;
 }
 
+/* Theme menu positioning for navbar */
 .theme-menu {
     position: absolute;
-    bottom: 60px;
+    top: 100%;
     right: 0;
+    margin-top: 0.5rem;
     background-color: var(--bs-body-bg);
     border: 1px solid var(--bs-border-color);
     border-radius: 0.375rem;
     width: 200px;
     box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(-10px);
     visibility: hidden;
     transition: all 0.2s ease-in-out;
+    z-index: 1050;
 }
 
 .theme-menu.show {
@@ -68,6 +78,16 @@
     background-color: var(--bs-tertiary-bg);
 }
 
+.theme-menu-item:first-child {
+    border-top-left-radius: 0.375rem;
+    border-top-right-radius: 0.375rem;
+}
+
+.theme-menu-item:last-child {
+    border-bottom-left-radius: 0.375rem;
+    border-bottom-right-radius: 0.375rem;
+}
+
 .theme-menu-item i.theme-icon {
     width: 20px;
     margin-right: 10px;
@@ -89,7 +109,7 @@
     margin: 0.5rem 0;
 }
 
-/* Automatically hide theme menu when clicking elsewhere */
+/* Backdrop for closing the theme menu when clicking outside */
 .theme-backdrop {
     position: fixed;
     top: 0;
@@ -104,26 +124,25 @@
     display: block;
 }
 
-/* Mini tooltip for theme toggle */
-.theme-tooltip {
-    position: fixed;
-    bottom: 70px;
-    right: 20px;
-    padding: 5px 10px;
-    background-color: rgba(0, 0, 0, 0.7);
-    color: white;
-    border-radius: 4px;
-    font-size: 0.8rem;
-    opacity: 0;
-    transition: opacity 0.2s ease;
-    pointer-events: none;
-    z-index: 1050;
-    text-align: center;
-    width: 120px;
+/* Responsive adjustments for the theme toggle in navbar */
+@media (max-width: 768px) {
+    /* Hide the navbar theme toggle on mobile - use the mobile theme menu instead */
+    .navbar .theme-toggle-container {
+        display: none !important;
+    }
 }
 
-.theme-toggle:hover + .theme-tooltip {
-    opacity: 1;
+@media (min-width: 769px) {
+    /* Better spacing in desktop navbar */
+    .theme-toggle-container {
+        margin-right: 1rem;
+    }
+    
+    /* Ensure menu doesn't get cut off at top of viewport */
+    .theme-menu {
+        max-height: calc(100vh - 80px);
+        overflow-y: auto;
+    }
 }
 
 /* Mobile Bottom Navigation */
