@@ -58,6 +58,64 @@
         </div>
         {% endfor %}
     </div>
+    
+    <!-- Flashcard pagination controls -->
+    {% if pagination %}
+    <nav aria-label="Flashcard pagination" class="mt-4">
+        <div class="d-flex justify-content-between align-items-center flex-wrap">
+            <div class="pagination-info mb-3 mb-md-0">
+                Showing {{ pagination.start_idx }}-{{ pagination.end_idx }} of {{ pagination.total }} flashcards
+            </div>
+            
+            <ul class="pagination pagination-sm">
+                <li class="page-item {% if pagination.page == 1 %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for(request.endpoint, deck_id=deck.flashcard_deck_id, page=1, **pagination.other_args) }}" aria-label="First">
+                        <span aria-hidden="true">&laquo;&laquo;</span>
+                    </a>
+                </li>
+                <li class="page-item {% if pagination.page == 1 %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for(request.endpoint, deck_id=deck.flashcard_deck_id, page=pagination.page-1, **pagination.other_args) }}" aria-label="Previous">
+                        <span aria-hidden="true">&laquo;</span>
+                    </a>
+                </li>
+                
+                {% for p in range(pagination.page_range_start, pagination.page_range_end + 1) %}
+                <li class="page-item {% if p == pagination.page %}active{% endif %}">
+                    <a class="page-link" href="{{ url_for(request.endpoint, deck_id=deck.flashcard_deck_id, page=p, **pagination.other_args) }}">{{ p }}</a>
+                </li>
+                {% endfor %}
+                
+                <li class="page-item {% if pagination.page == pagination.pages %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for(request.endpoint, deck_id=deck.flashcard_deck_id, page=pagination.page+1, **pagination.other_args) }}" aria-label="Next">
+                        <span aria-hidden="true">&raquo;</span>
+                    </a>
+                </li>
+                <li class="page-item {% if pagination.page == pagination.pages %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for(request.endpoint, deck_id=deck.flashcard_deck_id, page=pagination.pages, **pagination.other_args) }}" aria-label="Last">
+                        <span aria-hidden="true">&raquo;&raquo;</span>
+                    </a>
+                </li>
+            </ul>
+            
+            <!-- Per page selector -->
+            <div class="ms-md-auto ps-md-3">
+                <form class="d-flex align-items-center" method="GET">
+                    <label for="per_page" class="me-2 small">Items per page:</label>
+                    <select id="per_page" name="per_page" class="form-select form-select-sm" style="width: auto;" onchange="this.form.submit()">
+                        {% for option in [10, 20, 50, 100] %}
+                        <option value="{{ option }}" {% if pagination.per_page == option %}selected{% endif %}>{{ option }}</option>
+                        {% endfor %}
+                    </select>
+                    <!-- Preserve existing query parameters -->
+                    {% for key, value in request.args.items() if key != 'per_page' %}
+                    <input type="hidden" name="{{ key }}" value="{{ value }}">
+                    {% endfor %}
+                </form>
+            </div>
+        </div>
+    </nav>
+    {% endif %}
+    
     {% else %}
         <div class="alert alert-info">
             <i class="bi bi-info-circle me-2"></i>No flashcards found in this deck.
