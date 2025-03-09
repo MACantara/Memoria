@@ -258,8 +258,8 @@ export class UIManager {
 
     showCompletionScreen(deckId, score, totalDue, isDueOnly, remainingDueCards) {
         // Update card counters first to show all completed
-        this.updateCardCounter(totalDue - 1, totalDue, totalDue);
-        this.updateScore(totalDue, totalDue);
+        this.updateCardCounter(totalDue - 1, totalDue, score, 0);
+        this.updateScore(score, totalDue);
         
         // Create different completion screens depending on the mode and whether there are more due cards
         if (!this.flashcardContainer) return;
