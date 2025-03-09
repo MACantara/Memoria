@@ -33,7 +33,11 @@
 </head>
 <body>
     <header>
-        {% include 'nav/top-nav.html' %}
+        {% if request.path.startswith('/deck/study')  %}
+            <!-- No top nav for /deck/study page -->
+        {% else %}
+            {% include 'nav/top-nav.html' %}
+        {% endif %}
     </header>
     
     <main class="container py-4">
