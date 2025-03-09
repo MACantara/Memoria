@@ -1,5 +1,5 @@
 from flask import Blueprint, request, render_template, jsonify, g, abort
-from models import FlashcardDecks, Flashcards
+from models import db, FlashcardDecks, Flashcards
 from services.fsrs_scheduler import get_due_cards, get_current_time
 from routes.deck.utils import count_due_flashcards
 from flask_login import login_required, current_user
