@@ -31,9 +31,6 @@ export class UIManager {
         // Update state badge based on card state
         this.updateStatusBadge(parseInt(card.state || 0));
         
-        // Update subdeck info if present
-        this.updateSubdeckInfo(card.subdeck);
-        
         // Generate and render answer options
         this.renderAnswerOptions(card);
     }
@@ -225,31 +222,6 @@ export class UIManager {
         
         // Focus next button to make keyboard navigation work
         setTimeout(() => nextButton.focus(), 100);
-    }
-
-    updateSubdeckInfo(subdeckInfo) {
-        // Create or update the subdeck indicator if it doesn't exist
-        let subdeckIndicator = document.getElementById('subdeckIndicator');
-        
-        if (!subdeckIndicator) {
-            subdeckIndicator = document.createElement('div');
-            subdeckIndicator.id = 'subdeckIndicator';
-            subdeckIndicator.className = 'text-muted small mt-1 mb-3';
-            
-            // Insert it after the deck title
-            const deckTitle = document.querySelector('.deck-title');
-            if (deckTitle) {
-                deckTitle.parentNode.insertBefore(subdeckIndicator, deckTitle.nextSibling);
-            }
-        }
-        
-        // Update or hide based on whether there's subdeck info
-        if (subdeckInfo) {
-            subdeckIndicator.innerHTML = `<i class="bi bi-folder2"></i> From subdeck: ${subdeckInfo.deck_name}`;
-            subdeckIndicator.classList.remove('d-none');
-        } else {
-            subdeckIndicator.classList.add('d-none');
-        }
     }
 
     showCompletionScreen(deckId, score, totalDue, isDueOnly, remainingDueCards) {
