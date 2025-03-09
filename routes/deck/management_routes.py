@@ -1,20 +1,30 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, abort
 from models import db, FlashcardDecks, Flashcards
 from routes.deck.utils import is_descendant
+from flask_login import current_user, login_required
 
 # Change the URL prefix to match how it's being called
 deck_management_bp = Blueprint('deck_management', __name__, url_prefix='')
 
 @deck_management_bp.route("/create", methods=["POST"])
+@login_required
 def create_deck():
     parent_deck_id = request.form.get("parent_deck_id")
     name = request.form.get("name", "New Deck")
     description = request.form.get("description", "")
     
+    # If parent deck is provided, check if it belongs to current user
+    if parent_deck_id:
+        parent_deck = FlashcardDecks.query.get_or_404(parent_deck_id)
+        if parent_deck.user_id != current_user.id:
+            return jsonify({"success": False, "error": "Unauthorized access"}), 403
+    
+    # Create the deck with the current user's ID
     deck = FlashcardDecks(
         name=name,
         description=description,
-        parent_deck_id=parent_deck_id
+        parent_deck_id=parent_deck_id,
+        user_id=current_user.id
     )
     db.session.add(deck)
     db.session.commit()
@@ -22,8 +32,14 @@ def create_deck():
     return jsonify({"success": True, "deck_id": deck.flashcard_deck_id})
 
 @deck_management_bp.route("/rename/<int:deck_id>", methods=["PUT"])
+@login_required
 def rename_deck(deck_id):
     deck = FlashcardDecks.query.get_or_404(deck_id)
+    
+    # Check if the deck belongs to the current user
+    if deck.user_id != current_user.id:
+        return jsonify({"success": False, "error": "Unauthorized access"}), 403
+    
     try:
         data = request.json
         deck.name = data.get('name')
@@ -35,8 +51,14 @@ def rename_deck(deck_id):
         return jsonify({"success": False, "error": str(e)}), 500
 
 @deck_management_bp.route("/delete/<int:deck_id>", methods=["DELETE"])
+@login_required
 def delete_deck(deck_id):
     deck = FlashcardDecks.query.get_or_404(deck_id)
+    
+    # Check if the deck belongs to the current user
+    if deck.user_id != current_user.id:
+        return jsonify({"success": False, "error": "Unauthorized access"}), 403
+    
     try:
         # Create recursive CTE to find all sub-decks
         cte = db.session.query(
@@ -80,13 +102,15 @@ def delete_deck(deck_id):
         return jsonify({"success": False, "error": str(e)}), 500
 
 @deck_management_bp.route("/create_empty", methods=["POST"])
+@login_required
 def create_empty_deck():
     try:
         data = request.json
         deck = FlashcardDecks(
             name=data.get('name', 'New Deck'),
             description=data.get('description', ''),
-            parent_deck_id=None
+            parent_deck_id=None,
+            user_id=current_user.id  # Associate with current user
         )
         db.session.add(deck)
         db.session.commit()
@@ -101,9 +125,15 @@ def create_empty_deck():
         return jsonify({"success": False, "error": str(e)}), 500
 
 @deck_management_bp.route("/move/<int:deck_id>", methods=["PUT"])
+@login_required
 def move_deck(deck_id):
     """Move a deck to a new parent deck"""
     deck = FlashcardDecks.query.get_or_404(deck_id)
+    
+    # Check if the deck belongs to the current user
+    if deck.user_id != current_user.id:
+        return jsonify({"success": False, "error": "Unauthorized access"}), 403
+    
     try:
         data = request.json
         new_parent_id = data.get('new_parent_id')
@@ -112,6 +142,10 @@ def move_deck(deck_id):
         if new_parent_id is not None:
             # Check that new parent exists
             new_parent = FlashcardDecks.query.get_or_404(new_parent_id)
+            
+            # Check if new parent belongs to current user
+            if new_parent.user_id != current_user.id:
+                return jsonify({"success": False, "error": "Unauthorized access"}), 403
             
             # Check for circular reference (can't move a deck into its own descendants)
             if is_descendant(new_parent_id, deck_id):
