@@ -155,8 +155,8 @@
                 return;
             }
             
-            // Navigate to the study page
-            window.location.href = `/deck/${deckId}/study${dueOnly ? '?due_only=true' : ''}`;
+            // Navigate to the study page - make sure the URL is correctly formatted
+            window.location.href = `/deck/study/${deckId}${dueOnly ? '?due_only=true' : ''}`;
         });
     });
 </script>

@@ -108,7 +108,9 @@ export class FlashcardManager {
             }
             
             // Build the URL with parameters
-            const url = new URL(`/deck/${this.deckId}/study`, window.location.origin);
+            const url = new URL(`/deck/study/${this.deckId}`, window.location.origin);
+            
+            // Add query parameters
             url.searchParams.append('page', this.currentPage);
             url.searchParams.append('batch_size', this.batchSize);
             if (this.studyMode) {
