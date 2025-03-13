@@ -19,11 +19,27 @@ class FlashcardDecks(db.Model):
                               backref=db.backref('parent_deck', remote_side=[flashcard_deck_id]),
                               cascade="all, delete-orphan")
 
-    def count_all_flashcards(self):
-        """Count flashcards in this deck and all sub-decks"""
+    def count_all_flashcards(self, visited=None):
+        """Count flashcards in this deck and all sub-decks with cycle detection"""
+        # Initialize visited set on first call
+        if visited is None:
+            visited = set()
+        
+        # Check for cycles
+        if self.flashcard_deck_id in visited:
+            # We've already seen this deck, so we have a cycle
+            return 0
+        
+        # Add current deck to visited set
+        visited.add(self.flashcard_deck_id)
+        
+        # Count cards in this deck
         count = len(self.flashcards)
+        
+        # Recursively count cards in sub-decks
         for sub_deck in self.child_decks:
-            count += sub_deck.count_all_flashcards()
+            count += sub_deck.count_all_flashcards(visited)
+        
         return count
     
     def count_all_sub_decks(self):
