@@ -1,4 +1,5 @@
 from flask import Blueprint, request, jsonify, redirect, url_for, current_app
+from flask_login import current_user
 from models import db, FlashcardDecks, Flashcards
 from datetime import datetime
 from google import genai
@@ -25,13 +26,15 @@ def generate():
         deck = FlashcardDecks(
             name=topic if topic else f"Generated cards for {parent_deck.name}",
             description=f"Generated {datetime.utcnow().strftime('%Y-%m-%d %H:%M')}",
-            parent_deck_id=parent_deck_id
+            parent_deck_id=parent_deck_id,
+            user_id=current_user.id
         )
     else:
         deck = FlashcardDecks(
             name=topic,
             description=f"Generated {datetime.utcnow().strftime('%Y-%m-%d %H:%M')}",
-            parent_deck_id=None
+            parent_deck_id=None,
+            user_id=current_user.id
         )
     
     db.session.add(deck)
