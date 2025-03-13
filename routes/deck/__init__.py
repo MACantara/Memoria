@@ -9,4 +9,4 @@ deck_bp = Blueprint('deck', __name__, url_prefix='/deck')
 # Register sub-blueprints
 deck_bp.register_blueprint(deck_view_bp)  # view routes attached to /deck/
 deck_bp.register_blueprint(deck_management_bp)  # management routes attached to /deck/
-deck_bp.register_blueprint(deck_api_bp)  # API routes attached to /deck/api/
+deck_bp.register_blueprint(deck_api_bp, url_prefix='/api')  # API routes explicitly attached to /deck/api/

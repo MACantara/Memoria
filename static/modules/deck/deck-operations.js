@@ -384,9 +384,16 @@ async function handleMoveConfirm(deckId) {
 async function loadDueCounts() {
     try {
         console.log("Loading due counts...");
-        const response = await fetch('/deck/api/due-counts');
+        
+        // Use debug path to see exactly what's happening
+        const apiUrl = '/deck/api/due-counts';
+        console.log(`Fetching due counts from: ${apiUrl}`);
+        
+        const response = await fetch(apiUrl);
         if (!response.ok) {
-            throw new Error('Failed to load due counts');
+            const errorText = await response.text();
+            console.error(`Server returned ${response.status}: ${errorText}`);
+            throw new Error(`Server error: ${response.status}`);
         }
         
         const data = await response.json();

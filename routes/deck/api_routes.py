@@ -1,10 +1,10 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, current_app
 from models import db, FlashcardDecks, Flashcards
 from services.fsrs_scheduler import get_current_time
 from utils import count_due_flashcards
 from flask_login import login_required, current_user
 
-deck_api_bp = Blueprint('deck_api', __name__, url_prefix='/api')
+deck_api_bp = Blueprint('deck_api', __name__)
 
 @deck_api_bp.route("/decks/tree")
 @login_required
@@ -95,6 +95,9 @@ def api_list_decks():
 def get_due_counts():
     """Get due flashcard counts for all decks"""
     try:
+        # Add debugging
+        current_app.logger.info(f"Getting due counts for user {current_user.id}")
+        
         # Get all decks for the current user
         decks = FlashcardDecks.query.filter_by(user_id=current_user.id).all()
         
@@ -104,11 +107,13 @@ def get_due_counts():
             deck_id = deck.flashcard_deck_id
             result[str(deck_id)] = count_due_flashcards(deck_id)
         
+        current_app.logger.debug(f"Due counts result: {result}")
         return jsonify({
             "success": True,
             "counts": result
         })
     except Exception as e:
+        current_app.logger.error(f"Error getting due counts: {str(e)}")
         return jsonify({
             "success": False,
             "error": str(e)
