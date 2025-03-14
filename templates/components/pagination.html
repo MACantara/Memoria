@@ -11,7 +11,7 @@
             <!-- Pagination controls with improved accessibility -->
             <ul class="pagination {{ pagination_size|default('pagination-sm') }} mb-0">
                 <!-- First page - Hide on mobile to save space -->
-                {% set url_args = entity_params or {} %}
+                {% set url_args = request.view_args.copy() %}
                 {% set _ = url_args.update({'page': 1}) %}
                 {% set _ = url_args.update(pagination.other_args or {}) %}
                 <li class="page-item d-none d-sm-block {% if pagination.page == 1 %}disabled{% endif %}" 
@@ -23,7 +23,7 @@
                 </li>
                 
                 <!-- Previous page - With clear icon -->
-                {% set url_args = entity_params or {} %}
+                {% set url_args = request.view_args.copy() %}
                 {% set _ = url_args.update({'page': pagination.page-1}) %}
                 {% set _ = url_args.update(pagination.other_args or {}) %}
                 <li class="page-item {% if pagination.page == 1 %}disabled{% endif %}"
@@ -41,7 +41,7 @@
                 
                 <!-- First page number if not in range and we have many pages -->
                 {% if show_ellipsis_start %}
-                    {% set url_args = entity_params or {} %}
+                    {% set url_args = request.view_args.copy() %}
                     {% set _ = url_args.update({'page': 1}) %}
                     {% set _ = url_args.update(pagination.other_args or {}) %}
                     <li class="page-item d-none d-md-block">
@@ -55,7 +55,7 @@
                 
                 <!-- Page numbers with responsive display logic -->
                 {% for p in range(pagination.page_range_start, pagination.page_range_end + 1) %}
-                    {% set url_args = entity_params or {} %}
+                    {% set url_args = request.view_args.copy() %}
                     {% set _ = url_args.update({'page': p}) %}
                     {% set _ = url_args.update(pagination.other_args or {}) %}
                     
@@ -90,7 +90,7 @@
                     <li class="page-item disabled d-none d-md-block">
                         <span class="page-link">...</span>
                     </li>
-                    {% set url_args = entity_params or {} %}
+                    {% set url_args = request.view_args.copy() %}
                     {% set _ = url_args.update({'page': pagination.pages}) %}
                     {% set _ = url_args.update(pagination.other_args or {}) %}
                     <li class="page-item d-none d-md-block">
@@ -100,7 +100,7 @@
                 {% endif %}
                 
                 <!-- Next page - With clear icon -->
-                {% set url_args = entity_params or {} %}
+                {% set url_args = request.view_args.copy() %}
                 {% set _ = url_args.update({'page': pagination.page+1}) %}
                 {% set _ = url_args.update(pagination.other_args or {}) %}
                 <li class="page-item {% if pagination.page == pagination.pages %}disabled{% endif %}"
@@ -112,7 +112,7 @@
                 </li>
                 
                 <!-- Last page - Hide on mobile to save space -->
-                {% set url_args = entity_params or {} %}
+                {% set url_args = request.view_args.copy() %}
                 {% set _ = url_args.update({'page': pagination.pages}) %}
                 {% set _ = url_args.update(pagination.other_args or {}) %}
                 <li class="page-item d-none d-sm-block {% if pagination.page == pagination.pages %}disabled{% endif %}"
