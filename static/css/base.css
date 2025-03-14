@@ -454,21 +454,7 @@
 }
 
 /* Add bottom padding to container on mobile to account for the nav bar */
-@media (max-width: 768px) {
-    .container {
-        padding-bottom: 90px !important; /* Increased from 70px to 90px for more space */
-    }
-    
-    /* Add bottom padding to additional containers that might be used */
-    .container-fluid, 
-    .container-sm, 
-    .container-md, 
-    .container-lg, 
-    .container-xl, 
-    .container-xxl {
-        padding-bottom: 90px !important;
-    }
-    
+@media (max-width: 768px) {    
     /* Add padding to other common bottom elements */
     main, section:last-child, .card:last-child {
         margin-bottom: 20px !important;
