@@ -438,9 +438,15 @@ export class UIManager {
             if (radioContainer) {
                 // Clear existing content
                 radioContainer.innerHTML = '';
+                
+                // Maintain original styling for consistent size
                 radioContainer.style.border = 'none';
-                radioContainer.style.width = '24px';
-                radioContainer.style.height = '24px';
+                radioContainer.style.width = '20px'; // Match original radio size
+                radioContainer.style.height = '20px'; // Match original radio size
+                radioContainer.style.position = 'relative';
+                radioContainer.style.display = 'flex';
+                radioContainer.style.alignItems = 'center';
+                radioContainer.style.justifyContent = 'center';
                 
                 // Create icon based on whether this option is correct/incorrect
                 const icon = document.createElement('i');
@@ -448,23 +454,17 @@ export class UIManager {
                 if (isCorrectOption) {
                     // Correct answer icon
                     icon.className = 'bi bi-check-circle-fill text-success';
-                    icon.style.fontSize = '20px';
-                    
-                    // Add emphasis animation
-                    icon.style.animation = 'pop-in 0.3s ease-out';
+                    icon.style.fontSize = '18px'; // Slightly smaller for better fit
                 } 
                 else if (isSelected) {
                     // Wrong answer icon
                     icon.className = 'bi bi-x-circle-fill text-danger';
-                    icon.style.fontSize = '20px';
-                    
-                    // Add emphasis animation
-                    icon.style.animation = 'pop-in 0.3s ease-out';
+                    icon.style.fontSize = '18px'; // Slightly smaller for better fit
                 }
                 else {
-                    // Unselected option
+                    // Unselected option - use empty circle that matches the size
                     icon.className = 'bi bi-circle text-muted';
-                    icon.style.fontSize = '20px';
+                    icon.style.fontSize = '18px'; // Slightly smaller for better fit
                 }
                 
                 radioContainer.appendChild(icon);

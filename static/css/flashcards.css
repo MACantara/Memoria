@@ -91,6 +91,20 @@ body {
 
 .custom-radio-btn {
     transition: all 0.2s ease;
+    display: flex !important; 
+    align-items: center !important;
+    justify-content: center !important;
+    min-width: 20px;
+    min-height: 20px;
+    margin-right: 12px; /* Consistent spacing */
+}
+
+.custom-radio-btn i {
+    transition: all 0.3s ease;
+    position: absolute; /* Ensure perfect centering */
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
 }
 
 .answer-option.selected .custom-radio-btn {
@@ -355,6 +369,10 @@ body {
 /* Enhanced answer option styling */
 .answer-option .custom-radio-btn i {
     transition: all 0.3s ease;
+    position: absolute; /* Ensure perfect centering */
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
 }
 
 /* Success and error styling directly on answer options */
@@ -372,4 +390,10 @@ body {
 .correct-answer-badge, .your-answer-badge {
     animation: slide-in-right 0.3s ease-out;
     z-index: 5;
+}
+
+/* Ensure alignment with text */
+.answer-option .form-check-label {
+    display: flex !important;
+    align-items: center !important;
 }
