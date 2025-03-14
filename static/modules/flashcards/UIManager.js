@@ -502,54 +502,6 @@ export class UIManager {
             // Disable all options
             option.style.pointerEvents = 'none';
         });
-        
-        // If the answer was wrong, add an explanation comparing the answers
-        if (!isCorrect && selectedOption) {
-            const explanationPanel = document.createElement('div');
-            explanationPanel.className = 'answer-comparison mt-4 animate__animated animate__fadeIn';
-            
-            // Create comparison header with info icon
-            const comparisonTitle = document.createElement('h6');
-            comparisonTitle.className = 'mb-3 d-flex align-items-center';
-            comparisonTitle.innerHTML = '<i class="bi bi-info-circle text-primary me-2"></i> Answer Comparison';
-            
-            // Create comparison containers
-            const yourAnswerContainer = document.createElement('div');
-            yourAnswerContainer.className = 'mb-3 p-3 border-start border-4 border-danger rounded bg-danger bg-opacity-10';
-            
-            const yourAnswerTitle = document.createElement('div');
-            yourAnswerTitle.className = 'mb-2 fw-bold text-danger';
-            yourAnswerTitle.innerHTML = '<i class="bi bi-x-circle-fill me-2"></i> Your Answer';
-            
-            const yourAnswerContent = document.createElement('div');
-            yourAnswerContent.className = 'ps-1';
-            yourAnswerContent.textContent = selectedValue;
-            
-            yourAnswerContainer.appendChild(yourAnswerTitle);
-            yourAnswerContainer.appendChild(yourAnswerContent);
-            
-            // Create correct answer container
-            const correctAnswerContainer = document.createElement('div');
-            correctAnswerContainer.className = 'p-3 border-start border-4 border-success rounded bg-success bg-opacity-10';
-            
-            const correctAnswerTitle = document.createElement('div');
-            correctAnswerTitle.className = 'mb-2 fw-bold text-success';
-            correctAnswerTitle.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i> Correct Answer';
-            
-            const correctAnswerContent = document.createElement('div');
-            correctAnswerContent.className = 'ps-1';
-            correctAnswerContent.textContent = correctAnswer;
-            
-            correctAnswerContainer.appendChild(correctAnswerTitle);
-            correctAnswerContainer.appendChild(correctAnswerContent);
-            
-            // Assemble and add to the form
-            explanationPanel.appendChild(comparisonTitle);
-            explanationPanel.appendChild(yourAnswerContainer);
-            explanationPanel.appendChild(correctAnswerContainer);
-            
-            this.answerForm.appendChild(explanationPanel);
-        }
     }
 
     /**
