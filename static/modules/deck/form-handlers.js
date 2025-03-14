@@ -18,11 +18,17 @@ export function initializeFormHandlers(modals = {}) {
     // Create deck form handler
     const createDeckForm = document.getElementById('createDeckForm');
     if (createDeckForm) {
-        // Remove any existing submit handlers
-        createDeckForm.removeEventListener('submit', handleCreateSubdeckSubmit);
-        createDeckForm.addEventListener('submit', function(e) {
-            handleCreateSubdeckSubmit(e, deckModal);
-        });
+        // Check if we're in multi-deck mode - if we are, let multi-deck-handler handle it
+        const isMultiDeckMode = !!document.getElementById('addMoreSubDecksBtn');
+        
+        if (!isMultiDeckMode) {
+            // Only attach handler if we're not in multi-deck mode
+            // Remove any existing submit handlers
+            createDeckForm.removeEventListener('submit', handleCreateSubdeckSubmit);
+            createDeckForm.addEventListener('submit', function(e) {
+                handleCreateSubdeckSubmit(e, deckModal);
+            });
+        }
     }
 
     // Create empty deck form handler
@@ -59,6 +65,9 @@ export function initializeFormHandlers(modals = {}) {
         const normalState = submitButton.querySelector('.normal-state');
         const loadingState = submitButton.querySelector('.loading-state');
         const statusDiv = document.getElementById('createDeckStatus');
+
+        // Add debug log
+        console.log("Single deck mode: handling subdeck form submission");
 
         submitButton.disabled = true;
         if (normalState && loadingState) {

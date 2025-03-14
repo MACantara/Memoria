@@ -94,8 +94,11 @@ function setupSubDeckModal() {
         });
     }
     
-    // Handle form submission
-    if (form) {
+    // IMPORTANT: Only attach event listener if we're in multi-deck mode
+    // Check if we have the add more button - if not, we're in single-deck mode
+    // and the form will be handled by form-handlers.js
+    if (form && addButton) {
+        // We're in multi-deck mode, attach the handler
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             
@@ -246,7 +249,7 @@ function showLoadingState(button, isLoading) {
     } else {
         button.disabled = false;
         if (normalState) normalState.classList.remove('d-none');
-        if (loadingState) loadingState.classList.add('d-none');
+        if (loadingState) normalState.classList.add('d-none');
     }
 }
 

@@ -6,7 +6,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <form id="createDeckForm">
+                <form id="createDeckForm" data-mode="single">
                     <input type="hidden" name="parent_deck_id" value="{{ deck.flashcard_deck_id }}">
                     
                     <div id="subDeckInputsContainer">
@@ -15,7 +15,6 @@
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <label class="form-label mb-0">Sub-deck 1</label>
                             </div>
-                            <!-- Add proper ID attributes to work with JSON submission -->
                             <input type="text" class="form-control mb-2 deck-name-input" 
                                    id="deckName" name="name" placeholder="Deck Name" required>
                             <textarea class="form-control deck-description-input" 
@@ -23,7 +22,7 @@
                         </div>
                     </div>
                     
-                    <!-- Add more decks button -->
+                    <!-- Add more decks button - will be used to detect multi-deck mode -->
                     <div class="mb-3">
                         <button type="button" class="btn btn-outline-secondary btn-sm w-100" id="addMoreSubDecksBtn">
                             <i class="bi bi-plus-circle"></i> Add Another Sub-deck
