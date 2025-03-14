@@ -87,19 +87,31 @@ export class EventManager {
         const answerContainer = selectedOption.closest('div').parentElement;
         if (!answerContainer) return;
         
+        // Get the current theme
+        const isDarkTheme = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+        
         // First clear all selections
         const allOptions = answerContainer.querySelectorAll('.answer-option');
         allOptions.forEach(option => {
             option.classList.remove('selected', 'border-primary');
-            option.querySelector('label')?.classList.remove('bg-light');
+            // Remove theme-specific classes
+            const optionLabel = option.querySelector('label');
+            if (optionLabel) {
+                optionLabel.classList.remove('bg-light', 'bg-dark-subtle');
+            }
             const innerDot = option.querySelector('.inner-circle');
             if (innerDot) innerDot.classList.add('d-none');
         });
         
         // Then add selection to the chosen option
         selectedOption.classList.add('selected', 'border-primary');
+        
+        // Add the appropriate theme-specific class
         const label = selectedOption.querySelector('label');
-        if (label) label.classList.add('bg-light');
+        if (label) {
+            label.classList.add(isDarkTheme ? 'bg-dark-subtle' : 'bg-light');
+        }
+        
         const innerCircle = selectedOption.querySelector('.inner-circle');
         if (innerCircle) innerCircle.classList.remove('d-none');
     }

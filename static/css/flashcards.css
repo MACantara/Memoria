@@ -25,9 +25,44 @@ body {
 }
 
 .answer-option:hover {
-    background-color: rgba(0,0,0,0.03);
+    /* Use theme-compatible hover effect */
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Theme-aware hover states */
+[data-bs-theme="light"] .answer-option:hover {
+    background-color: rgba(0, 0, 0, 0.03);
+}
+
+[data-bs-theme="dark"] .answer-option:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Theme-aware selection highlighting */
+[data-bs-theme="light"] .answer-option.selected label {
+    background-color: rgba(13, 110, 253, 0.1); /* Light theme primary color with opacity */
+}
+
+[data-bs-theme="dark"] .answer-option.selected label {
+    background-color: rgba(25, 135, 255, 0.2); /* Dark theme primary color with opacity */
+}
+
+/* Theme-aware correct/incorrect feedback */
+[data-bs-theme="light"] .answer-option.border-success {
+    background-color: rgba(25, 135, 84, 0.1); /* Light theme success color */
+}
+
+[data-bs-theme="dark"] .answer-option.border-success {
+    background-color: rgba(32, 165, 109, 0.2); /* Dark theme success color */
+}
+
+[data-bs-theme="light"] .answer-option.border-danger {
+    background-color: rgba(220, 53, 69, 0.1); /* Light theme danger color */
+}
+
+[data-bs-theme="dark"] .answer-option.border-danger {
+    background-color: rgba(235, 68, 90, 0.2); /* Dark theme danger color */
 }
 
 .answer-option.correct {

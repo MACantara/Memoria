@@ -53,6 +53,9 @@ export class UIManager {
         // Create a container for the answers
         const answersContainer = document.createElement('div');
         
+        // Get the current theme
+        const isDarkTheme = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+        
         // Generate answer options with improved UI
         shuffledAnswers.forEach((answer, index) => {
             const optionDiv = document.createElement('div');
@@ -112,18 +115,20 @@ export class UIManager {
             answerOption.appendChild(label);
             optionDiv.appendChild(answerOption);
             
-            // Add hover effect
+            // Add hover effect with theme awareness
             label.addEventListener('mouseenter', () => {
                 if (!radio.checked) {
                     answerOption.classList.add('border-primary');
-                    label.classList.add('bg-light');
+                    // Use theme-aware class instead of hardcoded bg-light
+                    label.classList.add(isDarkTheme ? 'bg-dark-subtle' : 'bg-light');
                 }
             });
             
             label.addEventListener('mouseleave', () => {
                 if (!radio.checked) {
                     answerOption.classList.remove('border-primary');
-                    label.classList.remove('bg-light');
+                    // Remove appropriate class based on theme
+                    label.classList.remove(isDarkTheme ? 'bg-dark-subtle' : 'bg-light');
                 }
             });
             
@@ -132,14 +137,16 @@ export class UIManager {
                 // Update all options to remove selection styling
                 answersContainer.querySelectorAll('.answer-option').forEach(option => {
                     option.classList.remove('selected', 'border-primary');
-                    option.querySelector('label').classList.remove('bg-light');
+                    // Remove both possible theme classes for safety
+                    option.querySelector('label')?.classList.remove('bg-light', 'bg-dark-subtle');
                     const innerDot = option.querySelector('.inner-circle');
                     if (innerDot) innerDot.classList.add('d-none');
                 });
                 
                 // Add selection styling to this option
                 answerOption.classList.add('selected', 'border-primary');
-                label.classList.add('bg-light');
+                // Apply the appropriate theme class
+                label.classList.add(isDarkTheme ? 'bg-dark-subtle' : 'bg-light');
                 innerCircle.classList.remove('d-none');
                 
                 if (!radio.checked) {
@@ -413,15 +420,18 @@ export class UIManager {
         
         if (!selectedOption) return;
         
+        // Get the current theme
+        const isDarkTheme = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+        
         // Second pass - apply styling
         answerOptions.forEach(option => {
             const optionValue = option.getAttribute('data-answer-value');
             const isSelected = option === selectedOption;
             const isCorrectOption = optionValue === correctAnswer;
             
-            // Remove hover styling
+            // Remove hover styling - properly handle both theme styles
             option.classList.remove('border-primary');
-            option.querySelector('label').classList.remove('bg-light');
+            option.querySelector('label').classList.remove('bg-light', 'bg-dark-subtle');
             
             // Replace radio button visual with appropriate icon
             const radioContainer = option.querySelector('.custom-radio-btn');
