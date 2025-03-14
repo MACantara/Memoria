@@ -71,6 +71,8 @@
             {% include 'components/create_sub_deck_modal.html' %}
         {% else %}
             <!-- Home/index/search specific modal -->
+            {% include 'components/select_deck_to_study_modal.html' %}
+            {% include 'components/select_deck_for_stats_modal.html' %}
             {% include 'components/generate_cards_modal_index.html' %}
         {% endif %}
     {% endif %}
