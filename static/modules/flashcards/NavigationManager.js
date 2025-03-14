@@ -1,5 +1,5 @@
 /**
- * NavigationManager - Handles navigation through flashcards
+ * NavigationManager - Handles keyboard navigation and shortcuts
  */
 export class NavigationManager {
     /**
@@ -27,66 +27,36 @@ export class NavigationManager {
     }
 
     /**
-     * Handle keyboard navigation
-     * @param {string} key - The pressed key
+     * Handle keyboard press events
+     * @param {string} key - The key that was pressed
      */
     handleKeyPress(key) {
-        // Get current state
-        const isReviewingCard = !!document.querySelector('.answer-option');
-        const hasSelectedAnswer = !!document.querySelector('input[type="radio"]:checked');
-        const nextButton = document.querySelector('.feedback-container .btn');
-        const hasAnswerFeedback = !!document.querySelector('.feedback-container');
-        
-        console.log(`Key pressed: ${key}, isReviewing: ${isReviewingCard}, hasSelected: ${hasSelectedAnswer}, hasNext: ${!!nextButton}`);
-        
-        // Handle Next Question - if we have answer feedback showing with next button, ANY key advances
-        if (hasAnswerFeedback && nextButton) {
-            // Proceed to next question when any key is pressed after seeing feedback
-            nextButton.click();
-            return;
+        // If user has already answered and feedback is showing
+        const feedbackContainer = document.querySelector('.feedback-container');
+        if (feedbackContainer) {
+            // Press any key to continue to next question
+            const nextButton = feedbackContainer.querySelector('button');
+            if (nextButton) {
+                nextButton.click();
+                return true;
+            }
+        } else {
+            // If we're in answering mode, numeric keys are handled in EventManager
+            if (key >= '1' && key <= '9') {
+                return true; // Already handled in EventManager
+            }
+            
+            // Handle answer selection with keyboard
+            switch (key.toLowerCase()) {
+                // Add other keyboard shortcuts if needed
+                case 'n':
+                    // Try to skip to the next card
+                    this.manager.moveToNextCard();
+                    return true;
+            }
         }
         
-        // Handle keyboard shortcuts based on context
-        switch (key) {
-            case 'Enter':
-            case ' ': // Space
-                // If viewing a card but no answer selected, pulse the options to indicate need to select
-                if (isReviewingCard && !hasSelectedAnswer && !hasAnswerFeedback) {
-                    this.pulseOptions();
-                    return;
-                }
-                break;
-                
-            // Number keys for quick answer selection (1-4)
-            case '1':
-            case '2':
-            case '3':
-            case '4':
-                // Only work if viewing card options and not already in feedback state
-                if (isReviewingCard && !hasAnswerFeedback) {
-                    const optionIndex = parseInt(key) - 1;
-                    const options = document.querySelectorAll('.answer-option');
-                    
-                    if (optionIndex >= 0 && optionIndex < options.length) {
-                        console.log(`Selecting option ${optionIndex + 1}`);
-                        const radioInput = options[optionIndex].querySelector('input[type="radio"]');
-                        if (radioInput) {
-                            // Check the radio input
-                            radioInput.checked = true;
-                            
-                            // Get the answer value and submit it directly to the manager
-                            const answerValue = radioInput.value;
-                            if (this.manager) {
-                                this.manager.handleAnswer(answerValue);
-                            } else if (window.flashcardManager) {
-                                // Fallback to window.flashcardManager if this.manager is not available
-                                window.flashcardManager.handleAnswer(answerValue);
-                            }
-                        }
-                    }
-                }
-                break;
-        }
+        return false;
     }
     
     /**
