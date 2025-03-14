@@ -10,6 +10,14 @@ export class UIManager {
         
         // Get the study mode from URL parameters
         this.isDueOnlyMode = new URLSearchParams(window.location.search).get('due_only') === 'true';
+        
+        // Initialize audio elements for feedback sounds
+        this.successSound = new Audio('/static/sounds/success.mp3');
+        this.errorSound = new Audio('/static/sounds/error.mp3');
+        
+        // Preload the sounds
+        this.successSound.load();
+        this.errorSound.load();
     }
 
     renderCard(card) {
@@ -233,6 +241,9 @@ export class UIManager {
     showBriefFeedback(isCorrect) {
         if (!this.answerForm) return;
         
+        // Play appropriate sound based on correctness
+        this.playFeedbackSound(isCorrect);
+        
         // Create a simple feedback container without navigation buttons
         const feedbackContainer = document.createElement('div');
         feedbackContainer.classList.add('feedback-container', 'mt-3');
@@ -252,6 +263,9 @@ export class UIManager {
 
     showAnswerFeedback(isCorrect, nextCardCallback) {
         if (!this.answerForm) return;
+        
+        // Play appropriate sound based on correctness
+        this.playFeedbackSound(isCorrect);
         
         // Create a feedback container with navigation buttons
         const feedbackContainer = document.createElement('div');
@@ -291,6 +305,30 @@ export class UIManager {
         
         // Focus next button to make keyboard navigation work
         setTimeout(() => nextButton.focus(), 100);
+    }
+    
+    /**
+     * Play the appropriate sound effect based on answer correctness
+     * @param {boolean} isCorrect - Whether the answer was correct
+     */
+    playFeedbackSound(isCorrect) {
+        try {
+            // Stop any currently playing sounds first
+            this.successSound.pause();
+            this.successSound.currentTime = 0;
+            this.errorSound.pause();
+            this.errorSound.currentTime = 0;
+            
+            // Play the appropriate sound
+            if (isCorrect) {
+                this.successSound.play();
+            } else {
+                this.errorSound.play();
+            }
+        } catch (error) {
+            // Silently fail if sound playback fails
+            console.warn("Sound playback failed:", error);
+        }
     }
 
     showCompletionScreen(deckId, score, totalDue, isDueOnly, remainingDueCards) {
