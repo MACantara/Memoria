@@ -315,7 +315,19 @@ function showMessage(container, type, message = null) {
         
         // If it's processing, count the number of decks
         if (type === 'processing') {
-            const count = document.querySelectorAll('.deck-input-group').length;
+            // Fix: Get the deck groups from the correct container element
+            // Find the container closest to this message container
+            const emptyDeckContainer = document.getElementById('deckInputsContainer');
+            const subDeckContainer = document.getElementById('subDeckInputsContainer');
+            
+            // Get count from the appropriate container
+            let count = 0;
+            if (container.id === 'createEmptyDeckMessages' && emptyDeckContainer) {
+                count = emptyDeckContainer.querySelectorAll('.deck-input-group').length;
+            } else if (container.id === 'createSubDeckMessages' && subDeckContainer) {
+                count = subDeckContainer.querySelectorAll('.deck-input-group').length;
+            }
+            
             const textElement = messageElement.querySelector('div:last-child');
             if (textElement) {
                 textElement.innerHTML = count > 1 ? 
