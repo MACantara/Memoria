@@ -42,36 +42,55 @@ export class UIManager {
         const allAnswers = [...card.incorrect_answers, card.correct_answer];
         const shuffledAnswers = this.shuffleArray([...allAnswers]);
         
-        // Generate HTML for answer options
-        const optionsHtml = shuffledAnswers.map((answer, index) => `
-            <div class="mb-3">
-                <div class="answer-option form-check p-3 rounded border user-select-none">
-                    <input class="form-check-input" type="radio" 
-                           id="answer-${index}" 
-                           name="flashcard-answer" 
-                           value="${answer.replace(/"/g, '&quot;')}">
-                    <label class="form-check-label w-100" 
-                           for="answer-${index}"
-                           style="cursor: pointer">
-                        <div class="d-flex align-items-center">
-                            <span class="badge bg-light text-dark me-2">${index + 1}</span>
-                            <div class="answer-text">${answer}</div>
-                        </div>
-                    </label>
-                </div>
-            </div>
-        `).join('');
+        // Create a container for the answers
+        const answersContainer = document.createElement('div');
         
-        // Insert options into the form
-        this.answerForm.innerHTML = optionsHtml;
-        
-        // Store correct answer for checking
-        this.answerForm.dataset.correctAnswer = card.correct_answer;
-        
-        // Add click handler to each answer option
-        this.answerForm.querySelectorAll('.answer-option').forEach(option => {
-            option.addEventListener('click', () => {
-                const radio = option.querySelector('input[type="radio"]');
+        // Generate answer options showing HTML code as raw text
+        shuffledAnswers.forEach((answer, index) => {
+            const optionDiv = document.createElement('div');
+            optionDiv.className = 'mb-3';
+            
+            const answerOption = document.createElement('div');
+            answerOption.className = 'answer-option form-check p-3 rounded border user-select-none';
+            
+            // Create radio button
+            const radio = document.createElement('input');
+            radio.className = 'form-check-input';
+            radio.type = 'radio';
+            radio.id = `answer-${index}`;
+            radio.name = 'flashcard-answer';
+            radio.value = answer;
+            
+            // Create label container
+            const label = document.createElement('label');
+            label.className = 'form-check-label w-100';
+            label.htmlFor = `answer-${index}`;
+            label.style.cursor = 'pointer';
+            
+            // Create flex container for badge and answer text
+            const flexContainer = document.createElement('div');
+            flexContainer.className = 'd-flex align-items-center';
+            
+            // Create badge with number
+            const badge = document.createElement('span');
+            badge.className = 'badge bg-light text-dark me-2';
+            badge.textContent = index + 1;
+            
+            // Create div for answer text - use textContent to show raw HTML
+            const answerText = document.createElement('div');
+            answerText.className = 'answer-text';
+            answerText.textContent = answer; // Use textContent to show raw HTML
+            
+            // Assemble the elements
+            flexContainer.appendChild(badge);
+            flexContainer.appendChild(answerText);
+            label.appendChild(flexContainer);
+            answerOption.appendChild(radio);
+            answerOption.appendChild(label);
+            optionDiv.appendChild(answerOption);
+            
+            // Add click handler
+            answerOption.addEventListener('click', () => {
                 if (!radio.checked) {
                     radio.checked = true;
                     
@@ -81,7 +100,16 @@ export class UIManager {
                     }
                 }
             });
+            
+            answersContainer.appendChild(optionDiv);
         });
+        
+        // Clear the form and add the new answers
+        this.answerForm.innerHTML = '';
+        this.answerForm.appendChild(answersContainer);
+        
+        // Store correct answer for checking
+        this.answerForm.dataset.correctAnswer = card.correct_answer;
     }
     
     shuffleArray(array) {
