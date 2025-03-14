@@ -20,8 +20,8 @@ body {
 .answer-option {
     transition: all 0.2s ease;
     margin-bottom: 12px;
-    transition: background-color 0.2s ease;
     position: relative;
+    overflow: hidden;
 }
 
 .answer-option:hover {
@@ -286,4 +286,55 @@ body {
 
 .pulse-hint {
     animation: pulse-hint 1s ease-out;
+}
+
+/* Answer comparison styles */
+.answer-comparison {
+    animation: fadeIn 0.5s ease-in-out 0.3s both;
+}
+
+.answer-comparison h6 {
+    color: var(--bs-primary);
+}
+
+/* Make the comparison stand out more with a subtle shadow */
+.answer-comparison > div {
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+}
+
+.answer-comparison > div:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Answer indicators */
+.correct-indicator, .wrong-indicator {
+    animation: slide-in-right 0.3s ease-out;
+}
+
+@keyframes slide-in-right {
+    0% { transform: translateX(20px); opacity: 0; }
+    100% { transform: translateX(0); opacity: 1; }
+}
+
+/* Enhanced answer option styling */
+.answer-option .custom-radio-btn i {
+    transition: all 0.3s ease;
+}
+
+/* Success and error styling directly on answer options */
+.answer-option.border-success, .answer-option.border-danger {
+    border-width: 2px !important;
+}
+
+/* Animation for feedback icons */
+@keyframes pop-in {
+    0% { transform: scale(0.5); opacity: 0; }
+    70% { transform: scale(1.2); }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.correct-answer-badge, .your-answer-badge {
+    animation: slide-in-right 0.3s ease-out;
+    z-index: 5;
 }

@@ -400,43 +400,156 @@ export class UIManager {
     applyVisualAnswerFeedback(isCorrect) {
         const answerOptions = this.answerForm.querySelectorAll('.answer-option');
         const correctAnswer = this.answerForm.dataset.correctAnswer;
+        let selectedOption = null;
+        let selectedValue = null;
         
+        // First pass - find the selected option
+        answerOptions.forEach(option => {
+            if (option.classList.contains('selected')) {
+                selectedOption = option;
+                selectedValue = option.getAttribute('data-answer-value');
+            }
+        });
+        
+        if (!selectedOption) return;
+        
+        // Second pass - apply styling
         answerOptions.forEach(option => {
             const optionValue = option.getAttribute('data-answer-value');
-            const isSelected = option.classList.contains('selected');
+            const isSelected = option === selectedOption;
+            const isCorrectOption = optionValue === correctAnswer;
             
             // Remove hover styling
             option.classList.remove('border-primary');
             option.querySelector('label').classList.remove('bg-light');
             
-            if (optionValue === correctAnswer) {
-                // Style correct answer
+            // Replace radio button visual with appropriate icon
+            const radioContainer = option.querySelector('.custom-radio-btn');
+            if (radioContainer) {
+                // Clear existing content
+                radioContainer.innerHTML = '';
+                radioContainer.style.border = 'none';
+                radioContainer.style.width = '24px';
+                radioContainer.style.height = '24px';
+                
+                // Create icon based on whether this option is correct/incorrect
+                const icon = document.createElement('i');
+                
+                if (isCorrectOption) {
+                    // Correct answer icon
+                    icon.className = 'bi bi-check-circle-fill text-success';
+                    icon.style.fontSize = '20px';
+                    
+                    // Add emphasis animation
+                    icon.style.animation = 'pop-in 0.3s ease-out';
+                } 
+                else if (isSelected) {
+                    // Wrong answer icon
+                    icon.className = 'bi bi-x-circle-fill text-danger';
+                    icon.style.fontSize = '20px';
+                    
+                    // Add emphasis animation
+                    icon.style.animation = 'pop-in 0.3s ease-out';
+                }
+                else {
+                    // Unselected option
+                    icon.className = 'bi bi-circle text-muted';
+                    icon.style.fontSize = '20px';
+                }
+                
+                radioContainer.appendChild(icon);
+            }
+            
+            // Apply different styling based on correctness and selection
+            if (isCorrectOption) {
+                // Style correct answer with green highlight
                 option.classList.add('border-success');
+                option.classList.add('bg-success', 'bg-opacity-10');
                 
                 const label = option.querySelector('label');
                 label.classList.add('bg-success', 'bg-opacity-10');
                 
-                const icon = document.createElement('div');
-                icon.className = 'position-absolute top-0 end-0 m-2';
-                icon.innerHTML = '<i class="bi bi-check-circle-fill text-success"></i>';
-                label.appendChild(icon);
+                // Add "Correct Answer" badge
+                if (!option.querySelector('.correct-answer-badge')) {
+                    const badge = document.createElement('div');
+                    badge.className = 'position-absolute end-0 top-0 m-2 correct-answer-badge';
+                    badge.innerHTML = '<span class="badge bg-success">Correct</span>';
+                    option.appendChild(badge);
+                }
             } 
             else if (isSelected && !isCorrect) {
-                // Style incorrect selected answer
+                // Style incorrect selected answer with red highlight
                 option.classList.add('border-danger');
+                option.classList.add('bg-danger', 'bg-opacity-10');
                 
                 const label = option.querySelector('label');
                 label.classList.add('bg-danger', 'bg-opacity-10');
                 
-                const icon = document.createElement('div');
-                icon.className = 'position-absolute top-0 end-0 m-2';
-                icon.innerHTML = '<i class="bi bi-x-circle-fill text-danger"></i>';
-                label.appendChild(icon);
+                // Add "Your Answer" badge
+                if (!option.querySelector('.your-answer-badge')) {
+                    const badge = document.createElement('div');
+                    badge.className = 'position-absolute end-0 top-0 m-2 your-answer-badge';
+                    badge.innerHTML = '<span class="badge bg-danger">Your Answer</span>';
+                    option.appendChild(badge);
+                }
+            }
+            
+            // Fade other options slightly
+            if (!isCorrectOption && !isSelected) {
+                option.style.opacity = '0.7';
             }
             
             // Disable all options
             option.style.pointerEvents = 'none';
         });
+        
+        // If the answer was wrong, add an explanation comparing the answers
+        if (!isCorrect && selectedOption) {
+            const explanationPanel = document.createElement('div');
+            explanationPanel.className = 'answer-comparison mt-4 animate__animated animate__fadeIn';
+            
+            // Create comparison header with info icon
+            const comparisonTitle = document.createElement('h6');
+            comparisonTitle.className = 'mb-3 d-flex align-items-center';
+            comparisonTitle.innerHTML = '<i class="bi bi-info-circle text-primary me-2"></i> Answer Comparison';
+            
+            // Create comparison containers
+            const yourAnswerContainer = document.createElement('div');
+            yourAnswerContainer.className = 'mb-3 p-3 border-start border-4 border-danger rounded bg-danger bg-opacity-10';
+            
+            const yourAnswerTitle = document.createElement('div');
+            yourAnswerTitle.className = 'mb-2 fw-bold text-danger';
+            yourAnswerTitle.innerHTML = '<i class="bi bi-x-circle-fill me-2"></i> Your Answer';
+            
+            const yourAnswerContent = document.createElement('div');
+            yourAnswerContent.className = 'ps-1';
+            yourAnswerContent.textContent = selectedValue;
+            
+            yourAnswerContainer.appendChild(yourAnswerTitle);
+            yourAnswerContainer.appendChild(yourAnswerContent);
+            
+            // Create correct answer container
+            const correctAnswerContainer = document.createElement('div');
+            correctAnswerContainer.className = 'p-3 border-start border-4 border-success rounded bg-success bg-opacity-10';
+            
+            const correctAnswerTitle = document.createElement('div');
+            correctAnswerTitle.className = 'mb-2 fw-bold text-success';
+            correctAnswerTitle.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i> Correct Answer';
+            
+            const correctAnswerContent = document.createElement('div');
+            correctAnswerContent.className = 'ps-1';
+            correctAnswerContent.textContent = correctAnswer;
+            
+            correctAnswerContainer.appendChild(correctAnswerTitle);
+            correctAnswerContainer.appendChild(correctAnswerContent);
+            
+            // Assemble and add to the form
+            explanationPanel.appendChild(comparisonTitle);
+            explanationPanel.appendChild(yourAnswerContainer);
+            explanationPanel.appendChild(correctAnswerContainer);
+            
+            this.answerForm.appendChild(explanationPanel);
+        }
     }
 
     /**
