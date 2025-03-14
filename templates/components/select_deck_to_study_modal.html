@@ -13,7 +13,7 @@
                         
                         <!-- Show all decks with due counts -->
                         {% for deck in decks %}
-                            {% set due_count = count_due_flashcards(deck.flashcard_deck_id) %}
+                            {% set due_count = due_count %}
                             <option value="{{ deck.flashcard_deck_id }}" 
                                     data-card-count="{{ deck.count_all_flashcards() }}"
                                     data-has-cards="{{ 'true' if deck.count_all_flashcards() > 0 else 'false' }}"
