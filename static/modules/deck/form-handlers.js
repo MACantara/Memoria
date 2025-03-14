@@ -67,9 +67,20 @@ export function initializeFormHandlers(modals = {}) {
         }
 
         try {
+            // Fix: Convert form data to JSON payload
+            const formData = new FormData(form);
+            const jsonData = {
+                name: formData.get('name'),
+                description: formData.get('description'),
+                parent_deck_id: formData.get('parent_deck_id')
+            };
+
             const response = await fetch('/deck/create', {
                 method: 'POST',
-                body: new FormData(form)
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(jsonData)
             });
             
             if (response.ok) {

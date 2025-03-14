@@ -44,8 +44,8 @@ function setupEmptyDeckModal() {
         }
         
         try {
-            // Send to backend
-            const response = await fetch('/create_empty', {
+            // Send to backend - FIX: Add /deck prefix to the URL path
+            const response = await fetch('/deck/create_empty', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -117,8 +117,8 @@ function setupSubDeckModal() {
             }
             
             try {
-                // Send to backend
-                const response = await fetch('/create', {
+                // Send to backend - FIX: Add /deck prefix to the URL path
+                const response = await fetch('/deck/create', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
