@@ -1,6 +1,9 @@
 // Track if form handlers have been initialized to prevent duplicates
 let formHandlersInitialized = false;
 
+// Modify this file to include the multi-deck functionality import
+import { initializeMultiDeckUI } from './multi-deck-handler.js';
+
 export function initializeFormHandlers(modals = {}) {
     // Prevent duplicate initialization
     if (formHandlersInitialized) {
@@ -15,11 +18,17 @@ export function initializeFormHandlers(modals = {}) {
     // Create deck form handler
     const createDeckForm = document.getElementById('createDeckForm');
     if (createDeckForm) {
-        // Remove any existing submit handlers
-        createDeckForm.removeEventListener('submit', handleCreateSubdeckSubmit);
-        createDeckForm.addEventListener('submit', function(e) {
-            handleCreateSubdeckSubmit(e, deckModal);
-        });
+        // Check if we're in multi-deck mode - if we are, let multi-deck-handler handle it
+        const isMultiDeckMode = !!document.getElementById('addMoreSubDecksBtn');
+        
+        if (!isMultiDeckMode) {
+            // Only attach handler if we're not in multi-deck mode
+            // Remove any existing submit handlers
+            createDeckForm.removeEventListener('submit', handleCreateSubdeckSubmit);
+            createDeckForm.addEventListener('submit', function(e) {
+                handleCreateSubdeckSubmit(e, deckModal);
+            });
+        }
     }
 
     // Create empty deck form handler
@@ -42,6 +51,9 @@ export function initializeFormHandlers(modals = {}) {
         });
     }
 
+    // Initialize multi-deck UI
+    initializeMultiDeckUI();
+
     // Mark as initialized
     formHandlersInitialized = true;
 
@@ -52,7 +64,23 @@ export function initializeFormHandlers(modals = {}) {
         const submitButton = form.querySelector('button[type="submit"]');
         const normalState = submitButton.querySelector('.normal-state');
         const loadingState = submitButton.querySelector('.loading-state');
-        const statusDiv = document.getElementById('createDeckStatus');
+        
+        // Show processing message in the new message container
+        const messagesContainer = document.getElementById('createSubDeckMessages');
+        if (messagesContainer) {
+            messagesContainer.classList.remove('d-none');
+            const processingMsg = messagesContainer.querySelector('.processing-message');
+            const successMsg = messagesContainer.querySelector('.success-message');
+            const errorMsg = messagesContainer.querySelector('.error-message');
+            
+            // Hide all messages and show processing
+            if (processingMsg) processingMsg.classList.remove('d-none');
+            if (successMsg) successMsg.classList.add('d-none');
+            if (errorMsg) errorMsg.classList.add('d-none');
+        }
+
+        // Add debug log
+        console.log("Single deck mode: handling subdeck form submission");
 
         submitButton.disabled = true;
         if (normalState && loadingState) {
@@ -61,17 +89,36 @@ export function initializeFormHandlers(modals = {}) {
         }
 
         try {
+            // Fix: Convert form data to JSON payload
+            const formData = new FormData(form);
+            const jsonData = {
+                name: formData.get('name'),
+                description: formData.get('description'),
+                parent_deck_id: formData.get('parent_deck_id')
+            };
+
             const response = await fetch('/deck/create', {
                 method: 'POST',
-                body: new FormData(form)
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(jsonData)
             });
             
             if (response.ok) {
-                statusDiv.innerHTML = `
-                    <div class="alert alert-success">
-                        <i class="bi bi-check-circle"></i> Sub-deck created successfully!
-                    </div>
-                `;
+                // Show success message in new container
+                if (messagesContainer) {
+                    const processingMsg = messagesContainer.querySelector('.processing-message');
+                    const successMsg = messagesContainer.querySelector('.success-message');
+                    
+                    if (processingMsg) processingMsg.classList.add('d-none');
+                    if (successMsg) {
+                        successMsg.classList.remove('d-none');
+                        const textEl = successMsg.querySelector('.message-text');
+                        if (textEl) textEl.textContent = 'Sub-deck created successfully!';
+                    }
+                }
+                
                 setTimeout(() => {
                     if (deckModalInstance) deckModalInstance.hide();
                     location.reload();
@@ -81,11 +128,20 @@ export function initializeFormHandlers(modals = {}) {
             }
         } catch (error) {
             console.error('Error creating deck:', error);
-            statusDiv.innerHTML = `
-                <div class="alert alert-danger">
-                    <i class="bi bi-exclamation-triangle"></i> Failed to create sub-deck. Please try again.
-                </div>
-            `;
+            
+            // Show error message in new container
+            if (messagesContainer) {
+                const processingMsg = messagesContainer.querySelector('.processing-message');
+                const errorMsg = messagesContainer.querySelector('.error-message');
+                
+                if (processingMsg) processingMsg.classList.add('d-none');
+                if (errorMsg) {
+                    errorMsg.classList.remove('d-none');
+                    const textEl = errorMsg.querySelector('.message-text');
+                    if (textEl) textEl.textContent = 'Failed to create sub-deck. Please try again.';
+                }
+            }
+            
             submitButton.disabled = false;
             if (normalState && loadingState) {
                 normalState.classList.remove('d-none');
@@ -100,7 +156,20 @@ export function initializeFormHandlers(modals = {}) {
         const submitButton = form.querySelector('button[type="submit"]');
         const normalState = submitButton.querySelector('.normal-state');
         const loadingState = submitButton.querySelector('.loading-state');
-        const statusDiv = document.getElementById('createEmptyDeckStatus');
+        
+        // Show processing message in the new message container
+        const messagesContainer = document.getElementById('createEmptyDeckMessages');
+        if (messagesContainer) {
+            messagesContainer.classList.remove('d-none');
+            const processingMsg = messagesContainer.querySelector('.processing-message');
+            const successMsg = messagesContainer.querySelector('.success-message');
+            const errorMsg = messagesContainer.querySelector('.error-message');
+            
+            // Hide all messages and show processing
+            if (processingMsg) processingMsg.classList.remove('d-none');
+            if (successMsg) successMsg.classList.add('d-none');
+            if (errorMsg) errorMsg.classList.add('d-none');
+        }
 
         submitButton.disabled = true;
         if (normalState && loadingState) {
@@ -121,11 +190,19 @@ export function initializeFormHandlers(modals = {}) {
             });
             
             if (response.ok) {
-                statusDiv.innerHTML = `
-                    <div class="alert alert-success">
-                        <i class="bi bi-check-circle"></i> Deck created successfully!
-                    </div>
-                `;
+                // Show success message in new container
+                if (messagesContainer) {
+                    const processingMsg = messagesContainer.querySelector('.processing-message');
+                    const successMsg = messagesContainer.querySelector('.success-message');
+                    
+                    if (processingMsg) processingMsg.classList.add('d-none');
+                    if (successMsg) {
+                        successMsg.classList.remove('d-none');
+                        const textEl = successMsg.querySelector('.message-text');
+                        if (textEl) textEl.textContent = 'Deck created successfully!';
+                    }
+                }
+                
                 setTimeout(() => {
                     if (emptyDeckModalInstance) emptyDeckModalInstance.hide();
                     location.reload();
@@ -135,11 +212,20 @@ export function initializeFormHandlers(modals = {}) {
             }
         } catch (error) {
             console.error('Error creating deck:', error);
-            statusDiv.innerHTML = `
-                <div class="alert alert-danger">
-                    <i class="bi bi-exclamation-triangle"></i> Failed to create deck. Please try again.
-                </div>
-            `;
+            
+            // Show error message in new container
+            if (messagesContainer) {
+                const processingMsg = messagesContainer.querySelector('.processing-message');
+                const errorMsg = messagesContainer.querySelector('.error-message');
+                
+                if (processingMsg) processingMsg.classList.add('d-none');
+                if (errorMsg) {
+                    errorMsg.classList.remove('d-none');
+                    const textEl = errorMsg.querySelector('.message-text');
+                    if (textEl) textEl.textContent = 'Failed to create deck. Please try again.';
+                }
+            }
+            
             submitButton.disabled = false;
             if (normalState && loadingState) {
                 normalState.classList.remove('d-none');

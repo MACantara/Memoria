@@ -2,34 +2,87 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Create Empty Deck</h5>
+                <h5 class="modal-title">Create Deck</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
+                <!-- Status messages area at the top -->
+                <div id="createEmptyDeckMessages" class="mb-3 d-none">
+                    <!-- Processing message -->
+                    <div class="alert alert-info d-flex align-items-center processing-message">
+                        <div class="spinner-border spinner-border-sm me-2" role="status">
+                            <span class="visually-hidden">Processing...</span>
+                        </div>
+                        <div>Creating deck<span class="dots">...</span></div>
+                    </div>
+                    
+                    <!-- Success message -->
+                    <div class="alert alert-success d-none success-message">
+                        <i class="bi bi-check-circle me-2"></i>
+                        <span class="message-text">Deck created successfully!</span>
+                    </div>
+                    
+                    <!-- Error message -->
+                    <div class="alert alert-danger d-none error-message">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <span class="message-text">Error creating deck</span>
+                    </div>
+                </div>
+                
                 <form id="createEmptyDeckForm">
-                    <div class="mb-3">
-                        <label for="emptyDeckName" class="form-label">Deck Name:</label>
-                        <input type="text" class="form-control" id="emptyDeckName" required>
+                    <div id="deckInputsContainer">
+                        <!-- First deck input (always present) -->
+                        <div class="deck-input-group mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label class="form-label mb-0">Deck 1</label>
+                            </div>
+                            <input type="text" class="form-control mb-2 deck-name-input" 
+                                   id="emptyDeckName" placeholder="Deck Name" required>
+                            <textarea class="form-control deck-description-input" 
+                                    id="emptyDeckDescription" placeholder="Description (optional)" rows="2"></textarea>
+                        </div>
                     </div>
+                    
+                    <!-- Add more decks button -->
                     <div class="mb-3">
-                        <label for="emptyDeckDescription" class="form-label">Description:</label>
-                        <textarea class="form-control" id="emptyDeckDescription" rows="3"></textarea>
-                    </div>
-                    <div class="d-flex justify-content-end gap-2">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary">
-                            <span class="normal-state">
-                                <i class="bi bi-plus-lg"></i> Create
-                            </span>
-                            <span class="loading-state d-none">
-                                <span class="spinner-border spinner-border-sm me-2"></span>
-                                Creating...
-                            </span>
+                        <button type="button" class="btn btn-outline-secondary btn-sm w-100" id="addMoreDecksBtn">
+                            <i class="bi bi-plus-circle"></i> Add Another Deck
                         </button>
                     </div>
-                    <div id="createEmptyDeckStatus" class="mt-3"></div>
+                    
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="text-muted small" id="deckCountLabel">1 deck</span>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-primary">
+                                <span class="normal-state">
+                                    <i class="bi bi-plus-lg"></i> Create
+                                </span>
+                                <span class="loading-state d-none">
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                    Creating...
+                                </span>
+                            </button>
+                        </div>
+                    </div>
                 </form>
             </div>
         </div>
     </div>
 </div>
+
+<style>
+/* Animation for the dots in "Creating..." message */
+@keyframes dot-animation {
+  0%, 20% { content: '.'; }
+  40% { content: '..'; }
+  60%, 100% { content: '...'; }
+}
+
+.dots::after {
+  content: '';
+  animation: dot-animation 1.5s infinite;
+  display: inline-block;
+  width: 1em;
+}
+</style>
