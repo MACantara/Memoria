@@ -40,11 +40,80 @@ export class EventManager {
                 return;
             }
             
+            // Check if we're in answer selection mode (not after answer is shown)
+            const feedbackContainer = document.querySelector('.feedback-container');
+            
+            if (!feedbackContainer) {
+                // Handle numeric keys 1-9 for answer selection
+                if (e.key >= '1' && e.key <= '9') {
+                    const index = parseInt(e.key) - 1;
+                    const answerOptions = document.querySelectorAll('.answer-option');
+                    
+                    if (index < answerOptions.length) {
+                        const option = answerOptions[index];
+                        const radio = option.querySelector('input[type="radio"]');
+                        
+                        if (radio) {
+                            // Update visual selection first
+                            this.updateSelectionState(option);
+                            
+                            // Then handle the answer
+                            radio.checked = true;
+                            this.manager.handleAnswer(radio.value);
+                            
+                            // Prevent default behavior (page scrolling)
+                            e.preventDefault();
+                            return;
+                        }
+                    }
+                }
+            }
+            
+            // For other keys, delegate to the manager
             this.manager.handleKeyboardNavigation(e.key);
         });
         
         // Handle swipe gestures for mobile (optional)
         this.setupMobileGestures();
+    }
+    
+    /**
+     * Update the visual selection state for an answer option
+     * @param {HTMLElement} selectedOption - The option to mark as selected
+     */
+    updateSelectionState(selectedOption) {
+        if (!selectedOption) return;
+        
+        const answerContainer = selectedOption.closest('div').parentElement;
+        if (!answerContainer) return;
+        
+        // Get the current theme
+        const isDarkTheme = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+        
+        // First clear all selections
+        const allOptions = answerContainer.querySelectorAll('.answer-option');
+        allOptions.forEach(option => {
+            option.classList.remove('selected', 'border-primary');
+            // Remove theme-specific classes
+            const optionLabel = option.querySelector('label');
+            if (optionLabel) {
+                optionLabel.classList.remove('bg-light', 'bg-dark-subtle');
+            }
+            const innerDot = option.querySelector('.inner-circle');
+            if (innerDot) innerDot.classList.add('d-none');
+        });
+        
+        // Then add selection to the chosen option
+        selectedOption.classList.add('selected', 'border-primary');
+        
+        // Add the appropriate theme-specific class
+        const label = selectedOption.querySelector('label');
+        if (label) {
+            label.classList.add(isDarkTheme ? 'bg-dark-subtle' : 'bg-light');
+        }
+        
+        const innerCircle = selectedOption.querySelector('.inner-circle');
+        if (innerCircle) innerCircle.classList.remove('d-none');
     }
     
     /**

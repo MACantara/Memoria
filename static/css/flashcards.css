@@ -16,14 +16,53 @@ body {
     display: block;
 }
 
+/* Answer option styling */
 .answer-option {
     transition: all 0.2s ease;
     margin-bottom: 12px;
-    transition: background-color 0.2s ease;
+    position: relative;
+    overflow: hidden;
 }
 
 .answer-option:hover {
-    background-color: rgba(0,0,0,0.03);
+    /* Use theme-compatible hover effect */
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Theme-aware hover states */
+[data-bs-theme="light"] .answer-option:hover {
+    background-color: rgba(0, 0, 0, 0.03);
+}
+
+[data-bs-theme="dark"] .answer-option:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Theme-aware selection highlighting */
+[data-bs-theme="light"] .answer-option.selected label {
+    background-color: rgba(13, 110, 253, 0.1); /* Light theme primary color with opacity */
+}
+
+[data-bs-theme="dark"] .answer-option.selected label {
+    background-color: rgba(25, 135, 255, 0.2); /* Dark theme primary color with opacity */
+}
+
+/* Theme-aware correct/incorrect feedback */
+[data-bs-theme="light"] .answer-option.border-success {
+    background-color: rgba(25, 135, 84, 0.1); /* Light theme success color */
+}
+
+[data-bs-theme="dark"] .answer-option.border-success {
+    background-color: rgba(32, 165, 109, 0.2); /* Dark theme success color */
+}
+
+[data-bs-theme="light"] .answer-option.border-danger {
+    background-color: rgba(220, 53, 69, 0.1); /* Light theme danger color */
+}
+
+[data-bs-theme="dark"] .answer-option.border-danger {
+    background-color: rgba(235, 68, 90, 0.2); /* Dark theme danger color */
 }
 
 .answer-option.correct {
@@ -43,6 +82,51 @@ body {
 .answer-option.disabled {
     pointer-events: none;
     opacity: 0.7;
+}
+
+.answer-option.selected {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+/* Improve radio button replacements */
+.custom-radio-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px !important;
+    height: 24px !important;
+    margin-right: 12px;
+    position: relative;
+    flex-shrink: 0;
+}
+
+/* No need for the inner circle when we replace the entire button */
+.custom-radio-btn .inner-circle {
+    display: none !important;
+}
+
+/* Ensure the icons are properly aligned */
+.custom-radio-btn i {
+    margin: 0;
+    line-height: 1;
+}
+
+/* Animate icon replacement */
+.answer-option .custom-radio-btn i {
+    animation: pop-in 0.3s ease-out;
+}
+
+.custom-radio-btn i {
+    transition: all 0.3s ease;
+    position: absolute; /* Ensure perfect centering */
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.answer-option.selected .custom-radio-btn {
+    border-color: var(--bs-primary) !important;
 }
 
 .key-hint {
@@ -209,6 +293,27 @@ body {
 /* Ensure options are distinct on touch devices */
 .feedback-container {
     pointer-events: auto;
+    animation-duration: 0.5s;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate__fadeIn {
+    animation-name: fadeIn;
+}
+
+/* Enhance the feedback alert styles */
+.feedback-container .alert {
+    border-left-width: 4px;
 }
 
 /* Compact flashcard navigation */
@@ -248,4 +353,98 @@ body {
 
 .pulse-hint {
     animation: pulse-hint 1s ease-out;
+}
+
+/* Answer comparison styles */
+.answer-comparison {
+    animation: fadeIn 0.5s ease-in-out 0.3s both;
+}
+
+.answer-comparison h6 {
+    color: var(--bs-primary);
+}
+
+/* Make the comparison stand out more with a subtle shadow */
+.answer-comparison > div {
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+}
+
+.answer-comparison > div:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Answer indicators */
+.correct-indicator, .wrong-indicator {
+    animation: slide-in-right 0.3s ease-out;
+}
+
+@keyframes slide-in-right {
+    0% { transform: translateX(20px); opacity: 0; }
+    100% { transform: translateX(0); opacity: 1; }
+}
+
+/* Enhanced answer option styling */
+.answer-option .custom-radio-btn i {
+    transition: all 0.3s ease;
+    position: absolute; /* Ensure perfect centering */
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+/* Success and error styling directly on answer options */
+.answer-option.border-success, .answer-option.border-danger {
+    border-width: 2px !important;
+}
+
+/* Animation for feedback icons */
+@keyframes pop-in {
+    0% { transform: scale(0.5); opacity: 0; }
+    70% { transform: scale(1.2); }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.correct-answer-badge, .your-answer-badge {
+    animation: slide-in-right 0.3s ease-out;
+    z-index: 5;
+}
+
+/* Ensure alignment with text */
+.answer-option .form-check-label {
+    display: flex !important;
+    align-items: center !important;
+}
+
+/* Refined animation for feedback icons with no position shifting */
+@keyframes icon-pop-in {
+    0% { 
+        transform: translate(-50%, -50%) scale(0.5); 
+        opacity: 0;
+    }
+    50% { 
+        transform: translate(-50%, -50%) scale(1.15); 
+    }
+    100% { 
+        transform: translate(-50%, -50%) scale(1); 
+        opacity: 1;
+    }
+}
+
+.custom-radio-btn i {
+    transform-origin: center;
+}
+
+/* Keep original position of radio button indicators */
+.custom-radio-btn {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    min-height: 20px;
+    width: 20px;
+    height: 20px;
+    margin-right: 12px;
+    flex-shrink: 0;
 }
