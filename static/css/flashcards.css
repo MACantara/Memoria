@@ -16,14 +16,18 @@ body {
     display: block;
 }
 
+/* Answer option styling */
 .answer-option {
     transition: all 0.2s ease;
     margin-bottom: 12px;
     transition: background-color 0.2s ease;
+    position: relative;
 }
 
 .answer-option:hover {
     background-color: rgba(0,0,0,0.03);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
 }
 
 .answer-option.correct {
@@ -43,6 +47,19 @@ body {
 .answer-option.disabled {
     pointer-events: none;
     opacity: 0.7;
+}
+
+.answer-option.selected {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.custom-radio-btn {
+    transition: all 0.2s ease;
+}
+
+.answer-option.selected .custom-radio-btn {
+    border-color: var(--bs-primary) !important;
 }
 
 .key-hint {
@@ -209,6 +226,27 @@ body {
 /* Ensure options are distinct on touch devices */
 .feedback-container {
     pointer-events: auto;
+    animation-duration: 0.5s;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate__fadeIn {
+    animation-name: fadeIn;
+}
+
+/* Enhance the feedback alert styles */
+.feedback-container .alert {
+    border-left-width: 4px;
 }
 
 /* Compact flashcard navigation */

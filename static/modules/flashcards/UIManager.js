@@ -53,52 +53,95 @@ export class UIManager {
         // Create a container for the answers
         const answersContainer = document.createElement('div');
         
-        // Generate answer options showing HTML code as raw text
+        // Generate answer options with improved UI
         shuffledAnswers.forEach((answer, index) => {
             const optionDiv = document.createElement('div');
             optionDiv.className = 'mb-3';
             
             const answerOption = document.createElement('div');
-            answerOption.className = 'answer-option form-check p-3 rounded border user-select-none';
+            answerOption.className = 'answer-option form-check p-0 rounded border user-select-none';
+            answerOption.setAttribute('data-answer-value', answer);
             
-            // Create radio button
+            // Create radio button with custom styling
             const radio = document.createElement('input');
-            radio.className = 'form-check-input';
+            radio.className = 'form-check-input visually-hidden';
             radio.type = 'radio';
             radio.id = `answer-${index}`;
             radio.name = 'flashcard-answer';
             radio.value = answer;
             
-            // Create label container
+            // Create label container with improved styling
             const label = document.createElement('label');
-            label.className = 'form-check-label w-100';
+            label.className = 'form-check-label d-block w-100 p-3';
             label.htmlFor = `answer-${index}`;
             label.style.cursor = 'pointer';
+            label.style.borderRadius = 'inherit';
             
-            // Create flex container for badge and answer text
+            // Create flex container for radio button and answer text
             const flexContainer = document.createElement('div');
             flexContainer.className = 'd-flex align-items-center';
             
-            // Create badge with number
-            const badge = document.createElement('span');
-            badge.className = 'badge bg-light text-dark me-2';
-            badge.textContent = index + 1;
+            // Create custom radio button visual
+            const customRadio = document.createElement('div');
+            customRadio.className = 'custom-radio-btn me-3 border border-secondary rounded-circle';
+            customRadio.style.width = '20px';
+            customRadio.style.height = '20px';
+            customRadio.style.position = 'relative';
             
-            // Create div for answer text - use textContent to show raw HTML
+            // Inner circle for selected state
+            const innerCircle = document.createElement('div');
+            innerCircle.className = 'inner-circle bg-primary rounded-circle d-none';
+            innerCircle.style.width = '12px';
+            innerCircle.style.height = '12px';
+            innerCircle.style.position = 'absolute';
+            innerCircle.style.top = '50%';
+            innerCircle.style.left = '50%';
+            innerCircle.style.transform = 'translate(-50%, -50%)';
+            customRadio.appendChild(innerCircle);
+            
+            // Create div for answer text
             const answerText = document.createElement('div');
             answerText.className = 'answer-text';
             answerText.textContent = answer; // Use textContent to show raw HTML
             
             // Assemble the elements
-            flexContainer.appendChild(badge);
+            flexContainer.appendChild(customRadio);
             flexContainer.appendChild(answerText);
             label.appendChild(flexContainer);
             answerOption.appendChild(radio);
             answerOption.appendChild(label);
             optionDiv.appendChild(answerOption);
             
+            // Add hover effect
+            label.addEventListener('mouseenter', () => {
+                if (!radio.checked) {
+                    answerOption.classList.add('border-primary');
+                    label.classList.add('bg-light');
+                }
+            });
+            
+            label.addEventListener('mouseleave', () => {
+                if (!radio.checked) {
+                    answerOption.classList.remove('border-primary');
+                    label.classList.remove('bg-light');
+                }
+            });
+            
             // Add click handler
             answerOption.addEventListener('click', () => {
+                // Update all options to remove selection styling
+                answersContainer.querySelectorAll('.answer-option').forEach(option => {
+                    option.classList.remove('selected', 'border-primary');
+                    option.querySelector('label').classList.remove('bg-light');
+                    const innerDot = option.querySelector('.inner-circle');
+                    if (innerDot) innerDot.classList.add('d-none');
+                });
+                
+                // Add selection styling to this option
+                answerOption.classList.add('selected', 'border-primary');
+                label.classList.add('bg-light');
+                innerCircle.classList.remove('d-none');
+                
                 if (!radio.checked) {
                     radio.checked = true;
                     
@@ -244,17 +287,39 @@ export class UIManager {
         // Play appropriate sound based on correctness
         this.playFeedbackSound(isCorrect);
         
-        // Create a simple feedback container without navigation buttons
-        const feedbackContainer = document.createElement('div');
-        feedbackContainer.classList.add('feedback-container', 'mt-3');
+        // Apply visual feedback to the selected answer
+        this.applyVisualAnswerFeedback(isCorrect);
         
-        // Feedback message
+        // Create a feedback container with enhanced visual design
+        const feedbackContainer = document.createElement('div');
+        feedbackContainer.classList.add('feedback-container', 'mt-4', 'animate__animated', 'animate__fadeIn');
+        
+        // Feedback message with enhanced styling
         const feedback = document.createElement('div');
-        feedback.classList.add('alert', isCorrect ? 'alert-success' : 'alert-danger', 'mb-2');
-        feedback.innerHTML = isCorrect ? 
-            '<i class="bi bi-check-circle-fill"></i> Correct! Moving to next card...' : 
-            '<i class="bi bi-x-circle-fill"></i> Incorrect';
-            
+        feedback.classList.add(
+            'alert', 
+            isCorrect ? 'alert-success' : 'alert-danger',
+            'd-flex',
+            'align-items-center',
+            'mb-0'
+        );
+        
+        // Create icon container with larger icon
+        const iconContainer = document.createElement('div');
+        iconContainer.className = 'me-3 fs-3';
+        iconContainer.innerHTML = isCorrect 
+            ? '<i class="bi bi-check-circle-fill text-success"></i>' 
+            : '<i class="bi bi-x-circle-fill text-danger"></i>';
+        
+        // Create message container
+        const messageContainer = document.createElement('div');
+        messageContainer.innerHTML = `
+            <h5 class="mb-0">${isCorrect ? 'Correct!' : 'Incorrect'}</h5>
+            <div class="small">${isCorrect ? 'Moving to next card...' : 'Try to remember this card for next time.'}</div>
+        `;
+        
+        feedback.appendChild(iconContainer);
+        feedback.appendChild(messageContainer);
         feedbackContainer.appendChild(feedback);
         
         // Add container to the form
@@ -267,24 +332,45 @@ export class UIManager {
         // Play appropriate sound based on correctness
         this.playFeedbackSound(isCorrect);
         
-        // Create a feedback container with navigation buttons
-        const feedbackContainer = document.createElement('div');
-        feedbackContainer.classList.add('feedback-container', 'mt-3');
+        // Apply visual feedback to the selected answer
+        this.applyVisualAnswerFeedback(isCorrect);
         
-        // Feedback message
+        // Create a feedback container with enhanced visual design
+        const feedbackContainer = document.createElement('div');
+        feedbackContainer.classList.add('feedback-container', 'mt-4', 'animate__animated', 'animate__fadeIn');
+        
+        // Feedback message with enhanced styling
         const feedback = document.createElement('div');
-        feedback.classList.add('alert', isCorrect ? 'alert-success' : 'alert-danger', 'mb-2');
-        feedback.innerHTML = isCorrect ? 
-            '<i class="bi bi-check-circle-fill"></i> Correct!' : 
-            '<i class="bi bi-x-circle-fill"></i> Incorrect';
-            
+        feedback.classList.add(
+            'alert', 
+            isCorrect ? 'alert-success' : 'alert-danger',
+            'd-flex',
+            'align-items-center'
+        );
+        
+        // Create icon container with larger icon
+        const iconContainer = document.createElement('div');
+        iconContainer.className = 'me-3 fs-3';
+        iconContainer.innerHTML = isCorrect 
+            ? '<i class="bi bi-check-circle-fill text-success"></i>' 
+            : '<i class="bi bi-x-circle-fill text-danger"></i>';
+        
+        // Create message container
+        const messageContainer = document.createElement('div');
+        messageContainer.innerHTML = `
+            <h5 class="mb-0">${isCorrect ? 'Correct!' : 'Incorrect'}</h5>
+            <div class="small">${isCorrect ? 'Great job!' : 'Try to remember this card for next time.'}</div>
+        `;
+        
+        feedback.appendChild(iconContainer);
+        feedback.appendChild(messageContainer);
         feedbackContainer.appendChild(feedback);
         
-        // Add next button for manual advancement
+        // Add next button with improved styling
         const nextButton = document.createElement('button');
         nextButton.type = 'button';
-        nextButton.className = 'btn btn-primary w-100';
-        nextButton.innerHTML = 'Next Question <i class="bi bi-arrow-right"></i>';
+        nextButton.className = 'btn btn-primary w-100 d-flex justify-content-center align-items-center py-2';
+        nextButton.innerHTML = '<span>Next Question</span><i class="bi bi-arrow-right ms-2"></i>';
         nextButton.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -294,10 +380,10 @@ export class UIManager {
         });
         feedbackContainer.appendChild(nextButton);
         
-        // Add subtle keyboard hint text with Bootstrap styling and icon
+        // Add keyboard hint with improved styling
         const keyboardHint = document.createElement('div');
-        keyboardHint.className = 'text-center text-muted small mt-2 py-1';
-        keyboardHint.innerHTML = '<i class="bi bi-keyboard me-1"></i> Press any key to continue';
+        keyboardHint.className = 'text-center text-muted small mt-2 py-1 d-flex justify-content-center align-items-center';
+        keyboardHint.innerHTML = '<i class="bi bi-keyboard me-1"></i><span>Press any key to continue</span>';
         feedbackContainer.appendChild(keyboardHint);
         
         // Add container to the form
@@ -308,27 +394,49 @@ export class UIManager {
     }
     
     /**
-     * Play the appropriate sound effect based on answer correctness
-     * @param {boolean} isCorrect - Whether the answer was correct
+     * Apply visual feedback to the selected answer
+     * @param {boolean} isCorrect - Whether the selected answer is correct
      */
-    playFeedbackSound(isCorrect) {
-        try {
-            // Stop any currently playing sounds first
-            this.successSound.pause();
-            this.successSound.currentTime = 0;
-            this.errorSound.pause();
-            this.errorSound.currentTime = 0;
+    applyVisualAnswerFeedback(isCorrect) {
+        const answerOptions = this.answerForm.querySelectorAll('.answer-option');
+        const correctAnswer = this.answerForm.dataset.correctAnswer;
+        
+        answerOptions.forEach(option => {
+            const optionValue = option.getAttribute('data-answer-value');
+            const isSelected = option.classList.contains('selected');
             
-            // Play the appropriate sound
-            if (isCorrect) {
-                this.successSound.play();
-            } else {
-                this.errorSound.play();
+            // Remove hover styling
+            option.classList.remove('border-primary');
+            option.querySelector('label').classList.remove('bg-light');
+            
+            if (optionValue === correctAnswer) {
+                // Style correct answer
+                option.classList.add('border-success');
+                
+                const label = option.querySelector('label');
+                label.classList.add('bg-success', 'bg-opacity-10');
+                
+                const icon = document.createElement('div');
+                icon.className = 'position-absolute top-0 end-0 m-2';
+                icon.innerHTML = '<i class="bi bi-check-circle-fill text-success"></i>';
+                label.appendChild(icon);
+            } 
+            else if (isSelected && !isCorrect) {
+                // Style incorrect selected answer
+                option.classList.add('border-danger');
+                
+                const label = option.querySelector('label');
+                label.classList.add('bg-danger', 'bg-opacity-10');
+                
+                const icon = document.createElement('div');
+                icon.className = 'position-absolute top-0 end-0 m-2';
+                icon.innerHTML = '<i class="bi bi-x-circle-fill text-danger"></i>';
+                label.appendChild(icon);
             }
-        } catch (error) {
-            // Silently fail if sound playback fails
-            console.warn("Sound playback failed:", error);
-        }
+            
+            // Disable all options
+            option.style.pointerEvents = 'none';
+        });
     }
 
     showCompletionScreen(deckId, score, totalDue, isDueOnly, remainingDueCards) {
