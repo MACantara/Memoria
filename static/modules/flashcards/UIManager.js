@@ -323,7 +323,7 @@ export class UIManager {
                             </div>
                             
                             <div class="d-flex justify-content-center gap-3 mt-4 flex-wrap">
-                                <a href="/deck/${deckId}/study?due_only=true" class="btn btn-primary">
+                                <a href="/deck/study/${deckId}?due_only=true" class="btn btn-primary">
                                     <i class="bi bi-arrow-right"></i> Continue Studying Due Cards
                                 </a>
                                 <a href="/deck/${deckId}" class="btn btn-outline-secondary">
@@ -354,7 +354,7 @@ export class UIManager {
                             </div>
                             
                             <div class="d-flex justify-content-center gap-3 mt-4 flex-wrap">
-                                <a href="/deck/${deckId}/study" class="btn btn-primary">
+                                <a href="/deck/study/${deckId}" class="btn btn-primary">
                                     <i class="bi bi-collection"></i> Study All Cards
                                 </a>
                                 <a href="/deck/${deckId}" class="btn btn-outline-secondary">
