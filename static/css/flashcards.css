@@ -89,14 +89,32 @@ body {
     box-shadow: 0 4px 8px rgba(0,0,0,0.1);
 }
 
+/* Improve radio button replacements */
 .custom-radio-btn {
-    transition: all 0.2s ease;
-    display: flex !important; 
-    align-items: center !important;
-    justify-content: center !important;
-    min-width: 20px;
-    min-height: 20px;
-    margin-right: 12px; /* Consistent spacing */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px !important;
+    height: 24px !important;
+    margin-right: 12px;
+    position: relative;
+    flex-shrink: 0;
+}
+
+/* No need for the inner circle when we replace the entire button */
+.custom-radio-btn .inner-circle {
+    display: none !important;
+}
+
+/* Ensure the icons are properly aligned */
+.custom-radio-btn i {
+    margin: 0;
+    line-height: 1;
+}
+
+/* Animate icon replacement */
+.answer-option .custom-radio-btn i {
+    animation: pop-in 0.3s ease-out;
 }
 
 .custom-radio-btn i {
@@ -396,4 +414,37 @@ body {
 .answer-option .form-check-label {
     display: flex !important;
     align-items: center !important;
+}
+
+/* Refined animation for feedback icons with no position shifting */
+@keyframes icon-pop-in {
+    0% { 
+        transform: translate(-50%, -50%) scale(0.5); 
+        opacity: 0;
+    }
+    50% { 
+        transform: translate(-50%, -50%) scale(1.15); 
+    }
+    100% { 
+        transform: translate(-50%, -50%) scale(1); 
+        opacity: 1;
+    }
+}
+
+.custom-radio-btn i {
+    transform-origin: center;
+}
+
+/* Keep original position of radio button indicators */
+.custom-radio-btn {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    min-height: 20px;
+    width: 20px;
+    height: 20px;
+    margin-right: 12px;
+    flex-shrink: 0;
 }

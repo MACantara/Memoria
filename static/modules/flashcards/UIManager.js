@@ -433,41 +433,47 @@ export class UIManager {
             option.classList.remove('border-primary');
             option.querySelector('label').classList.remove('bg-light', 'bg-dark-subtle');
             
-            // Replace radio button visual with appropriate icon
-            const radioContainer = option.querySelector('.custom-radio-btn');
-            if (radioContainer) {
-                // Clear existing content
-                radioContainer.innerHTML = '';
+            // Replace radio button with appropriate icon
+            const customRadio = option.querySelector('.custom-radio-btn');
+            if (customRadio) {
+                // Get the position and dimensions of the original radio button before modifying it
+                const originalBounds = customRadio.getBoundingClientRect();
                 
-                // Maintain original styling for consistent size
-                radioContainer.style.border = 'none';
-                radioContainer.style.width = '20px'; // Match original radio size
-                radioContainer.style.height = '20px'; // Match original radio size
-                radioContainer.style.position = 'relative';
-                radioContainer.style.display = 'flex';
-                radioContainer.style.alignItems = 'center';
-                radioContainer.style.justifyContent = 'center';
+                // Simply replace the content with the appropriate icon, 
+                // but preserve the original dimensions and styling
+                customRadio.style.width = '20px';
+                customRadio.style.height = '20px'; 
+                customRadio.style.position = 'relative';
+                customRadio.style.display = 'flex';
+                customRadio.style.alignItems = 'center';
+                customRadio.style.justifyContent = 'center';
                 
-                // Create icon based on whether this option is correct/incorrect
-                const icon = document.createElement('i');
-                
+                // Create the appropriate icon directly in the right position
                 if (isCorrectOption) {
-                    // Correct answer icon
-                    icon.className = 'bi bi-check-circle-fill text-success';
-                    icon.style.fontSize = '18px'; // Slightly smaller for better fit
+                    customRadio.innerHTML = '<i class="bi bi-check-circle-fill text-success"></i>';
                 } 
-                else if (isSelected) {
-                    // Wrong answer icon
-                    icon.className = 'bi bi-x-circle-fill text-danger';
-                    icon.style.fontSize = '18px'; // Slightly smaller for better fit
+                else if (isSelected && !isCorrect) {
+                    customRadio.innerHTML = '<i class="bi bi-x-circle-fill text-danger"></i>';
                 }
                 else {
-                    // Unselected option - use empty circle that matches the size
-                    icon.className = 'bi bi-circle text-muted';
-                    icon.style.fontSize = '18px'; // Slightly smaller for better fit
+                    customRadio.innerHTML = '<i class="bi bi-circle text-muted"></i>';
                 }
                 
-                radioContainer.appendChild(icon);
+                // Get the icon element
+                const icon = customRadio.querySelector('i');
+                if (icon) {
+                    icon.style.fontSize = '20px'; // Match original size exactly
+                    icon.style.position = 'absolute';
+                    icon.style.top = '50%';
+                    icon.style.left = '50%';
+                    icon.style.transform = 'translate(-50%, -50%)';
+                    
+                    // Add a clean animation that doesn't shift position
+                    icon.style.animation = 'icon-pop-in 0.3s ease-out forwards';
+                }
+                
+                // Remove the border that was part of the radio button style
+                customRadio.style.border = 'none';
             }
             
             // Apply different styling based on correctness and selection
