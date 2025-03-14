@@ -47,8 +47,15 @@
     <!-- Mobile-only spacer -->
     <div class="d-block d-md-none" style="height: 20px;"></div>
 
-    <!-- Global Modals Section - Always Available -->
+    <!-- Global Modals Section for Authenticated Users -->
     {% if current_user.is_authenticated %}
+        <!-- Mobile menus and navigation -->
+        {% include 'menus/mobile_add_actions_menu.html' %}
+        {% include 'menus/mobile_study_stats_menu.html' %}
+        {% include 'menus/mobile_user_menu.html' %}
+        {% include 'menus/mobile_theme_menu.html' %}
+        {% include 'nav/mobile_bottom_nav.html' %}
+
         <!-- Core deck selection modals - needed for global navigation -->
         {% if g.all_decks %}
             {% with decks=g.all_decks %}
@@ -76,13 +83,6 @@
             {% include 'components/generate_cards_modal_index.html' %}
         {% endif %}
     {% endif %}
-
-    <!-- Mobile menus and navigation -->
-    {% include 'menus/mobile_add_actions_menu.html' %}
-    {% include 'menus/mobile_study_stats_menu.html' %}
-    {% include 'menus/mobile_user_menu.html' %}
-    {% include 'menus/mobile_theme_menu.html' %}
-    {% include 'nav/mobile_bottom_nav.html' %}
 
     <!-- Essential scripts with appropriate loading attributes -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" defer></script> 
