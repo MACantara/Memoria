@@ -1,6 +1,9 @@
 // Track if form handlers have been initialized to prevent duplicates
 let formHandlersInitialized = false;
 
+// Modify this file to include the multi-deck functionality import
+import { initializeMultiDeckUI } from './multi-deck-handler.js';
+
 export function initializeFormHandlers(modals = {}) {
     // Prevent duplicate initialization
     if (formHandlersInitialized) {
@@ -41,6 +44,9 @@ export function initializeFormHandlers(modals = {}) {
             handleGenerateSubmit(e, generateModal);
         });
     }
+
+    // Initialize multi-deck UI
+    initializeMultiDeckUI();
 
     // Mark as initialized
     formHandlersInitialized = true;

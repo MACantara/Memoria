@@ -10,26 +10,99 @@ deck_management_bp = Blueprint('deck_management', __name__, url_prefix='')
 @login_required
 def create_deck():
     parent_deck_id = request.form.get("parent_deck_id")
-    name = request.form.get("name", "New Deck")
-    description = request.form.get("description", "")
     
-    # If parent deck is provided, check if it belongs to current user
+    # Check if this is a batch creation request
+    is_batch = 'decks' in request.form or (request.json and 'decks' in request.json)
+    
+    if is_batch:
+        # Handle batch creation
+        return create_multiple_decks(parent_deck_id)
+    else:
+        # Handle single deck creation (legacy support)
+        name = request.form.get("name", "New Deck")
+        description = request.form.get("description", "")
+        
+        # If parent deck is provided, check if it belongs to current user
+        if parent_deck_id:
+            parent_deck = FlashcardDecks.query.get_or_404(parent_deck_id)
+            if parent_deck.user_id != current_user.id:
+                return jsonify({"success": False, "error": "Unauthorized access"}), 403
+        
+        # Create the deck with the current user's ID
+        deck = FlashcardDecks(
+            name=name,
+            description=description,
+            parent_deck_id=parent_deck_id,
+            user_id=current_user.id
+        )
+        db.session.add(deck)
+        db.session.commit()
+        
+        return jsonify({"success": True, "deck_id": deck.flashcard_deck_id})
+
+def create_multiple_decks(parent_deck_id=None):
+    """Create multiple decks at once"""
+    # Check if the parent deck belongs to current user (if provided)
     if parent_deck_id:
         parent_deck = FlashcardDecks.query.get_or_404(parent_deck_id)
         if parent_deck.user_id != current_user.id:
             return jsonify({"success": False, "error": "Unauthorized access"}), 403
     
-    # Create the deck with the current user's ID
-    deck = FlashcardDecks(
-        name=name,
-        description=description,
-        parent_deck_id=parent_deck_id,
-        user_id=current_user.id
-    )
-    db.session.add(deck)
-    db.session.commit()
+    # Get deck data from either form data or JSON
+    if request.json:
+        decks_data = request.json.get('decks', [])
+    else:
+        # Parse form data for decks
+        decks_data = request.form.get('decks')
+        if decks_data:
+            try:
+                import json
+                decks_data = json.loads(decks_data)
+            except:
+                return jsonify({"success": False, "error": "Invalid deck data format"}), 400
     
-    return jsonify({"success": True, "deck_id": deck.flashcard_deck_id})
+    # Validate that we have decks to create
+    if not decks_data or not isinstance(decks_data, list):
+        return jsonify({"success": False, "error": "No decks provided"}), 400
+    
+    created_decks = []
+    try:
+        for deck_info in decks_data:
+            name = deck_info.get('name', '').strip()
+            description = deck_info.get('description', '').strip()
+            
+            # Skip empty deck names
+            if not name:
+                continue
+                
+            # Create new deck
+            deck = FlashcardDecks(
+                name=name,
+                description=description,
+                parent_deck_id=parent_deck_id,
+                user_id=current_user.id
+            )
+            db.session.add(deck)
+            db.session.flush()  # Get the ID without committing
+            
+            # Track created deck ID
+            created_decks.append({
+                'deck_id': deck.flashcard_deck_id,
+                'name': name
+            })
+        
+        # Commit all decks at once
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "message": f"Successfully created {len(created_decks)} deck(s)",
+            "decks": created_decks
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "error": str(e)}), 500
 
 @deck_management_bp.route("/rename/<int:deck_id>", methods=["PUT"])
 @login_required
@@ -105,21 +178,27 @@ def delete_deck(deck_id):
 @login_required
 def create_empty_deck():
     try:
-        data = request.json
-        deck = FlashcardDecks(
-            name=data.get('name', 'New Deck'),
-            description=data.get('description', ''),
-            parent_deck_id=None,
-            user_id=current_user.id  # Associate with current user
-        )
-        db.session.add(deck)
-        db.session.commit()
-        
-        return jsonify({
-            "success": True,
-            "deck_id": deck.flashcard_deck_id,
-            "message": "Empty deck created successfully"
-        })
+        # Check if this is a batch creation request
+        if request.json and 'decks' in request.json:
+            # Handle batch creation
+            return create_multiple_decks()
+        else:
+            # Handle single deck creation (legacy support)
+            data = request.json
+            deck = FlashcardDecks(
+                name=data.get('name', 'New Deck'),
+                description=data.get('description', ''),
+                parent_deck_id=None,
+                user_id=current_user.id
+            )
+            db.session.add(deck)
+            db.session.commit()
+            
+            return jsonify({
+                "success": True,
+                "deck_id": deck.flashcard_deck_id,
+                "message": "Empty deck created successfully"
+            })
     except Exception as e:
         db.session.rollback()
         return jsonify({"success": False, "error": str(e)}), 500
