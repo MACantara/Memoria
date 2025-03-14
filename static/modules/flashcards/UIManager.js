@@ -439,6 +439,30 @@ export class UIManager {
         });
     }
 
+    /**
+     * Play the appropriate sound effect based on answer correctness
+     * @param {boolean} isCorrect - Whether the answer was correct
+     */
+    playFeedbackSound(isCorrect) {
+        try {
+            // Stop any currently playing sounds first
+            this.successSound.pause();
+            this.successSound.currentTime = 0;
+            this.errorSound.pause();
+            this.errorSound.currentTime = 0;
+            
+            // Play the appropriate sound
+            if (isCorrect) {
+                this.successSound.play();
+            } else {
+                this.errorSound.play();
+            }
+        } catch (error) {
+            // Silently fail if sound playback fails
+            console.warn("Sound playback failed:", error);
+        }
+    }
+
     showCompletionScreen(deckId, score, totalDue, isDueOnly, remainingDueCards) {
         // Update card counters first to show all completed
         this.updateCardCounter(totalDue - 1, totalDue, score, 0);
