@@ -433,14 +433,10 @@ export class UIManager {
             option.classList.remove('border-primary');
             option.querySelector('label').classList.remove('bg-light', 'bg-dark-subtle');
             
-            // Replace radio button with appropriate icon
+            // Replace radio button with appropriate icon for selected/correct answers only
             const customRadio = option.querySelector('.custom-radio-btn');
             if (customRadio) {
                 // Get the position and dimensions of the original radio button before modifying it
-                const originalBounds = customRadio.getBoundingClientRect();
-                
-                // Simply replace the content with the appropriate icon, 
-                // but preserve the original dimensions and styling
                 customRadio.style.width = '20px';
                 customRadio.style.height = '20px'; 
                 customRadio.style.position = 'relative';
@@ -448,32 +444,42 @@ export class UIManager {
                 customRadio.style.alignItems = 'center';
                 customRadio.style.justifyContent = 'center';
                 
-                // Create the appropriate icon directly in the right position
+                // Only show icons for correct answer or selected wrong answer
                 if (isCorrectOption) {
+                    // Correct answer icon
                     customRadio.innerHTML = '<i class="bi bi-check-circle-fill text-success"></i>';
+                    
+                    // Get the icon element and add animation
+                    const icon = customRadio.querySelector('i');
+                    if (icon) {
+                        icon.style.fontSize = '20px';
+                        icon.style.position = 'absolute';
+                        icon.style.top = '50%';
+                        icon.style.left = '50%';
+                        icon.style.transform = 'translate(-50%, -50%)';
+                        icon.style.animation = 'icon-pop-in 0.3s ease-out forwards';
+                    }
                 } 
                 else if (isSelected && !isCorrect) {
+                    // Wrong answer icon
                     customRadio.innerHTML = '<i class="bi bi-x-circle-fill text-danger"></i>';
+                    
+                    // Get the icon element and add animation
+                    const icon = customRadio.querySelector('i');
+                    if (icon) {
+                        icon.style.fontSize = '20px';
+                        icon.style.position = 'absolute';
+                        icon.style.top = '50%';
+                        icon.style.left = '50%';
+                        icon.style.transform = 'translate(-50%, -50%)';
+                        icon.style.animation = 'icon-pop-in 0.3s ease-out forwards';
+                    }
                 }
                 else {
-                    customRadio.innerHTML = '<i class="bi bi-circle text-muted"></i>';
+                    // For unselected options, just empty the container
+                    customRadio.innerHTML = '';
+                    customRadio.style.border = 'none';
                 }
-                
-                // Get the icon element
-                const icon = customRadio.querySelector('i');
-                if (icon) {
-                    icon.style.fontSize = '20px'; // Match original size exactly
-                    icon.style.position = 'absolute';
-                    icon.style.top = '50%';
-                    icon.style.left = '50%';
-                    icon.style.transform = 'translate(-50%, -50%)';
-                    
-                    // Add a clean animation that doesn't shift position
-                    icon.style.animation = 'icon-pop-in 0.3s ease-out forwards';
-                }
-                
-                // Remove the border that was part of the radio button style
-                customRadio.style.border = 'none';
             }
             
             // Apply different styling based on correctness and selection
@@ -510,9 +516,10 @@ export class UIManager {
                 }
             }
             
-            // Fade other options slightly
+            // For unselected and incorrect options, just gray them out
             if (!isCorrectOption && !isSelected) {
-                option.style.opacity = '0.7';
+                option.style.opacity = '0.6';
+                option.style.filter = 'grayscale(30%)';
             }
             
             // Disable all options
