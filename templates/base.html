@@ -46,40 +46,41 @@
     
     <!-- Mobile-only spacer -->
     <div class="d-block d-md-none" style="height: 20px;"></div>
-    
-    <!-- Mobile Navigation Components -->
-    {% include 'nav/mobile_bottom_nav.html' %}
-    {% include 'menus/mobile_add_actions_menu.html' %}
-    {% include 'menus/mobile_study_stats_menu.html' %}
-    {% include 'menus/mobile_user_menu.html' %}
 
-    <!-- Common Modals - loaded only when needed -->
-    {% include 'components/import_content_modal.html' %}
-    {% include 'components/rename_deck_modal.html' %}
-    {% include 'components/delete_deck_modal.html' %}
-    {% include 'components/move_deck_modal.html' %}
-    
-    <!-- Deck-specific modals - conditional loading -->
-    {% if request.path.startswith('/deck/') and request.path.split('/')[-1].isdigit() %}
-        {% include 'components/create_sub_deck_modal.html' %}
-        {% include 'components/generate_cards_modal_deck.html' %}
-    {% endif %}
-    
-    <!-- Index-specific and Search-page modals - conditional loading -->
-    {% if request.path == '/' or request.path == '/index' or request.path.startswith('/search') %}
-        {% include 'components/create_empty_deck_modal.html' %}
-        {% include 'components/generate_cards_modal_index.html' %}
-        
-        {% if all_decks is defined %}
-            {% with decks=all_decks %}
-                {% include 'components/select_deck_to_study_modal.html' %}
-                {% include 'components/select_deck_for_stats_modal.html' %}
-            {% endwith %}
-        {% elif g.all_decks is defined %}
+    <!-- Global Modals Section for Authenticated Users -->
+    {% if current_user.is_authenticated %}
+        <!-- Mobile menus and navigation -->
+        {% include 'menus/mobile_add_actions_menu.html' %}
+        {% include 'menus/mobile_study_stats_menu.html' %}
+        {% include 'menus/mobile_user_menu.html' %}
+        {% include 'menus/mobile_theme_menu.html' %}
+        {% include 'nav/mobile_bottom_nav.html' %}
+
+        <!-- Core deck selection modals - needed for global navigation -->
+        {% if g.all_decks %}
             {% with decks=g.all_decks %}
                 {% include 'components/select_deck_to_study_modal.html' %}
                 {% include 'components/select_deck_for_stats_modal.html' %}
             {% endwith %}
+        {% endif %}
+
+        <!-- Common action modals needed everywhere -->
+        {% include 'components/import_content_modal.html' %}
+        {% include 'components/rename_deck_modal.html' %}
+        {% include 'components/delete_deck_modal.html' %}
+        {% include 'components/move_deck_modal.html' %}
+        {% include 'components/create_empty_deck_modal.html' %}
+        
+        <!-- Context-specific modals -->
+        {% if request.path.startswith('/deck/') and request.path.split('/')[-1].isdigit() %}
+            <!-- Deck-specific modals - only when viewing a deck -->
+            {% include 'components/generate_cards_modal_deck.html' %}
+            {% include 'components/create_sub_deck_modal.html' %}
+        {% else %}
+            <!-- Home/index/search specific modal -->
+            {% include 'components/select_deck_to_study_modal.html' %}
+            {% include 'components/select_deck_for_stats_modal.html' %}
+            {% include 'components/generate_cards_modal_index.html' %}
         {% endif %}
     {% endif %}
 
@@ -397,6 +398,95 @@
                     updateActiveThemeOption();
                 }, 50);
             }
+        });
+    </script>
+
+    <script>
+        // Initialize mobile navigation menu interactions
+        document.addEventListener('DOMContentLoaded', function() {
+            // Helper function to toggle mobile menus and close others
+            function setupMobileMenu(buttonId, menuSelector) {
+                const button = document.getElementById(buttonId);
+                const menu = document.querySelector(menuSelector);
+                if (!button || !menu) return null;
+                
+                // Find the backdrop - try multiple common patterns
+                const backdrop = menu.querySelector('.mobile-menu-backdrop') || 
+                                 menu.querySelector(`#${buttonId.replace('Button', '')}MenuBackdrop`) ||
+                                 menu.querySelector(`[class$="-backdrop"]`);
+                
+                // Find close button - also try multiple patterns
+                const closeBtn = menu.querySelector(`#${buttonId.replace('Button', '')}MenuClose`) || 
+                                 menu.querySelector(`[id$="MenuClose"]`) ||
+                                 menu.querySelector('.btn-close');
+                
+                // Toggle menu when button is clicked
+                button.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    menu.classList.toggle('active');
+                    
+                    // Close all other menus
+                    document.querySelectorAll('.mobile-add-menu, .mobile-study-stats-menu, .mobile-user-menu, .mobile-theme-menu')
+                        .forEach(otherMenu => {
+                            if (otherMenu !== menu) {
+                                otherMenu.classList.remove('active');
+                            }
+                        });
+                });
+                
+                // Close menu when backdrop is clicked
+                if (backdrop) {
+                    backdrop.addEventListener('click', function() {
+                        menu.classList.remove('active');
+                    });
+                }
+                
+                // Close menu when close button is clicked
+                if (closeBtn) {
+                    closeBtn.addEventListener('click', function() {
+                        menu.classList.remove('active');
+                    });
+                }
+                
+                return { button, menu, backdrop, closeBtn };
+            }
+            
+            // Setup all mobile menus
+            const studyMenu = setupMobileMenu('mobileStudyStatsButton', '.mobile-study-stats-menu');
+            const addMenu = setupMobileMenu('mobileAddButton', '.mobile-add-menu');
+            const userMenu = setupMobileMenu('mobileUserButton', '.mobile-user-menu');
+            const themeMenu = setupMobileMenu('mobileThemeToggle', '.mobile-theme-menu');
+            
+            // Global click handler to close menus when clicking outside
+            document.addEventListener('click', function(e) {
+                // Don't close if clicking on a menu button or inside a menu
+                if (e.target.closest('.mobile-nav-item') || 
+                    e.target.closest('.mobile-add-menu-content') ||
+                    e.target.closest('.mobile-user-menu-content') || 
+                    e.target.closest('.mobile-study-stats-menu-content') ||
+                    e.target.closest('.mobile-theme-menu-content')) {
+                    return;
+                }
+                
+                // Close all menus
+                document.querySelectorAll('.mobile-add-menu, .mobile-study-stats-menu, .mobile-user-menu, .mobile-theme-menu')
+                    .forEach(menu => menu.classList.remove('active'));
+            });
+
+            // Ensure modal functionality when triggered from mobile menus
+            const modalTriggers = document.querySelectorAll('[data-bs-toggle="modal"]');
+            modalTriggers.forEach(trigger => {
+                trigger.addEventListener('click', function() {
+                    // Close the mobile menu that contains this trigger
+                    const mobileMenu = trigger.closest('.mobile-add-menu, .mobile-study-stats-menu, .mobile-user-menu, .mobile-theme-menu');
+                    if (mobileMenu) {
+                        setTimeout(() => {
+                            mobileMenu.classList.remove('active');
+                        }, 100);
+                    }
+                });
+            });
         });
     </script>
     {% block scripts %}{% endblock %}
