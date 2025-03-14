@@ -6,6 +6,29 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
+                <!-- Status messages area at the top -->
+                <div id="createSubDeckMessages" class="mb-3 d-none">
+                    <!-- Processing message -->
+                    <div class="alert alert-info d-flex align-items-center processing-message">
+                        <div class="spinner-border spinner-border-sm me-2" role="status">
+                            <span class="visually-hidden">Processing...</span>
+                        </div>
+                        <div>Creating sub-deck<span class="dots">...</span></div>
+                    </div>
+                    
+                    <!-- Success message -->
+                    <div class="alert alert-success d-none success-message">
+                        <i class="bi bi-check-circle me-2"></i>
+                        <span class="message-text">Sub-deck created successfully!</span>
+                    </div>
+                    
+                    <!-- Error message -->
+                    <div class="alert alert-danger d-none error-message">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <span class="message-text">Error creating sub-deck</span>
+                    </div>
+                </div>
+                
                 <form id="createDeckForm" data-mode="single">
                     <input type="hidden" name="parent_deck_id" value="{{ deck.flashcard_deck_id }}">
                     
@@ -50,3 +73,19 @@
         </div>
     </div>
 </div>
+
+<style>
+/* Animation for the dots in "Creating..." message */
+@keyframes dot-animation {
+  0%, 20% { content: '.'; }
+  40% { content: '..'; }
+  60%, 100% { content: '...'; }
+}
+
+.dots::after {
+  content: '';
+  animation: dot-animation 1.5s infinite;
+  display: inline-block;
+  width: 1em;
+}
+</style>

@@ -33,12 +33,16 @@ function setupEmptyDeckModal() {
         const submitButton = form.querySelector('button[type="submit"]');
         showLoadingState(submitButton, true);
         
+        // Show processing message
+        const messagesContainer = document.getElementById('createEmptyDeckMessages');
+        showMessage(messagesContainer, 'processing');
+        
         // Collect all deck data
         const decks = collectDeckData(container);
         
         // Check if we have any valid decks
         if (decks.length === 0) {
-            showError(form, "Please provide at least one deck name");
+            showMessage(messagesContainer, 'error', "Please provide at least one deck name");
             showLoadingState(submitButton, false);
             return;
         }
@@ -56,18 +60,24 @@ function setupEmptyDeckModal() {
             const data = await response.json();
             
             if (data.success) {
-                // Redirect to first created deck or refresh page
-                if (data.decks && data.decks.length > 0) {
-                    window.location.href = `/deck/${data.decks[0].deck_id}`;
-                } else {
-                    window.location.reload();
-                }
+                // Show success message with count
+                const message = `Successfully created ${decks.length} deck${decks.length > 1 ? 's' : ''}!`;
+                showMessage(messagesContainer, 'success', message);
+                
+                // Redirect after a short delay to show the success message
+                setTimeout(() => {
+                    if (data.decks && data.decks.length > 0) {
+                        window.location.href = `/deck/${data.decks[0].deck_id}`;
+                    } else {
+                        window.location.reload();
+                    }
+                }, 1500);
             } else {
-                showError(form, data.error || "Failed to create decks");
+                showMessage(messagesContainer, 'error', data.error || "Failed to create decks");
                 showLoadingState(submitButton, false);
             }
         } catch (error) {
-            showError(form, "Network error, please try again");
+            showMessage(messagesContainer, 'error', "Network error, please try again");
             showLoadingState(submitButton, false);
         }
     });
@@ -106,6 +116,10 @@ function setupSubDeckModal() {
             const submitButton = form.querySelector('button[type="submit"]');
             showLoadingState(submitButton, true);
             
+            // Show processing message
+            const messagesContainer = document.getElementById('createSubDeckMessages');
+            showMessage(messagesContainer, 'processing');
+            
             // Get parent deck ID
             const parentDeckId = form.querySelector('input[name="parent_deck_id"]').value;
             
@@ -114,7 +128,7 @@ function setupSubDeckModal() {
             
             // Check if we have any valid decks
             if (decks.length === 0) {
-                showError(form, "Please provide at least one deck name");
+                showMessage(messagesContainer, 'error', "Please provide at least one deck name");
                 showLoadingState(submitButton, false);
                 return;
             }
@@ -135,14 +149,20 @@ function setupSubDeckModal() {
                 const data = await response.json();
                 
                 if (data.success) {
-                    // Refresh page to show new decks
-                    window.location.reload();
+                    // Show success message with count
+                    const message = `Successfully created ${decks.length} sub-deck${decks.length > 1 ? 's' : ''}!`;
+                    showMessage(messagesContainer, 'success', message);
+                    
+                    // Reload page after a short delay to show the success message
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
                 } else {
-                    showError(form, data.error || "Failed to create decks");
+                    showMessage(messagesContainer, 'error', data.error || "Failed to create decks");
                     showLoadingState(submitButton, false);
                 }
             } catch (error) {
-                showError(form, "Network error, please try again");
+                showMessage(messagesContainer, 'error', "Network error, please try again");
                 showLoadingState(submitButton, false);
             }
         });
@@ -262,5 +282,46 @@ function showError(form, message) {
                      
     if (statusDiv) {
         statusDiv.innerHTML = `<div class="alert alert-danger">${message}</div>`;
+    }
+}
+
+/**
+ * Show a message in the messages container
+ * @param {Element} container - The messages container element
+ * @param {string} type - The message type: 'processing', 'success', or 'error'
+ * @param {string} [message] - Optional custom message text for success/error
+ */
+function showMessage(container, type, message = null) {
+    if (!container) return;
+    
+    // Show the container
+    container.classList.remove('d-none');
+    
+    // Hide all message types
+    container.querySelectorAll('.processing-message, .success-message, .error-message').forEach(el => {
+        el.classList.add('d-none');
+    });
+    
+    // Show the appropriate message
+    const messageElement = container.querySelector(`.${type}-message`);
+    if (messageElement) {
+        messageElement.classList.remove('d-none');
+        
+        // Update message text if provided (for success/error)
+        if (message && type !== 'processing') {
+            const textElement = messageElement.querySelector('.message-text');
+            if (textElement) textElement.textContent = message;
+        }
+        
+        // If it's processing, count the number of decks
+        if (type === 'processing') {
+            const count = document.querySelectorAll('.deck-input-group').length;
+            const textElement = messageElement.querySelector('div:last-child');
+            if (textElement) {
+                textElement.innerHTML = count > 1 ? 
+                    `Creating ${count} decks<span class="dots">...</span>` : 
+                    `Creating deck<span class="dots">...</span>`;
+            }
+        }
     }
 }
