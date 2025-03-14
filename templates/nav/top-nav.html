@@ -5,34 +5,29 @@
             <i class="bi bi-journal-text me-2"></i>Memoria
         </a>
         
-        <!-- Navbar toggler for mobile - hide on mobile -->
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" 
-                data-bs-target="#navbarContent" aria-controls="navbarContent" 
-                aria-expanded="false" aria-label="Toggle navigation">
-            <span class="navbar-toggler-icon"></span>
-        </button>
+        <!-- For authenticated users on mobile, hide everything else -->
+        {% if current_user.is_authenticated %}
         
-        <!-- Navbar content - hide on mobile -->
-        <div class="collapse navbar-collapse d-none d-md-flex" id="navbarContent">
-            <!-- Search bar - shown inline on desktop -->
-            <div class="search-component ms-auto me-3">
-                <form action="{{ url_for('search.search') }}" method="GET" class="d-none d-md-block">
-                    <div class="input-group">
-                        <input type="text" name="q" class="form-control" 
-                               placeholder="Search decks & cards..." 
-                               aria-label="Search">
-                        <button class="btn btn-outline-primary" type="submit">
-                            <i class="bi bi-search"></i>
-                        </button>
-                    </div>
-                </form>
-            </div>
+            <!-- Navbar content - hide on mobile -->
+            <div class="collapse navbar-collapse d-none d-md-flex" id="navbarContent">
+                <!-- Search bar - shown inline on desktop -->
+                <div class="search-component ms-auto me-3">
+                    <form action="{{ url_for('search.search') }}" method="GET" class="d-none d-md-block">
+                        <div class="input-group">
+                            <input type="text" name="q" class="form-control" 
+                                   placeholder="Search decks & cards..." 
+                                   aria-label="Search">
+                            <button class="btn btn-outline-primary" type="submit">
+                                <i class="bi bi-search"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
 
-            {% include "menus/theme-toggle-menu.html" %}
-            
-            <!-- User authentication links -->
-            <ul class="navbar-nav">
-                {% if current_user.is_authenticated %}
+                {% include "menus/theme-toggle-menu.html" %}
+                
+                <!-- User authentication links -->
+                <ul class="navbar-nav">
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" 
                            data-bs-toggle="dropdown" aria-expanded="false">
@@ -48,15 +43,30 @@
                             </a></li>
                         </ul>
                     </li>
-                {% else %}
+                </ul>
+            </div>
+            
+        {% else %}
+            <!-- For non-authenticated users, show everything on all screen sizes -->
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" 
+                    data-bs-target="#navbarContent" aria-controls="navbarContent" 
+                    aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarContent">
+                {% include "menus/theme-toggle-menu.html" %}
+                
+                <!-- Auth links - shown on all screens for non-authenticated users -->
+                <ul class="navbar-nav">
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('auth.login') }}">Login</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('auth.signup') }}">Sign Up</a>
                     </li>
-                {% endif %}
-            </ul>
-        </div>
+                </ul>
+            </div>
+        {% endif %}
     </div>
 </nav>
