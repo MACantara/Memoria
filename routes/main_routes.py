@@ -3,7 +3,7 @@ from models import FlashcardDecks
 from flask_login import current_user, login_required
 from utils import count_due_flashcards, batch_count_due_cards, create_pagination_metadata
 from sqlalchemy.orm import joinedload
-from sqlalchemy import func
+from sqlalchemy import func, desc, asc, case
 
 main_bp = Blueprint('main', __name__)
 
@@ -15,6 +15,7 @@ def index():
         # Get pagination parameters
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 12, type=int) # Default 12 decks per page
+        sort_by = request.args.get('sort', 'name')  # Default sort by name
         
         # Limit per_page to reasonable values
         per_page = min(max(per_page, 4), 24)
@@ -34,10 +35,54 @@ def index():
             joinedload(FlashcardDecks.child_decks),
             # Eagerly load counts that will be needed for display
             joinedload(FlashcardDecks.flashcards)
-        ).order_by(FlashcardDecks.name)
+        )
+        
+        # Apply sorting
+        if sort_by == 'name':
+            decks_query = decks_query.order_by(FlashcardDecks.name)
+        elif sort_by == 'created_desc':
+            decks_query = decks_query.order_by(desc(FlashcardDecks.created_at))
+        elif sort_by == 'created_asc':
+            decks_query = decks_query.order_by(asc(FlashcardDecks.created_at))
+        elif sort_by == 'cards_desc':
+            # This requires a subquery to count cards
+            deck_counts = db.session.query(
+                FlashcardDecks.flashcard_deck_id.label('deck_id'),
+                func.count(Flashcards.flashcard_id).label('card_count')
+            ).outerjoin(
+                Flashcards, Flashcards.flashcard_deck_id == FlashcardDecks.flashcard_deck_id
+            ).group_by(FlashcardDecks.flashcard_deck_id).subquery()
+            
+            decks_query = decks_query.outerjoin(
+                deck_counts, deck_counts.c.deck_id == FlashcardDecks.flashcard_deck_id
+            ).order_by(desc(deck_counts.c.card_count))
+        elif sort_by == 'cards_asc':
+            # Similar subquery for ascending order
+            deck_counts = db.session.query(
+                FlashcardDecks.flashcard_deck_id.label('deck_id'),
+                func.count(Flashcards.flashcard_id).label('card_count')
+            ).outerjoin(
+                Flashcards, Flashcards.flashcard_deck_id == FlashcardDecks.flashcard_deck_id
+            ).group_by(FlashcardDecks.flashcard_deck_id).subquery()
+            
+            decks_query = decks_query.outerjoin(
+                deck_counts, deck_counts.c.deck_id == FlashcardDecks.flashcard_deck_id
+            ).order_by(asc(deck_counts.c.card_count))
+        elif sort_by == 'due_desc':
+            # We'll sort after fetching since due count requires recursive calculation
+            pass
         
         # Apply pagination
         decks = decks_query.offset((page-1) * per_page).limit(per_page).all()
+        
+        # Special handling for due_desc sort (must happen after query)
+        if sort_by == 'due_desc':
+            # Get deck IDs first
+            deck_ids = [deck.flashcard_deck_id for deck in decks]
+            # Get due counts efficiently
+            due_counts = batch_count_due_cards(deck_ids, current_user.id)
+            # Sort manually by due count
+            decks.sort(key=lambda d: due_counts.get(d.flashcard_deck_id, 0), reverse=True)
         
         # Create pagination metadata
         pagination = create_pagination_metadata(

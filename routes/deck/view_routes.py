@@ -4,7 +4,7 @@ from services.fsrs_scheduler import get_current_time
 from utils import count_due_flashcards, create_pagination_metadata, batch_count_due_cards
 from flask_login import login_required, current_user
 from sqlalchemy.orm import joinedload, contains_eager, defer, load_only
-from sqlalchemy import func, desc
+from sqlalchemy import func, desc, asc, case
 
 deck_view_bp = Blueprint('deck_view', __name__)
 
@@ -43,6 +43,7 @@ def get_deck_flashcards(deck_id):
     # Get pagination parameters
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 20, type=int)
+    sort_by = request.args.get('sort', 'created_desc')  # Default to newest first
     
     # Limit per_page to reasonable values
     per_page = min(max(per_page, 10), 100) 
@@ -58,10 +59,33 @@ def get_deck_flashcards(deck_id):
         flashcard_deck_id=deck_id
     ).scalar()
     
+    # Base query for flashcards
+    flashcards_query = Flashcards.query.filter_by(flashcard_deck_id=deck_id)
+    
+    # Apply sorting
+    if sort_by == 'created_desc':
+        flashcards_query = flashcards_query.order_by(desc(Flashcards.created_at))
+    elif sort_by == 'created_asc':
+        flashcards_query = flashcards_query.order_by(asc(Flashcards.created_at))
+    elif sort_by == 'question':
+        flashcards_query = flashcards_query.order_by(asc(Flashcards.question))
+    elif sort_by == 'answer':
+        flashcards_query = flashcards_query.order_by(asc(Flashcards.correct_answer))
+    elif sort_by == 'due_asc':
+        # Sort by due date, putting NULL values at the end
+        flashcards_query = flashcards_query.order_by(
+            case((Flashcards.due_date == None, 1), else_=0),
+            asc(Flashcards.due_date)
+        )
+    elif sort_by == 'state':
+        # Sort by learning state (0=new, 1=learning, 2=mastered, 3=forgotten)
+        flashcards_query = flashcards_query.order_by(
+            asc(Flashcards.state),
+            desc(Flashcards.due_date)
+        )
+    
     # Get flashcards with pagination
-    flashcards = Flashcards.query.filter_by(flashcard_deck_id=deck_id).order_by(
-        desc(Flashcards.created_at)
-    ).offset((page-1) * per_page).limit(per_page).all()
+    flashcards = flashcards_query.offset((page-1) * per_page).limit(per_page).all()
     
     # Create pagination metadata
     pagination = create_pagination_metadata(
