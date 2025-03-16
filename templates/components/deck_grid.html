@@ -1,3 +1,25 @@
+{% if decks %}
+<!-- Sorting controls for decks -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="h6 mb-0">{{ decks|length }} deck{% if decks|length != 1 %}s{% endif %}</div>
+    
+    <div class="deck-sort-controls">
+        <div class="input-group input-group-sm">
+            <label class="input-group-text border-end-0 bg-transparent" for="deckSortOption">
+                <i class="bi bi-sort-alpha-down me-1"></i> Sort by
+            </label>
+            <select class="form-select form-select-sm border-start-0" id="deckSortOption" onchange="applyDeckSort(this.value)">
+                <option value="name" {% if request.args.get('sort') == 'name' %}selected{% endif %}>Name</option>
+                <option value="created_desc" {% if request.args.get('sort') == 'created_desc' or not request.args.get('sort') %}selected{% endif %}>Newest First</option>
+                <option value="created_asc" {% if request.args.get('sort') == 'created_asc' %}selected{% endif %}>Oldest First</option>
+                <option value="cards_desc" {% if request.args.get('sort') == 'cards_desc' %}selected{% endif %}>Cards (Most)</option>
+                <option value="cards_asc" {% if request.args.get('sort') == 'cards_asc' %}selected{% endif %}>Cards (Least)</option>
+                <option value="due_desc" {% if request.args.get('sort') == 'due_desc' %}selected{% endif %}>Due Cards</option>
+            </select>
+        </div>
+    </div>
+</div>
+
 <div class="row g-4">
     {% for deck in decks %}
     <div class="col-md-6 col-lg-4">
@@ -113,3 +135,25 @@
 %}
     {% include 'components/pagination.html' %}
 {% endwith %}
+
+<script>
+    // Function to apply sorting
+    function applyDeckSort(sortOption) {
+        // Get current URL and parameters
+        const url = new URL(window.location);
+        
+        // Set the sort parameter
+        url.searchParams.set('sort', sortOption);
+        
+        // Reset to first page when changing sort
+        url.searchParams.set('page', 1);
+        
+        // Navigate to the new URL
+        window.location = url.toString();
+    }
+</script>
+{% else %}
+<div class="alert alert-info">
+    <i class="bi bi-info-circle me-2"></i>No decks found.
+</div>
+{% endif %}

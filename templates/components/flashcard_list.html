@@ -13,6 +13,23 @@
                 </span>
             {% endif %}
         </div>
+        
+        <!-- Sorting controls for flashcards -->
+        <div class="flashcard-sort-controls">
+            <div class="input-group input-group-sm">
+                <label class="input-group-text border-end-0 bg-transparent" for="flashcardSortOption">
+                    <i class="bi bi-sort-alpha-down me-1"></i> Sort by
+                </label>
+                <select class="form-select form-select-sm border-start-0" id="flashcardSortOption" onchange="applyFlashcardSort(this.value)">
+                    <option value="created_desc" {% if request.args.get('sort') == 'created_desc' or not request.args.get('sort') %}selected{% endif %}>Newest First</option>
+                    <option value="created_asc" {% if request.args.get('sort') == 'created_asc' %}selected{% endif %}>Oldest First</option>
+                    <option value="question" {% if request.args.get('sort') == 'question' %}selected{% endif %}>Question A-Z</option>
+                    <option value="answer" {% if request.args.get('sort') == 'answer' %}selected{% endif %}>Answer A-Z</option>
+                    <option value="due_asc" {% if request.args.get('sort') == 'due_asc' %}selected{% endif %}>Due Date (Earliest)</option>
+                    <option value="state" {% if request.args.get('sort') == 'state' %}selected{% endif %}>Learning State</option>
+                </select>
+            </div>
+        </div>
     </div>
     
     <div class="row row-cols-1 row-cols-md-2 g-4">
@@ -84,6 +101,23 @@
     %}
         {% include 'components/pagination.html' %}
     {% endwith %}
+    
+    <script>
+        // Function to apply sorting
+        function applyFlashcardSort(sortOption) {
+            // Get current URL and parameters
+            const url = new URL(window.location);
+            
+            // Set the sort parameter
+            url.searchParams.set('sort', sortOption);
+            
+            // Reset to first page when changing sort
+            url.searchParams.set('page', 1);
+            
+            // Navigate to the new URL
+            window.location = url.toString();
+        }
+    </script>
     
     {% else %}
         <div class="alert alert-info">
