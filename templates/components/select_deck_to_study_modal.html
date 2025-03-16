@@ -6,11 +6,16 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <!-- Random Deck Button - Added at the top -->
-                <div class="mb-4 d-grid">
-                    <a href="{{ url_for('deck.deck_view.random_deck') }}" class="btn btn-warning">
-                        <i class="bi bi-shuffle me-2"></i> Study Random Deck
-                        <small class="d-block text-white-50 mt-1">Prioritizes decks with due cards</small>
+                <!-- Random Deck Button - Improved styling -->
+                <div class="mb-4">
+                    <a href="{{ url_for('deck.deck_view.random_deck') }}" class="btn btn-primary w-100 position-relative">
+                        <div class="d-flex align-items-center justify-content-center">
+                            <i class="bi bi-shuffle fs-5 me-2"></i>
+                            <div class="text-start">
+                                <span class="d-block">Study Random Deck</span>
+                                <small class="d-block text-white-50">Prioritizes decks with due cards</small>
+                            </div>
+                        </div>
                     </a>
                 </div>
                 

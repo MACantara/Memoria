@@ -28,9 +28,11 @@
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end">
                     <li>
-                        <!-- Random deck option - always visible -->
-                        <a class="dropdown-item" href="{{ url_for('deck.deck_view.random_deck') }}">
-                            <i class="bi bi-shuffle me-2"></i> Random Deck
+                        <!-- Random deck option - improved styling -->
+                        <a class="dropdown-item d-flex align-items-center" href="{{ url_for('deck.deck_view.random_deck') }}">
+                            <i class="bi bi-shuffle text-primary me-2"></i>
+                            <span class="flex-grow-1">Random Deck</span>
+                            <span class="badge bg-primary text-white rounded-pill ms-2">New</span>
                         </a>
                     </li>
                     <li><hr class="dropdown-divider"></li>
@@ -62,9 +64,11 @@
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end">
                     <li>
-                        <!-- Random deck option -->
-                        <a class="dropdown-item" href="{{ url_for('deck.deck_view.random_deck') }}">
-                            <i class="bi bi-shuffle me-2"></i> Random Deck
+                        <!-- Random deck option - improved styling -->
+                        <a class="dropdown-item d-flex align-items-center" href="{{ url_for('deck.deck_view.random_deck') }}">
+                            <i class="bi bi-shuffle text-primary me-2"></i>
+                            <span class="flex-grow-1">Random Deck</span>
+                            <span class="badge bg-primary text-white rounded-pill ms-2">New</span>
                         </a>
                     </li>
                     <li><hr class="dropdown-divider"></li>

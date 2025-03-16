@@ -7,10 +7,12 @@
             
             <!-- Context-aware menu content -->
             <div class="list-group list-group-flush">
-                <!-- Random Deck option (always show at the top) -->
+                <!-- Random Deck option with improved styling -->
                 <a href="{{ url_for('deck.deck_view.random_deck') }}" class="list-group-item list-group-item-action">
-                    <div class="d-flex align-items-center">
-                        <i class="bi bi-shuffle text-warning me-3"></i>
+                    <div class="d-flex align-items-center position-relative">
+                        <div class="random-deck-icon-container bg-primary text-white rounded-circle p-2 me-3 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                            <i class="bi bi-shuffle"></i>
+                        </div>
                         <div>
                             <div class="fw-bold">Random Deck</div>
                             <small class="text-muted">Study a randomly selected deck</small>
