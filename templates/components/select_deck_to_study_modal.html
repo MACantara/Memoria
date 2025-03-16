@@ -19,15 +19,14 @@
                     <select class="form-select deck-search-select" id="studyDeckSelect">
                         <option value="" disabled selected>Select a deck...</option>
                         
-                        <!-- Show all decks with due counts -->
+                        <!-- Show all decks - due counts will be loaded via JavaScript -->
                         {% for deck in decks %}
-                            {% set due_count = due_count %}
                             <option value="{{ deck.flashcard_deck_id }}" 
                                     data-card-count="{{ deck.count_all_flashcards() }}"
                                     data-has-cards="{{ 'true' if deck.count_all_flashcards() > 0 else 'false' }}"
-                                    data-due-count="{{ due_count }}"
-                                    data-parent="{{ deck.parent_deck.name if deck.parent_deck_id else '' }}">
-                                {{ deck.name }} ({{ due_count }} due / {{ deck.count_all_flashcards() }} total)
+                                    data-due-count="0"
+                                    data-parent="{{ deck.parent_deck_id if deck.parent_deck_id else '' }}">
+                                {{ deck.name }} (loading... / {{ deck.count_all_flashcards() }} total)
                             </option>
                         {% endfor %}
                     </select>
@@ -88,6 +87,58 @@
         const selectedDeckDueCount = document.getElementById('selectedDeckDueCount');
         const deckInfo = document.getElementById('deckInfo');
         const parentDeckName = document.getElementById('parentDeckName');
+        
+        // Load due counts when the modal is shown
+        selectDeckModal.addEventListener('show.bs.modal', function() {
+            loadDueCounts();
+        });
+        
+        // Function to load due counts via API
+        async function loadDueCounts() {
+            try {
+                // Get all deck IDs
+                const deckOptions = Array.from(deckSelect.options).filter(option => option.value);
+                const deckIds = deckOptions.map(option => option.value);
+                
+                if (deckIds.length === 0) return;
+                
+                // Fetch due counts from API
+                const response = await fetch(`/api/due-counts?deck_ids=${deckIds.join(',')}`);
+                if (!response.ok) throw new Error('Failed to load due counts');
+                
+                const data = await response.json();
+                if (!data.success) throw new Error(data.error || 'Error fetching due counts');
+                
+                // Update each option with the due count
+                deckOptions.forEach(option => {
+                    const deckId = option.value;
+                    const dueCount = data.counts[deckId] || 0;
+                    
+                    // Update data attribute
+                    option.dataset.dueCount = dueCount;
+                    
+                    // Update option text
+                    const cardCount = option.dataset.cardCount;
+                    option.textContent = `${option.textContent.split('(')[0]}(${dueCount} due / ${cardCount} total)`;
+                });
+                
+                // If a deck is currently selected, update its displayed counts
+                if (deckSelect.value) {
+                    const selectedOption = deckSelect.options[deckSelect.selectedIndex];
+                    selectedDeckCardCount.textContent = `${selectedOption.dataset.cardCount} total`;
+                    selectedDeckDueCount.textContent = `${selectedOption.dataset.dueCount} due`;
+                    
+                    // Show warning if needed
+                    if (dueOnlyCheckbox.checked && selectedOption.dataset.dueCount == 0) {
+                        noDueCardsWarning.classList.remove('d-none');
+                    } else {
+                        noDueCardsWarning.classList.add('d-none');
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading due counts:', error);
+            }
+        }
         
         // Update UI when a deck is selected
         deckSelect.addEventListener('change', function() {
