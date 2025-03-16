@@ -54,14 +54,19 @@
 
 {% block scripts %}
 <script type="module">
-    // Import but don't reinitialize - components are already initialized in base.html
+    // Import utilities and flashcard operations
     import { deleteDeck, renameDeck } from "{{ url_for('static', filename='modules/utils.js') }}";
+    import { initializeFlashcardOperations } from "{{ url_for('static', filename='modules/flashcards/flashcard-operations.js') }}";
     
     // Make these functions available globally for HTML onclick handlers
     window.deleteDeck = deleteDeck;
     window.renameDeck = renameDeck;
     
-    // Log for debugging
+    // Initialize flashcard operations
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeFlashcardOperations();
+    });
+    
     console.log("Deck view script loaded");
 </script>
 {% endblock %}

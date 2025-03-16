@@ -7,6 +7,20 @@
             
             <!-- Context-aware menu content -->
             <div class="list-group list-group-flush">
+                <!-- Add Flashcard - Manual creation (new) -->
+                {% if request.path.startswith('/deck/') and request.path.split('/')[-1].isdigit() %}
+                    {% set deck_id = request.path.split('/')[-1] %}
+                    <a href="javascript:void(0);" class="list-group-item list-group-item-action" id="addManualFlashcardBtn" data-deck-id="{{ deck_id }}">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-card-heading text-primary me-3"></i>
+                            <div>
+                                <div class="fw-bold">Add Flashcard</div>
+                                <small class="text-muted">Create flashcard manually</small>
+                            </div>
+                        </div>
+                    </a>
+                {% endif %}
+                
                 <!-- Add Cards - Context-aware implementation -->
                 {% if request.path.startswith('/deck/') and request.path.split('/')[-1].isdigit() %}
                     <!-- In deck view - Add cards directly to this deck -->
@@ -15,8 +29,8 @@
                         <div class="d-flex align-items-center">
                             <i class="bi bi-card-text text-primary me-3"></i>
                             <div>
-                                <div class="fw-bold">Add Cards</div>
-                                <small class="text-muted">Generate cards with AI</small>
+                                <div class="fw-bold">Generate Cards</div>
+                                <small class="text-muted">Create cards with AI</small>
                             </div>
                         </div>
                     </a>
@@ -35,8 +49,8 @@
                         <div class="d-flex align-items-center">
                             <i class="bi bi-card-text text-primary me-3"></i>
                             <div>
-                                <div class="fw-bold">Add Cards</div>
-                                <small class="text-muted">Generate flashcards with AI</small>
+                                <div class="fw-bold">Generate Cards</div>
+                                <small class="text-muted">Create flashcards with AI</small>
                             </div>
                         </div>
                     </a>
