@@ -61,7 +61,7 @@
                                         data-flashcard-id="{{ flashcard.flashcard_id }}"
                                         data-question="{{ flashcard.question }}"
                                         data-correct-answer="{{ flashcard.correct_answer }}"
-                                        data-incorrect-answers="{{ flashcard.incorrect_answers|tojson if flashcard.incorrect_answers is not string else flashcard.incorrect_answers }}">
+                                        data-incorrect-answers="{{ flashcard.incorrect_answers|tojson|forceescape }}">
                                     <i class="bi bi-pencil me-2"></i> Edit Flashcard
                                 </button>
                             </li>

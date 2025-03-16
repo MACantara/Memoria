@@ -29,16 +29,37 @@ export function initializeFlashcardOperations() {
             const flashcardId = btn.dataset.flashcardId;
             const question = btn.dataset.question;
             const correctAnswer = btn.dataset.correctAnswer;
-            let incorrectAnswers;
+            let incorrectAnswers = [];
             
             try {
-                incorrectAnswers = JSON.parse(btn.dataset.incorrectAnswers);
-            } catch (e) {
-                // If parsing fails, try to access as a string
-                incorrectAnswers = btn.dataset.incorrectAnswers;
-                // If it's a string, try to split it
+                // Try to parse the incorrect answers as JSON
+                const incorrectAnswersData = btn.dataset.incorrectAnswers.replace(/&quot;/g, '"');
+                incorrectAnswers = JSON.parse(incorrectAnswersData);
+                
+                // Handle case where it's a string that should be an array
                 if (typeof incorrectAnswers === 'string') {
-                    incorrectAnswers = incorrectAnswers.split(',');
+                    try {
+                        // Second parsing attempt
+                        incorrectAnswers = JSON.parse(incorrectAnswers);
+                    } catch (e) {
+                        // If that fails, split by comma as fallback
+                        incorrectAnswers = incorrectAnswers.split(',');
+                    }
+                }
+            } catch (e) {
+                console.error("Error parsing incorrect answers:", e);
+                console.log("Raw data:", btn.dataset.incorrectAnswers);
+                
+                // Fallback to string handling
+                incorrectAnswers = btn.dataset.incorrectAnswers;
+                if (typeof incorrectAnswers === 'string') {
+                    // Replace escaped quotes and try to parse again
+                    try {
+                        incorrectAnswers = JSON.parse(incorrectAnswers.replace(/&quot;/g, '"'));
+                    } catch (e) {
+                        // Split by comma as last resort
+                        incorrectAnswers = incorrectAnswers.split(',');
+                    }
                 }
             }
             
@@ -46,6 +67,9 @@ export function initializeFlashcardOperations() {
             if (!Array.isArray(incorrectAnswers)) {
                 incorrectAnswers = [incorrectAnswers];
             }
+            
+            // Filter out any null or undefined values
+            incorrectAnswers = incorrectAnswers.filter(answer => answer !== null && answer !== undefined);
             
             // Populate form fields
             document.getElementById('editFlashcardId').value = flashcardId;
