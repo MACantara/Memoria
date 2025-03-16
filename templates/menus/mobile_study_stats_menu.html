@@ -7,6 +7,20 @@
             
             <!-- Context-aware menu content -->
             <div class="list-group list-group-flush">
+                <!-- Random Deck option (always show at the top) -->
+                <a href="{{ url_for('deck.deck_view.random_deck') }}" class="list-group-item list-group-item-action">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-shuffle text-warning me-3"></i>
+                        <div>
+                            <div class="fw-bold">Random Deck</div>
+                            <small class="text-muted">Study a randomly selected deck</small>
+                        </div>
+                    </div>
+                </a>
+                
+                <!-- Divider after random deck option -->
+                <div class="dropdown-divider my-2"></div>
+                
                 {% if request.path.startswith('/deck/') and request.path.split('/')[-1].isdigit() %}
                     <!-- In deck view - Link directly to study this deck with due cards -->
                     {% set deck_id = request.path.split('/')[-1] %}
