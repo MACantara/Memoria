@@ -37,13 +37,41 @@ def get_deck_flashcards(deck_id):
         parent_decks.insert(0, current_parent)
         current_parent = current_parent.parent_deck
     
-    # Get child decks
-    child_decks = deck.child_decks
+    # Get sort parameter for child decks
+    sort_by = request.args.get('sort', 'name')
     
-    # Get pagination parameters
+    # Get child decks and apply sorting
+    if deck.child_decks:
+        # Apply sorting to child_decks
+        if sort_by == 'name':
+            deck.child_decks.sort(key=lambda d: d.name)
+        elif sort_by == 'created_desc':
+            deck.child_decks.sort(key=lambda d: d.created_at, reverse=True)
+        elif sort_by == 'created_asc':
+            deck.child_decks.sort(key=lambda d: d.created_at)
+        elif sort_by == 'cards_desc' or sort_by == 'cards_asc':
+            # Count cards including those in subdecks for each child deck
+            child_decks_with_counts = [(d, d.count_all_flashcards()) for d in deck.child_decks]
+            
+            # Sort by card count
+            if sort_by == 'cards_desc':
+                child_decks_with_counts.sort(key=lambda x: x[1], reverse=True)
+            else:  # cards_asc
+                child_decks_with_counts.sort(key=lambda x: x[1])
+            
+            # Update the child_decks list with the sorted decks
+            deck.child_decks = [d for d, _ in child_decks_with_counts]
+        elif sort_by == 'due_desc':
+            # Get due counts for all child decks
+            child_deck_ids = [d.flashcard_deck_id for d in deck.child_decks]
+            due_counts = batch_count_due_cards(child_deck_ids, current_user.id)
+            
+            # Sort child decks by due count
+            deck.child_decks.sort(key=lambda d: due_counts.get(d.flashcard_deck_id, 0), reverse=True)
+    
+    # Get pagination parameters for flashcards
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 20, type=int)
-    sort_by = request.args.get('sort', 'created_desc')  # Default to newest first
     
     # Limit per_page to reasonable values
     per_page = min(max(per_page, 10), 100) 
@@ -102,7 +130,7 @@ def get_deck_flashcards(deck_id):
         'deck.html',
         deck=deck,
         parent_decks=parent_decks,
-        child_decks=child_decks,
+        child_decks=deck.child_decks,
         flashcards=flashcards,
         pagination=pagination,
         total_flashcards=total_flashcards,
