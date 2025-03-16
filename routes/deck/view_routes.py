@@ -1,7 +1,7 @@
-from flask import Blueprint, request, render_template, jsonify, g, abort, current_app
+from flask import Blueprint, request, render_template, jsonify, g, abort, current_app, redirect, url_for
 from models import db, FlashcardDecks, Flashcards
 from services.fsrs_scheduler import get_current_time
-from utils import count_due_flashcards, create_pagination_metadata  # Updated import path
+from utils import count_due_flashcards, create_pagination_metadata, batch_count_due_cards
 from flask_login import login_required, current_user
 from sqlalchemy.orm import joinedload, contains_eager, defer, load_only
 from sqlalchemy import func, desc
@@ -206,3 +206,37 @@ def get_due_cards(deck_id, due_only=False):
         )
         
     return query.all()
+
+@deck_view_bp.route("/random-deck")
+@login_required
+def random_deck():
+    """Select a random deck to study, prioritizing decks with due cards"""
+    # Get all decks for the current user
+    user_decks = FlashcardDecks.query.filter_by(user_id=current_user.id).all()
+    
+    if not user_decks:
+        # User has no decks
+        return jsonify({
+            "success": False, 
+            "message": "You don't have any flashcard decks yet."
+        }), 404
+    
+    # Get due counts for all decks
+    deck_ids = [deck.flashcard_deck_id for deck in user_decks]
+    due_counts = batch_count_due_cards(deck_ids, current_user.id)
+    
+    # Separate decks with due cards from those without
+    decks_with_due = [deck for deck in user_decks if due_counts.get(deck.flashcard_deck_id, 0) > 0]
+    
+    if decks_with_due:
+        # Prioritize decks with due cards
+        import random
+        selected_deck = random.choice(decks_with_due)
+        return redirect(url_for('deck.deck_view.study_deck', deck_id=selected_deck.flashcard_deck_id, due_only='true'))
+    else:
+        # No decks with due cards, pick a random deck anyway
+        import random
+        selected_deck = random.choice(user_decks)
+        
+        # Redirect with a query param that indicates no due cards
+        return redirect(url_for('deck.deck_view.study_deck', deck_id=selected_deck.flashcard_deck_id, no_due_cards='true'))
