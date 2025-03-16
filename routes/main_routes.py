@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, g, request, url_for
-from models import FlashcardDecks
+from models import db, FlashcardDecks, Flashcards
 from flask_login import current_user, login_required
 from utils import count_due_flashcards, batch_count_due_cards, create_pagination_metadata
 from sqlalchemy.orm import joinedload
