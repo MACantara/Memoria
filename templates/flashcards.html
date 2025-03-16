@@ -53,6 +53,19 @@ Study {{ deck.name }} (All Cards)
     </div>
 </div>
 
+{% if request.args.get('no_due_cards') == 'true' %}
+<div class="alert alert-info alert-dismissible fade show mb-3" role="alert">
+    <div class="d-flex align-items-center">
+        <i class="bi bi-info-circle me-2 fs-5"></i>
+        <div>
+            <strong>No due cards found!</strong> 
+            <p class="mb-0">There are no cards due for review in any of your decks. You can still study this randomly selected deck with all cards.</p>
+        </div>
+    </div>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+{% endif %}
+
 <!-- Main container for flashcard content -->
 <div id="flashcardsContainer">
     {% if not flashcards_count %}

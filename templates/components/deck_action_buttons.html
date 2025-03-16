@@ -28,6 +28,14 @@
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end">
                     <li>
+                        <!-- Random deck option - improved styling -->
+                        <a class="dropdown-item d-flex align-items-center" href="{{ url_for('deck.deck_view.random_deck') }}">
+                            <i class="bi bi-shuffle me-2"></i>
+                            <span class="flex-grow-1">Random Deck</span>
+                        </a>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
                         <!-- Update URL to use the correct endpoint -->
                         <a class="dropdown-item due-today-item {% if due_count == 0 %}disabled{% endif %} {% if deck.count_all_flashcards() == 0 %}no-cards{% endif %}" 
                            href="{{ url_for('deck.deck_view.study_deck', deck_id=deck.flashcard_deck_id, due_only='true') }}"
@@ -49,9 +57,26 @@
             </div>
         {% else %}
             <!-- Index context: Show study button that opens a modal to select a deck -->
-            <button class="btn btn-success" type="button" data-bs-toggle="modal" data-bs-target="#selectDeckToStudyModal">
-                <i class="bi bi-book"></i> Study
-            </button>
+            <div class="dropdown">
+                <button class="btn btn-success dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-book"></i> Study
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li>
+                        <!-- Random deck option - improved styling -->
+                        <a class="dropdown-item d-flex align-items-center" href="{{ url_for('deck.deck_view.random_deck') }}">
+                            <i class="bi bi-shuffle text-primary me-2"></i>
+                            <span class="flex-grow-1">Random Deck</span>
+                        </a>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#selectDeckToStudyModal">
+                            <i class="bi bi-list-check me-2"></i> Select Deck...
+                        </a>
+                    </li>
+                </ul>
+            </div>
         {% endif %}
     {% endif %}
 
