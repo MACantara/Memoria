@@ -86,20 +86,29 @@
             <i class="bi bi-plus-lg"></i> Add
         </button>
         <ul class="dropdown-menu dropdown-menu-end">
+            <!-- Add Flashcard Option - Manual creation (new) -->
+            {% if deck %}
+            <li>
+                <a class="dropdown-item" href="#" id="addManualFlashcardBtn" data-deck-id="{{ deck.flashcard_deck_id }}">
+                    <i class="bi bi-card-heading me-2"></i> Add Flashcard
+                </a>
+            </li>
+            {% endif %}
+            
             <!-- Add Cards Option - Context-aware implementation -->
             {% if show_add_cards %}
                 {% if deck %}
                 <!-- Deck context: Add cards directly to this deck -->
                 <li>
                     <a class="dropdown-item add-cards-btn" href="#" data-deck-id="{{ deck.flashcard_deck_id }}">
-                        <i class="bi bi-card-text me-2"></i> Add Cards
+                        <i class="bi bi-card-text me-2"></i> Generate Cards
                     </a>
                 </li>
                 {% else %}
                 <!-- Index context: Generate cards that will prompt for deck selection -->
                 <li>
                     <a class="dropdown-item" href="#" onclick="showGenerateModal(); return false;">
-                        <i class="bi bi-card-text me-2"></i> Add Cards
+                        <i class="bi bi-card-text me-2"></i> Generate Cards
                     </a>
                 </li>
                 {% endif %}

@@ -1,0 +1,52 @@
+<div class="modal fade" id="addFlashcardModal" tabindex="-1" aria-labelledby="addFlashcardModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addFlashcardModalLabel">Add New Flashcard</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addFlashcardForm">
+                    <input type="hidden" id="addFlashcardDeckId" name="deck_id">
+                    
+                    <!-- Question field -->
+                    <div class="mb-3">
+                        <label for="flashcardQuestion" class="form-label">Question</label>
+                        <textarea class="form-control" id="flashcardQuestion" name="question" rows="2" required></textarea>
+                    </div>
+                    
+                    <!-- Correct Answer field -->
+                    <div class="mb-3">
+                        <label for="flashcardCorrectAnswer" class="form-label">Correct Answer</label>
+                        <textarea class="form-control" id="flashcardCorrectAnswer" name="correct_answer" rows="2" required></textarea>
+                    </div>
+                    
+                    <!-- Incorrect Answers fields -->
+                    <div class="mb-3">
+                        <label class="form-label">Incorrect Answers</label>
+                        <div class="incorrect-answers-container">
+                            <div class="mb-2">
+                                <textarea class="form-control mb-2" name="incorrect_answers[]" rows="2" required placeholder="Incorrect Answer 1"></textarea>
+                            </div>
+                            <div class="mb-2">
+                                <textarea class="form-control mb-2" name="incorrect_answers[]" rows="2" required placeholder="Incorrect Answer 2"></textarea>
+                            </div>
+                            <div class="mb-2">
+                                <textarea class="form-control" name="incorrect_answers[]" rows="2" required placeholder="Incorrect Answer 3"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="addFlashcardStatus"></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveFlashcardBtn">
+                    <span class="normal-state"><i class="bi bi-save me-1"></i> Save Flashcard</span>
+                    <span class="loading-state d-none"><span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

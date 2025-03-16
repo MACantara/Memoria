@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify, render_template
 from models import db, FlashcardDecks, Flashcards
-from services.fsrs_scheduler import process_review
+from services.fsrs_scheduler import process_review, get_current_time
+from flask_login import current_user, login_required
 import traceback
 
 # Update blueprint name to be more specific since it's now part of flashcard package
@@ -69,4 +70,122 @@ def update_progress():
         print(f"Error in update_progress: {e}")
         print(traceback.format_exc())  # Print full stack trace
         db.session.rollback()
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@flashcard_bp.route("/create", methods=["POST"])
+@login_required
+def create_flashcard():
+    """Create a new flashcard manually"""
+    try:
+        data = request.json
+        deck_id = data.get('deck_id')
+        question = data.get('question')
+        correct_answer = data.get('correct_answer')
+        incorrect_answers = data.get('incorrect_answers', [])
+        
+        # Validate required fields
+        if not all([deck_id, question, correct_answer]):
+            return jsonify({"success": False, "error": "Missing required fields"}), 400
+            
+        # Verify deck ownership
+        deck = FlashcardDecks.query.get_or_404(deck_id)
+        if deck.user_id != current_user.id:
+            return jsonify({"success": False, "error": "You don't have permission to add cards to this deck"}), 403
+        
+        # Create the flashcard
+        current_time = get_current_time()
+        
+        flashcard = Flashcards(
+            question=question,
+            correct_answer=correct_answer,
+            incorrect_answers=incorrect_answers[:3],  # Limit to 3 incorrect answers
+            flashcard_deck_id=deck_id,
+            due_date=current_time,
+            state=0  # New card
+        )
+        
+        # Initialize FSRS state for the card
+        flashcard.init_fsrs_state()
+        
+        db.session.add(flashcard)
+        db.session.commit()
+        
+        return jsonify({
+            "success": True, 
+            "message": "Flashcard created successfully",
+            "flashcard_id": flashcard.flashcard_id
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error creating flashcard: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@flashcard_bp.route("/update/<int:flashcard_id>", methods=["PUT"])
+@login_required
+def update_flashcard(flashcard_id):
+    """Update an existing flashcard"""
+    try:
+        data = request.json
+        question = data.get('question')
+        correct_answer = data.get('correct_answer')
+        incorrect_answers = data.get('incorrect_answers', [])
+        
+        # Validate required fields
+        if not all([question, correct_answer]):
+            return jsonify({"success": False, "error": "Missing required fields"}), 400
+            
+        # Get the flashcard
+        flashcard = Flashcards.query.get_or_404(flashcard_id)
+        
+        # Verify ownership through deck
+        deck = FlashcardDecks.query.get(flashcard.flashcard_deck_id)
+        if not deck or deck.user_id != current_user.id:
+            return jsonify({"success": False, "error": "You don't have permission to edit this flashcard"}), 403
+        
+        # Update the flashcard
+        flashcard.question = question
+        flashcard.correct_answer = correct_answer
+        flashcard.incorrect_answers = incorrect_answers[:3]  # Limit to 3 incorrect answers
+        
+        db.session.commit()
+        
+        return jsonify({
+            "success": True, 
+            "message": "Flashcard updated successfully"
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error updating flashcard: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@flashcard_bp.route("/delete/<int:flashcard_id>", methods=["DELETE"])
+@login_required
+def delete_flashcard(flashcard_id):
+    """Delete a flashcard"""
+    try:
+        # Get the flashcard
+        flashcard = Flashcards.query.get_or_404(flashcard_id)
+        
+        # Verify ownership through deck
+        deck = FlashcardDecks.query.get(flashcard.flashcard_deck_id)
+        if not deck or deck.user_id != current_user.id:
+            return jsonify({"success": False, "error": "You don't have permission to delete this flashcard"}), 403
+        
+        # Delete the flashcard
+        db.session.delete(flashcard)
+        db.session.commit()
+        
+        return jsonify({
+            "success": True, 
+            "message": "Flashcard deleted successfully"
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error deleting flashcard: {str(e)}")
+        print(traceback.format_exc())
         return jsonify({"success": False, "error": str(e)}), 500

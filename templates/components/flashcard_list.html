@@ -14,20 +14,24 @@
             {% endif %}
         </div>
         
-        <!-- Sorting controls for flashcards -->
-        <div class="flashcard-sort-controls">
-            <div class="input-group input-group-sm">
-                <label class="input-group-text border-end-0 bg-transparent" for="flashcardSortOption">
-                    <i class="bi bi-sort-alpha-down me-1"></i> Sort by
-                </label>
-                <select class="form-select form-select-sm border-start-0" id="flashcardSortOption" onchange="applyFlashcardSort(this.value)">
-                    <option value="created_desc" {% if request.args.get('sort') == 'created_desc' or not request.args.get('sort') %}selected{% endif %}>Newest First</option>
-                    <option value="created_asc" {% if request.args.get('sort') == 'created_asc' %}selected{% endif %}>Oldest First</option>
-                    <option value="question" {% if request.args.get('sort') == 'question' %}selected{% endif %}>Question A-Z</option>
-                    <option value="answer" {% if request.args.get('sort') == 'answer' %}selected{% endif %}>Answer A-Z</option>
-                    <option value="due_asc" {% if request.args.get('sort') == 'due_asc' %}selected{% endif %}>Due Date (Earliest)</option>
-                    <option value="state" {% if request.args.get('sort') == 'state' %}selected{% endif %}>Learning State</option>
-                </select>
+        <div class="d-flex align-items-center gap-2">
+            <!-- Remove the Add Flashcard button since it's now in the deck action buttons -->
+            
+            <!-- Sorting controls for flashcards -->
+            <div class="flashcard-sort-controls">
+                <div class="input-group input-group-sm">
+                    <label class="input-group-text border-end-0 bg-transparent" for="flashcardSortOption">
+                        <i class="bi bi-sort-alpha-down me-1"></i> Sort by
+                    </label>
+                    <select class="form-select form-select-sm border-start-0" id="flashcardSortOption" onchange="applyFlashcardSort(this.value)">
+                        <option value="created_desc" {% if request.args.get('sort') == 'created_desc' or not request.args.get('sort') %}selected{% endif %}>Newest First</option>
+                        <option value="created_asc" {% if request.args.get('sort') == 'created_asc' %}selected{% endif %}>Oldest First</option>
+                        <option value="question" {% if request.args.get('sort') == 'question' %}selected{% endif %}>Question A-Z</option>
+                        <option value="answer" {% if request.args.get('sort') == 'answer' %}selected{% endif %}>Answer A-Z</option>
+                        <option value="due_asc" {% if request.args.get('sort') == 'due_asc' %}selected{% endif %}>Due Date (Earliest)</option>
+                        <option value="state" {% if request.args.get('sort') == 'state' %}selected{% endif %}>Learning State</option>
+                    </select>
+                </div>
             </div>
         </div>
     </div>
@@ -35,7 +39,42 @@
     <div class="row row-cols-1 row-cols-md-2 g-4">
         {% for flashcard in flashcards %}
         <div class="col">
-            <div class="card h-100 flashcard-item">
+            <div class="card h-100 flashcard-item" data-flashcard-id="{{ flashcard.flashcard_id }}">
+                <div class="card-header bg-transparent d-flex justify-content-between align-items-center py-2">
+                    <span class="badge 
+                        {% if flashcard.get_state_name() == 'new' %}bg-secondary
+                        {% elif flashcard.get_state_name() == 'learning' %}bg-warning
+                        {% elif flashcard.get_state_name() == 'mastered' %}bg-success
+                        {% elif flashcard.get_state_name() == 'forgotten' %}bg-danger
+                        {% endif %}">
+                        {{ flashcard.get_state_name() }}
+                    </span>
+                    
+                    <!-- Flashcard actions dropdown -->
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-link text-secondary p-0" type="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-three-dots-vertical"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li>
+                                <button class="dropdown-item edit-flashcard-btn" 
+                                        data-flashcard-id="{{ flashcard.flashcard_id }}"
+                                        data-question="{{ flashcard.question }}"
+                                        data-correct-answer="{{ flashcard.correct_answer }}"
+                                        data-incorrect-answers="{{ flashcard.incorrect_answers|tojson|forceescape }}">
+                                    <i class="bi bi-pencil me-2"></i> Edit Flashcard
+                                </button>
+                            </li>
+                            <li>
+                                <button class="dropdown-item text-danger delete-flashcard-btn" 
+                                        data-flashcard-id="{{ flashcard.flashcard_id }}"
+                                        data-question="{{ flashcard.question }}">
+                                    <i class="bi bi-trash me-2"></i> Delete Flashcard
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
                 <div class="card-body">
                     <!-- Question -->
                     <h5 class="card-title">{{ flashcard.question }}</h5>
@@ -73,16 +112,9 @@
                             <i class="bi bi-clock"></i> Last Reviewed: 
                             <span>{{ flashcard.last_reviewed.strftime('%Y-%m-%d') if flashcard.last_reviewed else 'Never' }}</span>
                         </div>
-                        <div class="col-6">
-                            <i class="bi bi-stars"></i> State: 
-                            <span class="badge 
-                            {% if flashcard.get_state_name() == 'new' %}bg-secondary
-                            {% elif flashcard.get_state_name() == 'learning' %}bg-warning
-                            {% elif flashcard.get_state_name() == 'mastered' %}bg-success
-                            {% elif flashcard.get_state_name() == 'forgotten' %}bg-danger
-                            {% endif %}">
-                                {{ flashcard.get_state_name() }}
-                            </span>
+                        <div class="col-6 text-end">
+                            <i class="bi bi-calendar"></i> Due: 
+                            <span>{{ flashcard.due_date.strftime('%Y-%m-%d') if flashcard.due_date else 'Not scheduled' }}</span>
                         </div>
                     </div>
                 </div>
@@ -122,6 +154,11 @@
     {% else %}
         <div class="alert alert-info">
             <i class="bi bi-info-circle me-2"></i>No flashcards found in this deck.
+            <!-- Remove the Add Flashcard button here too -->
         </div>
     {% endif %}
 </div>
+
+{% include 'components/add_flashcard_modal.html' %}
+{% include 'components/edit_flashcard_modal.html' %}
+{% include 'components/delete_flashcard_modal.html' %}
