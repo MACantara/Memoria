@@ -9,8 +9,8 @@
                 <i class="bi bi-sort-alpha-down me-1"></i> Sort by
             </label>
             <select class="form-select form-select-sm border-start-0" id="deckSortOption" onchange="applyDeckSort(this.value)">
-                <option value="name" {% if request.args.get('sort') == 'name' or not request.args.get('sort') %}selected{% endif %}>Name</option>
-                <option value="created_desc" {% if request.args.get('sort') == 'created_desc' %}selected{% endif %}>Newest First</option>
+                <option value="name" {% if request.args.get('sort') == 'name' %}selected{% endif %}>Name</option>
+                <option value="created_desc" {% if request.args.get('sort') == 'created_desc' or not request.args.get('sort') %}selected{% endif %}>Newest First</option>
                 <option value="created_asc" {% if request.args.get('sort') == 'created_asc' %}selected{% endif %}>Oldest First</option>
                 <option value="cards_desc" {% if request.args.get('sort') == 'cards_desc' %}selected{% endif %}>Cards (Most)</option>
                 <option value="cards_asc" {% if request.args.get('sort') == 'cards_asc' %}selected{% endif %}>Cards (Least)</option>

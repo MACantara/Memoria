@@ -15,7 +15,7 @@ def index():
         # Get pagination parameters
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 12, type=int) # Default 12 decks per page
-        sort_by = request.args.get('sort', 'name')  # Default sort by name
+        sort_by = request.args.get('sort', 'created_desc')  # Newest decks first by default
         
         # Limit per_page to reasonable values
         per_page = min(max(per_page, 4), 24)
