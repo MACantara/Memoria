@@ -147,3 +147,31 @@ button .loading-state .spinner-border {
 button:disabled {
     cursor: wait;
 }
+
+/* Session list styling */
+.session-scroll-container {
+    scrollbar-width: thin;
+    scrollbar-color: var(--bs-primary) var(--bs-light);
+}
+
+.session-scroll-container::-webkit-scrollbar {
+    width: 6px;
+}
+
+.session-scroll-container::-webkit-scrollbar-track {
+    background: var(--bs-light);
+    border-radius: 10px;
+}
+
+.session-scroll-container::-webkit-scrollbar-thumb {
+    background-color: var(--bs-primary);
+    border-radius: 10px;
+}
+
+.session-scroll-container .list-group-item:hover {
+    background-color: rgba(var(--bs-primary-rgb), 0.05);
+}
+
+.session-scroll-container .list-group-item:last-child {
+    border-bottom: 0 !important;
+}

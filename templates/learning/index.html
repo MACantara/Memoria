@@ -46,18 +46,20 @@
             <h2 class="h4 mb-3">Active Sessions</h2>
             
             {% if active_sessions %}
-                <div class="list-group mb-4">
-                    {% for session in active_sessions %}
-                    <a href="{{ url_for('learning.view_session', session_id=session.learning_session_id) }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-                        <div>
-                            <h3 class="h6 mb-0">{{ session.topic }}</h3>
-                            <small class="text-muted">Started {{ session.created_at.strftime('%Y-%m-%d') }}</small>
-                        </div>
-                        <div>
-                            <span class="badge bg-primary rounded-pill">{{ session.get_completion_percentage() }}%</span>
-                        </div>
-                    </a>
-                    {% endfor %}
+                <div class="card shadow-sm mb-4">
+                    <div class="list-group list-group-flush session-scroll-container" style="max-height: 350px; overflow-y: auto;">
+                        {% for session in active_sessions %}
+                        <a href="{{ url_for('learning.view_session', session_id=session.learning_session_id) }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center border-0 border-bottom">
+                            <div>
+                                <h3 class="h6 mb-0">{{ session.topic }}</h3>
+                                <small class="text-muted">Started {{ session.created_at.strftime('%Y-%m-%d') }}</small>
+                            </div>
+                            <div>
+                                <span class="badge bg-primary rounded-pill">{{ session.get_completion_percentage() }}%</span>
+                            </div>
+                        </a>
+                        {% endfor %}
+                    </div>
                 </div>
             {% else %}
                 <div class="alert alert-light text-center py-4">
@@ -73,18 +75,20 @@
             <h2 class="h4 mb-3">Completed Sessions</h2>
             
             {% if completed_sessions %}
-                <div class="list-group mb-4">
-                    {% for session in completed_sessions %}
-                    <a href="{{ url_for('learning.view_session', session_id=session.learning_session_id) }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-                        <div>
-                            <h3 class="h6 mb-0">{{ session.topic }}</h3>
-                            <small class="text-muted">Completed {{ session.last_updated.strftime('%Y-%m-%d') }}</small>
-                        </div>
-                        <div>
-                            <span class="badge bg-success rounded-pill">100%</span>
-                        </div>
-                    </a>
-                    {% endfor %}
+                <div class="card shadow-sm mb-4">
+                    <div class="list-group list-group-flush session-scroll-container" style="max-height: 350px; overflow-y: auto;">
+                        {% for session in completed_sessions %}
+                        <a href="{{ url_for('learning.view_session', session_id=session.learning_session_id) }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center border-0 border-bottom">
+                            <div>
+                                <h3 class="h6 mb-0">{{ session.topic }}</h3>
+                                <small class="text-muted">Completed {{ session.last_updated.strftime('%Y-%m-%d') }}</small>
+                            </div>
+                            <div>
+                                <span class="badge bg-success rounded-pill">100%</span>
+                            </div>
+                        </a>
+                        {% endfor %}
+                    </div>
                 </div>
             {% else %}
                 <div class="alert alert-light text-center py-4">
