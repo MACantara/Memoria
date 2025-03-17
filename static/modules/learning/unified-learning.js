@@ -127,6 +127,19 @@ async function handleLoadSection(sectionId, generateContent = false) {
  */
 async function handleMarkContentRead() {
     try {
+        // Show loading state
+        const button = document.getElementById('completeContentBtn');
+        if (button) {
+            const normalState = button.querySelector('.normal-state');
+            const loadingState = button.querySelector('.loading-state');
+            
+            if (normalState && loadingState) {
+                button.disabled = true;
+                normalState.classList.add('d-none');
+                loadingState.classList.remove('d-none');
+            }
+        }
+        
         // Get questions for the section
         currentState.questions = await markContentReadAndShowQuestions(currentState.sectionId);
         currentState.currentQuestionIndex = 0;
@@ -147,6 +160,19 @@ async function handleMarkContentRead() {
  * Show the next question or complete section prompt
  */
 function showNextQuestion() {
+    // Show loading state if button exists
+    const button = document.getElementById('nextQuestionBtn');
+    if (button) {
+        const normalState = button.querySelector('.normal-state');
+        const loadingState = button.querySelector('.loading-state');
+        
+        if (normalState && loadingState) {
+            button.disabled = true;
+            normalState.classList.add('d-none');
+            loadingState.classList.remove('d-none');
+        }
+    }
+    
     currentState.currentQuestionIndex++;
     
     // Check if there are more questions
@@ -163,6 +189,19 @@ function showNextQuestion() {
  */
 async function handleCompleteSection() {
     try {
+        // Show loading state
+        const button = document.getElementById('completeSectionBtn');
+        if (button) {
+            const normalState = button.querySelector('.normal-state');
+            const loadingState = button.querySelector('.loading-state');
+            
+            if (normalState && loadingState) {
+                button.disabled = true;
+                normalState.classList.add('d-none');
+                loadingState.classList.remove('d-none');
+            }
+        }
+        
         const result = await completeSectionAndContinue(currentState.sectionId);
         
         if (result.all_completed) {
@@ -252,6 +291,19 @@ function showLockedSectionToast() {
  * @param {number} sectionId - The section ID to navigate to
  */
 async function handleNextSectionNavigation(sectionId) {
+    // Show loading state on the button first
+    const nextButton = document.querySelector('.next-section-btn');
+    if (nextButton) {
+        const normalState = nextButton.querySelector('.normal-state');
+        const loadingState = nextButton.querySelector('.loading-state');
+        
+        if (normalState && loadingState) {
+            nextButton.disabled = true;
+            normalState.classList.add('d-none');
+            loadingState.classList.remove('d-none');
+        }
+    }
+    
     showLoading('Preparing next section...');
     
     try {

@@ -108,7 +108,11 @@
                                     <h3>Ready to begin learning?</h3>
                                     <p class="lead mb-4">Let's start with the first section: <strong>{{ sections[0].title }}</strong></p>
                                     <button class="btn btn-primary btn-lg" id="startLearningBtn" data-section-id="{{ sections[0].learning_section_id }}">
-                                        <i class="bi bi-play-fill me-1"></i> Start Learning
+                                        <span class="normal-state"><i class="bi bi-play-fill me-1"></i> Start Learning</span>
+                                        <span class="loading-state d-none">
+                                            <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                            Generating Content...
+                                        </span>
                                     </button>
                                 </div>
                             {% else %}
@@ -203,7 +207,11 @@
         
         <div class="mt-4 text-center continue-btn-container">
             <button class="btn btn-primary" id="completeContentBtn">
-                <i class="bi bi-check-circle me-1"></i> Continue to Questions
+                <span class="normal-state"><i class="bi bi-check-circle me-1"></i> Continue to Questions</span>
+                <span class="loading-state d-none">
+                    <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                    Preparing Questions...
+                </span>
             </button>
         </div>
     </div>
@@ -223,7 +231,11 @@
             
             <div class="text-center mt-4 d-none" id="nextButtonContainer">
                 <button id="nextQuestionBtn" class="btn btn-primary">
-                    <i class="bi bi-arrow-right me-1"></i> Next
+                    <span class="normal-state"><i class="bi bi-arrow-right me-1"></i> Next</span>
+                    <span class="loading-state d-none">
+                        <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                        Loading...
+                    </span>
                 </button>
             </div>
         </div>
@@ -235,7 +247,11 @@
     <div class="text-center py-3">
         <h4 class="mb-3">You've completed all questions for this section!</h4>
         <button id="completeSectionBtn" class="btn btn-success">
-            <i class="bi bi-check-circle me-1"></i> Complete Section & Prepare Next
+            <span class="normal-state"><i class="bi bi-check-circle me-1"></i> Complete Section & Prepare Next</span>
+            <span class="loading-state d-none">
+                <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                Completing Section...
+            </span>
         </button>
         <p class="text-muted small mt-2">This will mark the section as complete and prepare the content for the next section.</p>
     </div>
@@ -250,8 +266,13 @@
         <h3>Section Completed!</h3>
         <p class="section-completed-message mb-4"></p>
         <button class="btn btn-primary next-section-btn">
-            <span class="d-none spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-            <i class="bi bi-arrow-right me-1"></i> <span class="next-button-text">Continue to Next Section</span>
+            <span class="normal-state">
+                <i class="bi bi-arrow-right me-1"></i> <span class="next-button-text">Continue to Next Section</span>
+            </span>
+            <span class="loading-state d-none">
+                <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                <span class="next-button-text">Loading Next Section...</span>
+            </span>
         </button>
     </div>
 </template>

@@ -132,3 +132,18 @@
     border-width: 0.1rem;
     margin-right: 0.5rem;
 }
+
+/* Button loading states */
+button .loading-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+button .loading-state .spinner-border {
+    margin-right: 0.5rem;
+}
+
+button:disabled {
+    cursor: wait;
+}
