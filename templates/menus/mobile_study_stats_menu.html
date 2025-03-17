@@ -7,21 +7,27 @@
             
             <!-- Context-aware menu content -->
             <div class="list-group list-group-flush">
-                <!-- Random Deck option with improved styling -->
-                <a href="{{ url_for('deck.deck_view.random_deck') }}" class="list-group-item list-group-item-action">
-                    <div class="d-flex align-items-center position-relative">
-                        <div class="random-deck-icon-container bg-primary text-white rounded-circle p-2 me-3 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
-                            <i class="bi bi-shuffle"></i>
-                        </div>
+                <!-- Add Learn link with consistent styling -->
+                <a href="{{ url_for('learning.index') }}" class="list-group-item list-group-item-action">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-mortarboard text-info me-3"></i>
                         <div>
-                            <div class="fw-bold">Random Deck</div>
-                            <small class="text-muted">Study a randomly selected deck</small>
+                            <div class="fw-bold">Learn</div>
+                            <small class="text-muted">Study new topics with AI</small>
                         </div>
                     </div>
                 </a>
                 
-                <!-- Divider after random deck option -->
-                <div class="dropdown-divider my-2"></div>
+                <!-- Random Deck option with improved styling -->
+                <a href="{{ url_for('deck.deck_view.random_deck') }}" class="list-group-item list-group-item-action">
+                    <div class="d-flex align-items-center position-relative">
+                        <i class="bi bi-shuffle me-3"></i>
+                        <div>
+                            <div class="fw-bold">Random Deck</div>
+                            <small class="text-muted">Study a random flashcard deck</small>
+                        </div>
+                    </div>
+                </a>
                 
                 {% if request.path.startswith('/deck/') and request.path.split('/')[-1].isdigit() %}
                     <!-- In deck view - Link directly to study this deck with due cards -->
