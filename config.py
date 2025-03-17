@@ -83,7 +83,14 @@ class Config:
         "top_p": 0.7,
         "top_k": 30,
         "max_output_tokens": 1024,
-        "response_mime_type": "application/json"  # Explicitly request JSON for questions
+        "response_mime_type": "application/json",
+        "response_schema": FLASHCARD_SCHEMA,
+        "stop_sequences": ["###"],
+        "system_instruction": (
+            "You are a professional educator creating multiple-choice flashcards. "
+            "Each flashcard must have a question, one correct answer, and three incorrect answers. "
+            "Your responses must strictly follow the JSON schema provided."
+        )
     }
     
     # Learning prompts 
