@@ -125,7 +125,8 @@ def process_section_content(section_id):
         
         response = client.models.generate_content(
             model=Config.GEMINI_MODEL,
-            contents=prompt
+            contents=prompt,
+            config=Config.LEARNING_GEMINI_CONFIG
         )
         
         # Make sure content is a string, not a dict or other object

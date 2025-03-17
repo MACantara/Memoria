@@ -90,7 +90,7 @@ def generate_section_questions(section_id, num_questions=2):
         response = client.models.generate_content(
             model=Config.GEMINI_MODEL,
             contents=prompt,
-            config=Config.GEMINI_CONFIG
+            config=Config.QUESTION_GEMINI_CONFIG
         )
         
         # Parse the JSON response with improved error handling
@@ -196,7 +196,8 @@ def mark_section_complete(section_id):
             
             response = client.models.generate_content(
                 model=Config.GEMINI_MODEL,
-                contents=prompt
+                contents=prompt,
+                config=Config.LEARNING_GEMINI_CONFIG
             )
             
             # Make sure content is a string

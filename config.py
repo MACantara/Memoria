@@ -67,6 +67,25 @@ class Config:
     
     GEMINI_MODEL = "gemini-2.0-flash-lite"
     
+       
+    # Learning-specific Gemini configuration with different settings for educational content
+    LEARNING_GEMINI_CONFIG = {
+        "temperature": 0.2,  # Lower temperature for more focused and predictable educational content
+        "top_p": 0.8,        # Slightly higher top_p to allow some creativity in explanations
+        "top_k": 40,         # Standard top_k
+        "max_output_tokens": 2048,  # Allow longer responses for educational content
+        "response_mime_type": "text/plain"
+    }
+
+    # Question-specific configuration for more structured JSON outputs
+    QUESTION_GEMINI_CONFIG = {
+        "temperature": 0.1,  # Very low temperature for consistent question format
+        "top_p": 0.7,
+        "top_k": 30,
+        "max_output_tokens": 1024,
+        "response_mime_type": "application/json"  # Explicitly request JSON for questions
+    }
+    
     @staticmethod
     def generate_prompt_template(topic, batch_size=None):
         """Generate a prompt template for AI flashcard generation"""

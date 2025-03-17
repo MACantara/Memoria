@@ -111,7 +111,7 @@ def process_outline(session_id):
         response = client.models.generate_content(
             model=Config.GEMINI_MODEL,
             contents=prompt,
-            config=Config.GEMINI_CONFIG
+            config=Config.LEARNING_GEMINI_CONFIG
         )
         
         # Parse the JSON response with improved error handling
