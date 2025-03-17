@@ -112,6 +112,35 @@
                                 <p class="lead mb-4">Please select a section from the learning path to continue.</p>
                             </div>
                         {% endif %}
+
+                        {% if request.args.get('generate_outline') == 'true' %}
+                            <!-- Outline generation UI -->
+                            <div class="card shadow">
+                                <div class="card-body p-4 text-center">
+                                    <h3 class="mb-3">Generating Learning Path</h3>
+                                    <p class="text-muted mb-4">Creating a structured outline for <strong>{{ session.topic }}</strong>.</p>
+                                    
+                                    <div class="mb-4 py-4">
+                                        <div class="spinner-grow text-primary" role="status">
+                                            <span class="visually-hidden">Loading...</span>
+                                        </div>
+                                        <p class="mt-3" id="generationStatus">Analyzing topic and creating structure...</p>
+                                    </div>
+                                    
+                                    <div class="progress mb-3" style="height: 8px;">
+                                        <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 100%"></div>
+                                    </div>
+                                    
+                                    <div id="generationError" class="alert alert-danger d-none">
+                                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                                        <span id="errorMessage">An error occurred</span>
+                                        <div class="mt-2">
+                                            <button class="btn btn-sm btn-danger" onclick="retryGeneration()">Try Again</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>

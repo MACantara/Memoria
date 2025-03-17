@@ -546,3 +546,85 @@ function hideLoading() {
     const loadingIndicator = document.getElementById('loadingIndicator');
     loadingIndicator.classList.add('d-none');
 }
+
+// Add this to your unified-learning.js or learning.js module
+
+// Check if we need to generate an outline when the page loads
+document.addEventListener('DOMContentLoaded', function() {
+    if (new URLSearchParams(window.location.search).get('generate_outline') === 'true') {
+        generateOutline();
+    }
+});
+
+/**
+ * Generate an outline for a learning session
+ */
+async function generateOutline() {
+    const statusElement = document.getElementById('generationStatus');
+    const errorContainer = document.getElementById('generationError');
+    const errorMessage = document.getElementById('errorMessage');
+    const sessionId = getCurrentSessionId();
+    
+    if (!sessionId) {
+        console.error("Could not determine session ID");
+        return;
+    }
+    
+    try {
+        statusElement.textContent = "Analyzing topic and creating structure...";
+        
+        // Send request to generate outline
+        const response = await fetch(`/learning/session/${sessionId}/process-outline`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.error || "Failed to generate outline");
+        }
+        
+        if (data.success) {
+            statusElement.textContent = "Learning path created successfully! Reloading...";
+            window.location.href = data.redirect;
+        } else {
+            throw new Error(data.error || "Unknown error");
+        }
+        
+    } catch (error) {
+        console.error("Outline generation error:", error);
+        statusElement.textContent = "Generation failed.";
+        errorMessage.textContent = error.message || "Failed to generate outline. Please try again.";
+        errorContainer.classList.remove('d-none');
+    }
+}
+
+/**
+ * Retry outline generation
+ */
+window.retryGeneration = function() {
+    const errorContainer = document.getElementById('generationError');
+    const statusElement = document.getElementById('generationStatus');
+    
+    errorContainer.classList.add('d-none');
+    statusElement.textContent = "Retrying generation...";
+    
+    generateOutline();
+}
+
+/**
+ * Get the current session ID from the URL
+ */
+function getCurrentSessionId() {
+    const urlParts = window.location.pathname.split('/');
+    const sessionIdIndex = urlParts.indexOf('session') + 1;
+    
+    if (sessionIdIndex < urlParts.length) {
+        return urlParts[sessionIdIndex];
+    }
+    
+    return null;
+}

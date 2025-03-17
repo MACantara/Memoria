@@ -70,10 +70,9 @@ def generate_outline(session_id):
     if learning_session.outline:
         return redirect(url_for('learning.view_session', session_id=session_id))
     
-    return render_template(
-        'learning/generate_outline.html',
-        session=learning_session
-    )
+    return redirect(url_for('learning.view_session', 
+                           session_id=session_id, 
+                           generate_outline='true'))
 
 @learning_bp.route('/session/<int:session_id>/process-outline', methods=['POST'])
 @login_required
