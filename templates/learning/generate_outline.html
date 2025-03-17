@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}Generating Learning Path - {{ session.topic }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-body p-4 text-center">
+                    <h1 class="h3 mb-3">Creating Your Learning Path</h1>
+                    <p class="text-muted mb-4">We're generating a personalized learning path for <strong>{{ session.topic }}</strong>.</p>
+                    
+                    <div class="mb-4 py-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-3" id="generationStatus">Structuring a learning path for you...</p>
+                    </div>
+                    
+                    <div class="progress mb-3" style="height: 8px;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 100%"></div>
+                    </div>
+                    
+                    <div id="generationError" class="alert alert-danger d-none">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <span id="errorMessage">An error occurred</span>
+                        <div class="mt-2">
+                            <button class="btn btn-sm btn-danger" onclick="retryGeneration()">Try Again</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Start the outline generation as soon as the page loads
+        generateOutline();
+    });
+    
+    async function generateOutline() {
+        const statusElement = document.getElementById('generationStatus');
+        const errorContainer = document.getElementById('generationError');
+        const errorMessage = document.getElementById('errorMessage');
+        
+        try {
+            statusElement.textContent = "Analyzing topic and creating structure...";
+            
+            // Send request to generate outline
+            const response = await fetch('{{ url_for("learning.process_outline", session_id=session.learning_session_id) }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(data.error || "Failed to generate outline");
+            }
+            
+            if (data.success) {
+                statusElement.textContent = "Learning path created successfully! Redirecting...";
+                window.location.href = data.redirect;
+            } else {
+                throw new Error(data.error || "Unknown error");
+            }
+            
+        } catch (error) {
+            console.error("Outline generation error:", error);
+            statusElement.textContent = "Generation failed.";
+            errorMessage.textContent = error.message || "Failed to generate outline. Please try again.";
+            errorContainer.classList.remove('d-none');
+        }
+    }
+    
+    function retryGeneration() {
+        const errorContainer = document.getElementById('generationError');
+        const statusElement = document.getElementById('generationStatus');
+        
+        errorContainer.classList.add('d-none');
+        statusElement.textContent = "Retrying outline generation...";
+        
+        generateOutline();
+    }
+</script>
+{% endblock %}
