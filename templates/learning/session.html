@@ -263,7 +263,7 @@
 
 {% block scripts %}
 <script type="module">
-    import { initializeUnifiedLearning } from "{{ url_for('static', filename='modules/learning/learning.js') }}";
+    import { initializeUnifiedLearning } from "{{ url_for('static', filename='modules/learning/unified-learning.js') }}";
     document.addEventListener('DOMContentLoaded', function() {
         initializeUnifiedLearning({{ session.learning_session_id }});
     });

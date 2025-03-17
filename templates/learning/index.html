@@ -96,9 +96,10 @@
 
 {% block scripts %}
 <script type="module">
-    import { initializeLearningModules } from "{{ url_for('static', filename='modules/learning/learning.js') }}";
+    // Import from a dedicated learning index module instead of the monolithic learning.js
+    import { initializeLearningIndex } from "{{ url_for('static', filename='modules/learning/learning-index.js') }}";
     document.addEventListener('DOMContentLoaded', function() {
-        initializeLearningModules();
+        initializeLearningIndex();
     });
 </script>
 {% endblock %}
