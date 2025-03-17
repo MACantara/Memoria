@@ -2,6 +2,10 @@
 
 {% block title %}Learn New Topics{% endblock %}
 
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/learning.css') }}">
+{% endblock %}
+
 {% block content %}
 <div class="container">
     <header class="my-4">
@@ -88,4 +92,13 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script type="module">
+    import { initializeLearningModules } from "{{ url_for('static', filename='modules/learning/learning.js') }}";
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeLearningModules();
+    });
+</script>
 {% endblock %}

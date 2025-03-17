@@ -2,6 +2,10 @@
 
 {% block title %}Generating Content - {{ section.title }}{% endblock %}
 
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/learning.css') }}">
+{% endblock %}
+
 {% block content %}
 <div class="container py-4">
     <div class="row justify-content-center">
@@ -40,58 +44,15 @@
         </div>
     </div>
 </div>
+{% endblock %}
 
-<script>
+{% block scripts %}
+<script type="module">
+    import { initializeLearningModules, retryGeneration } from "{{ url_for('static', filename='modules/learning/learning.js') }}";
+    window.retryGeneration = retryGeneration;
+    
     document.addEventListener('DOMContentLoaded', function() {
-        // Start the content generation as soon as the page loads
-        generateContent();
+        initializeLearningModules();
     });
-    
-    async function generateContent() {
-        const statusElement = document.getElementById('generationStatus');
-        const errorContainer = document.getElementById('generationError');
-        const errorMessage = document.getElementById('errorMessage');
-        
-        try {
-            statusElement.textContent = "Researching topic and creating educational content...";
-            
-            // Send request to generate content
-            const response = await fetch('{{ url_for("learning.process_section_content", section_id=section.learning_section_id) }}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                }
-            });
-            
-            const data = await response.json();
-            
-            if (!response.ok) {
-                throw new Error(data.error || "Failed to generate content");
-            }
-            
-            if (data.success) {
-                statusElement.textContent = "Content created successfully! Redirecting...";
-                window.location.href = data.redirect;
-            } else {
-                throw new Error(data.error || "Unknown error");
-            }
-            
-        } catch (error) {
-            console.error("Content generation error:", error);
-            statusElement.textContent = "Generation failed.";
-            errorMessage.textContent = error.message || "Failed to generate content. Please try again.";
-            errorContainer.classList.remove('d-none');
-        }
-    }
-    
-    function retryGeneration() {
-        const errorContainer = document.getElementById('generationError');
-        const statusElement = document.getElementById('generationStatus');
-        
-        errorContainer.classList.add('d-none');
-        statusElement.textContent = "Retrying content generation...";
-        
-        generateContent();
-    }
 </script>
 {% endblock %}

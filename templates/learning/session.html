@@ -2,6 +2,10 @@
 
 {% block title %}Learning: {{ session.topic }}{% endblock %}
 
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/learning.css') }}">
+{% endblock %}
+
 {% block content %}
 <div class="container py-4">
     <div class="row mb-4">
@@ -107,22 +111,13 @@
     </div>
 </div>
 
-<style>
-    .section-number {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 30px;
-        height: 30px;
-        border-radius: 50%;
-        background-color: var(--bs-light);
-        color: var(--bs-dark);
-        font-weight: 500;
-    }
-    
-    .list-group-item.active .section-number {
-        background-color: rgba(255, 255, 255, 0.3);
-        color: white;
-    }
-</style>
+{% endblock %}
+
+{% block scripts %}
+<script type="module">
+    import { initializeLearningModules } from "{{ url_for('static', filename='modules/learning/learning.js') }}";
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeLearningModules();
+    });
+</script>
 {% endblock %}

@@ -2,6 +2,10 @@
 
 {% block title %}Generating Learning Path - {{ session.topic }}{% endblock %}
 
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/learning.css') }}">
+{% endblock %}
+
 {% block content %}
 <div class="container py-4">
     <div class="row justify-content-center">
@@ -34,58 +38,15 @@
         </div>
     </div>
 </div>
+{% endblock %}
 
-<script>
+{% block scripts %}
+<script type="module">
+    import { initializeLearningModules, retryGeneration } from "{{ url_for('static', filename='modules/learning/learning.js') }}";
+    window.retryGeneration = retryGeneration;
+    
     document.addEventListener('DOMContentLoaded', function() {
-        // Start the outline generation as soon as the page loads
-        generateOutline();
+        initializeLearningModules();
     });
-    
-    async function generateOutline() {
-        const statusElement = document.getElementById('generationStatus');
-        const errorContainer = document.getElementById('generationError');
-        const errorMessage = document.getElementById('errorMessage');
-        
-        try {
-            statusElement.textContent = "Analyzing topic and creating structure...";
-            
-            // Send request to generate outline
-            const response = await fetch('{{ url_for("learning.process_outline", session_id=session.learning_session_id) }}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                }
-            });
-            
-            const data = await response.json();
-            
-            if (!response.ok) {
-                throw new Error(data.error || "Failed to generate outline");
-            }
-            
-            if (data.success) {
-                statusElement.textContent = "Learning path created successfully! Redirecting...";
-                window.location.href = data.redirect;
-            } else {
-                throw new Error(data.error || "Unknown error");
-            }
-            
-        } catch (error) {
-            console.error("Outline generation error:", error);
-            statusElement.textContent = "Generation failed.";
-            errorMessage.textContent = error.message || "Failed to generate outline. Please try again.";
-            errorContainer.classList.remove('d-none');
-        }
-    }
-    
-    function retryGeneration() {
-        const errorContainer = document.getElementById('generationError');
-        const statusElement = document.getElementById('generationStatus');
-        
-        errorContainer.classList.add('d-none');
-        statusElement.textContent = "Retrying outline generation...";
-        
-        generateOutline();
-    }
 </script>
 {% endblock %}
