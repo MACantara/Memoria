@@ -147,36 +147,40 @@ function initializeQuestionUI() {
     const nextButtonContainer = document.getElementById('nextButtonContainer');
     const nextButton = document.getElementById('nextQuestionBtn');
     
-    // Shuffle answer options
+    // Shuffle answer options - Add null checking
     const optionsContainer = document.querySelector('.answer-options');
-    const options = Array.from(optionsContainer.children);
-    for (let i = options.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        optionsContainer.appendChild(options[j]);
+    if (optionsContainer) {
+        const options = Array.from(optionsContainer.children);
+        for (let i = options.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            optionsContainer.appendChild(options[j]);
+        }
     }
     
-    // Add click handlers to answer options
-    answerOptions.forEach(option => {
-        option.addEventListener('click', function() {
-            if (this.classList.contains('selected') || 
-                this.classList.contains('correct') || 
-                this.classList.contains('incorrect')) {
-                return; // Already answered
-            }
-            
-            // Select this option
-            answerOptions.forEach(opt => opt.classList.remove('selected'));
-            this.classList.add('selected');
-            
-            // Check if correct
-            const isCorrect = this.getAttribute('data-correct') === 'true';
-            const questionId = this.closest('.question-item').getAttribute('data-question-id');
-            const answerValue = this.getAttribute('data-answer');
-            
-            // Show feedback
-            showAnswerFeedback(isCorrect, questionId, answerValue);
+    // Add click handlers to answer options (only if they exist)
+    if (answerOptions.length > 0) {
+        answerOptions.forEach(option => {
+            option.addEventListener('click', function() {
+                if (this.classList.contains('selected') || 
+                    this.classList.contains('correct') || 
+                    this.classList.contains('incorrect')) {
+                    return; // Already answered
+                }
+                
+                // Select this option
+                answerOptions.forEach(opt => opt.classList.remove('selected'));
+                this.classList.add('selected');
+                
+                // Check if correct
+                const isCorrect = this.getAttribute('data-correct') === 'true';
+                const questionId = this.closest('.question-item').getAttribute('data-question-id');
+                const answerValue = this.getAttribute('data-answer');
+                
+                // Show feedback
+                showAnswerFeedback(isCorrect, questionId, answerValue);
+            });
         });
-    });
+    }
     
     // Next question handler
     if (nextButton) {
