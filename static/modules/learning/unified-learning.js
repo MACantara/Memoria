@@ -151,7 +151,7 @@ function showNextQuestion() {
     
     // Check if there are more questions
     if (currentState.currentQuestionIndex < currentState.questions.length) {
-        displayQuestion(currentState.questions[currentQuestionIndex], showNextQuestion);
+        displayQuestion(currentState.questions[currentState.currentQuestionIndex], showNextQuestion);
     } else {
         // No more questions, show complete section prompt
         displayCompleteSectionPrompt();
