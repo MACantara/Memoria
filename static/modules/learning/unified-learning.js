@@ -146,7 +146,7 @@ function showNextQuestion() {
     
     // Check if there are more questions
     if (currentState.currentQuestionIndex < currentState.questions.length) {
-        displayQuestion(currentState.questions[currentState.currentQuestionIndex], showNextQuestion);
+        displayQuestion(currentState.questions[currentQuestionIndex], showNextQuestion);
     } else {
         // No more questions, show complete section prompt
         displayCompleteSectionPrompt();
@@ -161,11 +161,15 @@ async function handleCompleteSection() {
         const result = await completeSectionAndContinue(currentState.sectionId);
         
         if (result.all_completed) {
+            // If all sections are completed, show the completion screen
             displayAllSectionsCompleted();
         } else if (result.next_section_id) {
             // Update UI to unlock the next section
             unlockNextSection(currentState.sectionId);
-            displaySectionCompleted(result.next_section_id);
+            
+            // Instead of displaying completion message, directly navigate to the next section
+            showLoading('Moving to next section...');
+            await handleNextSectionNavigation(result.next_section_id);
         }
     } catch (error) {
         console.error('Failed to complete section:', error);
