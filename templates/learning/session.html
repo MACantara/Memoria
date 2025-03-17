@@ -26,98 +26,206 @@
     </div>
     
     <div class="row">
-        <div class="col-lg-12">
+        <!-- Left sidebar with sections -->
+        <div class="col-lg-3">
             <div class="card shadow-sm mb-4">
-                <div class="card-body">
-                    <h1 class="h3 card-title">{{ session.topic }}</h1>
-                    <p class="text-muted mb-0">
-                        <i class="bi bi-calendar3"></i> Started {{ session.created_at.strftime('%Y-%m-%d') }}
-                        {% if session.status == 'completed' %}
-                        • <i class="bi bi-check-circle"></i> Completed {{ session.last_updated.strftime('%Y-%m-%d') }}
-                        {% endif %}
-                    </p>
-                    
-                    <div class="mt-3">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span>Progress</span>
-                            <span>{{ completion_percentage }}%</span>
+                <div class="card-header">
+                    <h2 class="h5 mb-0">Learning Path</h2>
+                </div>
+                <div class="card-body p-0">
+                    <div class="section-toc">
+                        {% for section in sections %}
+                        <div class="toc-item {{ 'active' if current_section and current_section.learning_section_id == section.learning_section_id }} {{ 'completed' if section.is_completed }}">
+                            <a href="javascript:void(0)" 
+                               class="text-decoration-none text-reset section-link" 
+                               data-section-id="{{ section.learning_section_id }}"
+                               data-has-content="{{ 'true' if section.content else 'false' }}"
+                               data-is-completed="{{ 'true' if section.is_completed else 'false' }}">
+                                {% if section.is_completed %}
+                                <i class="bi bi-check-circle-fill me-2"></i>
+                                {% elif section.content %}
+                                <i class="bi bi-circle me-2"></i>
+                                {% else %}
+                                <i class="bi bi-circle text-muted me-2"></i>
+                                {% endif %}
+                                {{ section.order + 1 }}. {{ section.title|truncate(30, true) }}
+                            </a>
                         </div>
-                        <div class="progress" style="height: 8px;">
-                            <div class="progress-bar {{ 'bg-success' if completion_percentage == 100 else 'bg-primary' }}" 
-                                 role="progressbar" 
-                                 style="width: {{ completion_percentage }}%;" 
-                                 aria-valuenow="{{ completion_percentage }}" 
-                                 aria-valuemin="0" 
-                                 aria-valuemax="100"></div>
-                        </div>
+                        {% endfor %}
                     </div>
                 </div>
             </div>
             
-            <!-- Learning Path Sections -->
+            <!-- Progress card -->
             <div class="card shadow-sm">
-                <div class="card-header">
-                    <h2 class="h5 mb-0">Learning Path</h2>
-                </div>
                 <div class="card-body">
-                    <div class="list-group">
-                        {% for section in sections %}
-                        <a href="{{ url_for('learning.view_section', section_id=section.learning_section_id) }}" 
-                           class="list-group-item list-group-item-action d-flex justify-content-between align-items-center
-                                  {{ 'active' if session.current_section == section.order else '' }}">
-                            <div class="d-flex align-items-center">
-                                <span class="section-number me-3">{{ section.order + 1 }}</span>
-                                <div>
-                                    <h3 class="h6 mb-0">{{ section.title }}</h3>
-                                    <small class="{{ 'text-light' if session.current_section == section.order else 'text-muted' }}">
-                                        {% if section.is_completed %}
-                                            <i class="bi bi-check-circle-fill text-success"></i> Completed
-                                        {% elif section.content %}
-                                            <i class="bi bi-book"></i> In progress
-                                        {% else %}
-                                            <i class="bi bi-hourglass"></i> Not started
-                                        {% endif %}
-                                    </small>
-                                </div>
-                            </div>
-                            
-                            {% if section.is_completed %}
-                                <span class="badge bg-success rounded-pill"><i class="bi bi-check"></i></span>
-                            {% elif session.current_section == section.order %}
-                                <span class="badge bg-primary rounded-pill"><i class="bi bi-arrow-right"></i></span>
-                            {% else %}
-                                <span class="badge text-dark rounded-pill">{{ section.order + 1 }}</span>
-                            {% endif %}
-                        </a>
-                        {% endfor %}
+                    <h2 class="h6 mb-2">Course Progress</h2>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span>{{ completion_percentage }}% Complete</span>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar {{ 'bg-success' if completion_percentage == 100 else 'bg-primary' }}" 
+                             role="progressbar" 
+                             style="width: {{ completion_percentage }}%;" 
+                             aria-valuenow="{{ completion_percentage }}" 
+                             aria-valuemin="0" 
+                             aria-valuemax="100"></div>
                     </div>
                     
-                    {% if session.status == 'completed' %}
-                    <div class="mt-4 text-center">
-                        <div class="alert alert-success">
-                            <i class="bi bi-trophy fs-4 mb-2 d-block"></i>
-                            <h4>Congratulations!</h4>
-                            <p>You've completed this learning path.</p>
+                    <div class="mt-3 text-muted small">
+                        <div><i class="bi bi-calendar3"></i> Started {{ session.created_at.strftime('%Y-%m-%d') }}</div>
+                        {% if session.status == 'completed' %}
+                        <div><i class="bi bi-check-circle"></i> Completed {{ session.last_updated.strftime('%Y-%m-%d') }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    
+        <!-- Main content area - right side -->
+        <div class="col-lg-9">
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h1 class="h3 card-title">{{ session.topic }}</h1>
+                    
+                    <!-- Dynamic content area -->
+                    <div id="dynamicContentArea">
+                        {% if not sections[0].content %}
+                            <!-- Initial welcome screen -->
+                            <div class="text-center py-4" id="welcomeScreen">
+                                <div class="mb-3">
+                                    <i class="bi bi-book text-primary" style="font-size: 3rem;"></i>
+                                </div>
+                                <h3>Ready to begin learning?</h3>
+                                <p class="lead mb-4">Let's start with the first section: <strong>{{ sections[0].title }}</strong></p>
+                                <button class="btn btn-primary btn-lg" id="startLearningBtn" data-section-id="{{ sections[0].learning_section_id }}">
+                                    <i class="bi bi-play-fill me-1"></i> Start Learning
+                                </button>
+                            </div>
+                        {% else %}
+                            <!-- If there's already active content, show message to select section -->
+                            <div class="text-center py-4">
+                                <div class="mb-3">
+                                    <i class="bi bi-arrow-left-circle text-primary" style="font-size: 3rem;"></i>
+                                </div>
+                                <h3>Continue Learning</h3>
+                                <p class="lead mb-4">Please select a section from the learning path to continue.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            {% if session.status == 'completed' %}
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="text-center py-3">
+                        <div class="mb-3">
+                            <i class="bi bi-trophy text-warning" style="font-size: 3rem;"></i>
                         </div>
+                        <h3>Congratulations!</h3>
+                        <p class="mb-3">You've completed this learning path on <strong>{{ session.topic }}</strong>.</p>
                         
-                        <a href="{{ url_for('learning.start_session') }}" class="btn btn-primary">
+                        <a href="{{ url_for('learning.index') }}" class="btn btn-primary">
                             <i class="bi bi-plus-lg me-1"></i> Learn Something New
                         </a>
                     </div>
-                    {% endif %}
                 </div>
             </div>
+            {% endif %}
         </div>
     </div>
 </div>
 
+<!-- Content loading indicator -->
+<div class="position-fixed top-50 start-50 translate-middle d-none" id="loadingIndicator" style="z-index: 1050;">
+    <div class="bg-white p-4 rounded-3 shadow-lg text-center">
+        <div class="spinner-border text-primary mb-3" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mb-0" id="loadingMessage">Loading content...</p>
+    </div>
+</div>
+
+<!-- Section content template -->
+<template id="sectionContentTemplate">
+    <div class="section-content-container">
+        <h2 class="h4 mb-4 section-title"></h2>
+        <div class="learning-content mb-4"></div>
+        
+        <div class="mt-4 text-center continue-btn-container">
+            <button class="btn btn-primary" id="completeContentBtn">
+                <i class="bi bi-check-circle me-1"></i> Continue to Questions
+            </button>
+        </div>
+    </div>
+</template>
+
+<!-- Question template -->
+<template id="questionTemplate">
+    <div class="question-container" id="questionContainer">
+        <div class="question-item">
+            <h4 class="mb-4 question-text"></h4>
+            
+            <div class="answer-options">
+                <!-- Will be populated dynamically -->
+            </div>
+            
+            <div id="questionFeedback" class="mt-4 d-none"></div>
+            
+            <div class="text-center mt-4 d-none" id="nextButtonContainer">
+                <button id="nextQuestionBtn" class="btn btn-primary">
+                    <i class="bi bi-arrow-right me-1"></i> Next
+                </button>
+            </div>
+        </div>
+    </div>
+</template>
+
+<!-- Complete section template -->
+<template id="completeSectionTemplate">
+    <div class="text-center py-3">
+        <h4 class="mb-3">You've completed all questions for this section!</h4>
+        <button id="completeSectionBtn" class="btn btn-success">
+            <i class="bi bi-check-circle me-1"></i> Complete Section & Continue
+        </button>
+    </div>
+</template>
+
+<!-- Section completed template -->
+<template id="sectionCompletedTemplate">
+    <div class="text-center py-4">
+        <div class="mb-3">
+            <i class="bi bi-check-circle-fill text-success" style="font-size: 3rem;"></i>
+        </div>
+        <h3>Section Completed!</h3>
+        <p class="section-completed-message mb-4"></p>
+        <button class="btn btn-primary next-section-btn">
+            <i class="bi bi-arrow-right me-1"></i> <span class="next-button-text">Continue to Next Section</span>
+        </button>
+    </div>
+</template>
+
+<!-- All completed template -->
+<template id="allCompletedTemplate">
+    <div class="text-center py-4">
+        <div class="mb-3">
+            <i class="bi bi-trophy text-warning" style="font-size: 3rem;"></i>
+        </div>
+        <h3>Congratulations!</h3>
+        <p class="mb-4">You've completed all sections in this learning path!</p>
+        <a href="{{ url_for('learning.index') }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-1"></i> Learn Something New
+        </a>
+    </div>
+</template>
 {% endblock %}
 
 {% block scripts %}
 <script type="module">
-    import { initializeLearningModules } from "{{ url_for('static', filename='modules/learning/learning.js') }}";
+    import { initializeUnifiedLearning } from "{{ url_for('static', filename='modules/learning/learning.js') }}";
     document.addEventListener('DOMContentLoaded', function() {
-        initializeLearningModules();
+        initializeUnifiedLearning({{ session.learning_session_id }});
     });
 </script>
 {% endblock %}
