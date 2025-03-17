@@ -6,6 +6,7 @@ learning_bp = Blueprint('learning', __name__)
 from routes.learning.session_routes import *
 from routes.learning.section_routes import *
 from routes.learning.interaction_routes import *
+from routes.learning.api_routes import *
 
 def register_learning_blueprint(app):
     """Register learning blueprint with the application"""
