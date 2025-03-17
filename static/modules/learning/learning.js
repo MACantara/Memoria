@@ -427,7 +427,7 @@ function displaySectionCompleted(nextSectionId) {
     
     // Set message and button functionality
     content.querySelector('.section-completed-message').textContent = 
-        'Great job! You've completed this section. Ready to continue to the next section?';
+        "Great job! You've completed this section. Ready to continue to the next section?";
     
     const nextButton = content.querySelector('.next-section-btn');
     nextButton.dataset.sectionId = nextSectionId;
