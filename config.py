@@ -65,7 +65,7 @@ class Config:
         )
     )
     
-    GEMINI_MODEL = "models/gemini-1.5-pro-latest"
+    GEMINI_MODEL = "gemini-2.0-flash-lite"
     
        
     # Learning-specific Gemini configuration with different settings for educational content
