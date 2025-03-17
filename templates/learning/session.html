@@ -64,18 +64,24 @@
                 <div class="card-body p-0">
                     <div class="section-toc">
                         {% for section in sections %}
-                        <div class="toc-item {{ 'active' if current_section and current_section.learning_section_id == section.learning_section_id }} {{ 'completed' if section.is_completed }}">
+                        {% set is_locked = not loop.first and not sections[loop.index0-1].is_completed %}
+                        <div class="toc-item {{ 'active' if current_section and current_section.learning_section_id == section.learning_section_id }} 
+                                              {{ 'completed' if section.is_completed }}
+                                              {{ 'locked' if is_locked }}">
                             <a href="javascript:void(0)" 
                                class="text-decoration-none text-reset section-link" 
                                data-section-id="{{ section.learning_section_id }}"
                                data-has-content="{{ 'true' if section.content else 'false' }}"
-                               data-is-completed="{{ 'true' if section.is_completed else 'false' }}">
+                               data-is-completed="{{ 'true' if section.is_completed else 'false' }}"
+                               data-is-locked="{{ 'true' if is_locked else 'false' }}">
                                 {% if section.is_completed %}
-                                <i class="bi bi-check-circle-fill me-2"></i>
+                                    <i class="bi bi-check-circle-fill me-2"></i>
+                                {% elif is_locked %}
+                                    <i class="bi bi-lock-fill me-2"></i>
                                 {% elif section.content %}
-                                <i class="bi bi-circle me-2"></i>
+                                    <i class="bi bi-circle me-2"></i>
                                 {% else %}
-                                <i class="bi bi-circle text-muted me-2"></i>
+                                    <i class="bi bi-circle text-muted me-2"></i>
                                 {% endif %}
                                 {{ section.order + 1 }}. {{ section.title|truncate(30, true) }}
                             </a>

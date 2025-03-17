@@ -81,6 +81,27 @@
     color: var(--bs-success);
 }
 
+/* Locked section styling */
+.section-toc .toc-item.locked {
+    color: var(--bs-gray);
+    cursor: not-allowed;
+}
+
+.section-toc .toc-item.locked .bi {
+    color: var(--bs-gray-600);
+}
+
+.section-toc .toc-item.locked a {
+    opacity: 0.7;
+    cursor: not-allowed;
+    pointer-events: all; /* Override pointer-events to allow our click handler */
+}
+
+.section-toc .toc-item.locked:hover {
+    background-color: rgba(var(--bs-danger-rgb), 0.05);
+    border-left-color: var(--bs-danger);
+}
+
 /* Session number styling */
 .section-number {
     display: flex;

@@ -55,6 +55,13 @@ function setupEventListeners() {
             const sectionId = link.dataset.sectionId;
             const hasContent = link.dataset.hasContent === 'true';
             const isCompleted = link.dataset.isCompleted === 'true';
+            const isLocked = link.dataset.isLocked === 'true';
+            
+            // Prevent navigation to locked sections
+            if (isLocked) {
+                showLockedSectionToast();
+                return;
+            }
             
             handleLoadSection(sectionId, !hasContent);
         });
@@ -153,11 +160,79 @@ async function handleCompleteSection() {
         if (result.all_completed) {
             displayAllSectionsCompleted();
         } else if (result.next_section_id) {
+            // Update UI to unlock the next section
+            unlockNextSection(currentState.sectionId);
             displaySectionCompleted(result.next_section_id);
         }
     } catch (error) {
         console.error('Failed to complete section:', error);
     }
+}
+
+/**
+ * Unlock the next section in the sequence
+ * @param {number} completedSectionId - ID of the section that was just completed
+ */
+function unlockNextSection(completedSectionId) {
+    // Find the completed section in the sidebar
+    const completedLink = document.querySelector(`.section-link[data-section-id="${completedSectionId}"]`);
+    if (!completedLink) return;
+    
+    const completedItem = completedLink.closest('.toc-item');
+    if (!completedItem) return;
+    
+    // Find the next item in the list
+    const nextItem = completedItem.nextElementSibling;
+    if (!nextItem) return;
+    
+    // Unlock the next section
+    const nextLink = nextItem.querySelector('.section-link');
+    if (nextLink) {
+        nextLink.dataset.isLocked = 'false';
+        nextItem.classList.remove('locked');
+        
+        // Update the icon
+        const icon = nextLink.querySelector('i');
+        if (icon && icon.classList.contains('bi-lock-fill')) {
+            icon.classList.remove('bi-lock-fill');
+            icon.classList.add('bi-circle');
+        }
+    }
+}
+
+/**
+ * Show a toast message indicating that a section is locked
+ */
+function showLockedSectionToast() {
+    // Create a toast element if it doesn't exist
+    let toastContainer = document.getElementById('lockedSectionToast');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.id = 'lockedSectionToast';
+        toastContainer.className = 'position-fixed bottom-0 end-0 p-3';
+        toastContainer.style.zIndex = '5';
+        document.body.appendChild(toastContainer);
+    }
+    
+    // Create the toast content with theme-aware styling
+    const toastId = 'sectionLockedToast' + Date.now();
+    toastContainer.innerHTML = `
+        <div id="${toastId}" class="toast border-warning" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header bg-warning text-dark">
+                <i class="bi bi-lock-fill me-2"></i>
+                <strong class="me-auto">Section Locked</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body">
+                Complete the previous section before continuing to this one.
+            </div>
+        </div>
+    `;
+    
+    // Show the toast
+    const toastElement = document.getElementById(toastId);
+    const toast = new bootstrap.Toast(toastElement, { delay: 5000 });
+    toast.show();
 }
 
 /**
