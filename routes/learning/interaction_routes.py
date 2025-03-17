@@ -47,28 +47,13 @@ def generate_section_questions(section_id, num_questions=2):
     try:
         client = genai.Client(api_key=api_key)
         
-        # Create a prompt for generating focused quiz questions
-        prompt = f"""
-        Based on this educational content about "{section.session.topic}" on "{section.title}":
-        
-        {section.content}
-        
-        Generate {num_questions} focused multiple-choice questions that test understanding of the key concepts.
-        
-        Requirements:
-        1. Each question should test ONE important concept from the content
-        2. Questions should be clear and direct (avoid complex scenarios)
-        3. The correct answer must be unambiguously supported by the content
-        4. Provide 3 plausible but clearly incorrect alternatives
-        5. Format your response as a JSON array of question objects:
-        [{{
-            "question": "What is X?",
-            "correct_answer": "The correct answer",
-            "incorrect_answers": ["Wrong 1", "Wrong 2", "Wrong 3"]
-        }}]
-        
-        Only return the JSON array, nothing else.
-        """
+        # Use the prompt from Config
+        prompt = Config.LEARNING_QUESTIONS_PROMPT.format(
+            topic=section.session.topic,
+            section_title=section.title,
+            section_content=section.content,
+            num_questions=num_questions
+        )
         
         response = client.models.generate_content(
             model=Config.GEMINI_MODEL,
@@ -125,22 +110,11 @@ def generate_section_content(section_id):
     
     client = genai.Client(api_key=api_key)
     
-    prompt = f"""
-    I'm learning about: {section.session.topic}
-    
-    Create concise, focused learning content for this specific section:
-    "{section.title}"
-    
-    Requirements:
-    1. Keep content brief but substantive (approximately 250-350 words)
-    2. Focus on core concepts and essential knowledge
-    3. Use simple language and explain technical terms
-    4. Include 1-2 clear examples or applications
-    5. Use bullet points or short paragraphs for readability
-    6. Format with HTML for structure (use h3, p, ul, li tags)
-    
-    The goal is to help me understand this topic without overwhelming me with too much information.
-    """
+    # Use the prompt from Config
+    prompt = Config.LEARNING_CONTENT_PROMPT.format(
+        topic=section.session.topic,
+        section_title=section.title
+    )
     
     response = client.models.generate_content(
         model=Config.GEMINI_MODEL,

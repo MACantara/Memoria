@@ -44,23 +44,11 @@ def api_generate_section_content(section_id):
     try:
         client = genai.Client(api_key=api_key)
         
-        # Create a prompt for generating concise section content
-        prompt = f"""
-        I'm learning about: {section.session.topic}
-        
-        Create concise, focused learning content for this specific section:
-        "{section.title}"
-        
-        Requirements:
-        1. Keep content brief but substantive (approximately 250-350 words)
-        2. Focus on core concepts and essential knowledge
-        3. Use simple language and explain technical terms
-        4. Include 1-2 clear examples or applications
-        5. Use bullet points or short paragraphs for readability
-        6. Format with HTML for structure (use h3, p, ul, li tags)
-        
-        The goal is to help me understand this topic without overwhelming me with too much information.
-        """
+        # Use the prompt from Config
+        prompt = Config.LEARNING_CONTENT_PROMPT.format(
+            topic=section.session.topic,
+            section_title=section.title
+        )
         
         response = client.models.generate_content(
             model=Config.GEMINI_MODEL,
@@ -225,22 +213,11 @@ def generate_section_content(section_id):
     
     client = genai.Client(api_key=api_key)
     
-    prompt = f"""
-    I'm learning about: {section.session.topic}
-    
-    Create concise, focused learning content for this specific section:
-    "{section.title}"
-    
-    Requirements:
-    1. Keep content brief but substantive (approximately 250-350 words)
-    2. Focus on core concepts and essential knowledge
-    3. Use simple language and explain technical terms
-    4. Include 1-2 clear examples or applications
-    5. Use bullet points or short paragraphs for readability
-    6. Format with HTML for structure (use h3, p, ul, li tags)
-    
-    The goal is to help me understand this topic without overwhelming me with too much information.
-    """
+    # Use the prompt from Config
+    prompt = Config.LEARNING_CONTENT_PROMPT.format(
+        topic=section.session.topic,
+        section_title=section.title
+    )
     
     response = client.models.generate_content(
         model=Config.GEMINI_MODEL,

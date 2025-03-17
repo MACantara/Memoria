@@ -67,7 +67,7 @@ def generate_outline(session_id):
         abort(403)
     
     # If outline already exists, redirect to session view
-    if learning_session.outline:
+    if (learning_session.outline):
         return redirect(url_for('learning.view_session', session_id=session_id))
     
     return redirect(url_for('learning.view_session', 
@@ -87,25 +87,10 @@ def process_outline(session_id):
     try:
         client = genai.Client(api_key=api_key)
         
-        # Create a prompt for generating an outline - specify conciseness
-        prompt = f"""
-        Create a structured learning outline for: {learning_session.topic}
-        
-        Please provide a concise outline with 4-6 focused sections that would help someone learn this topic efficiently.
-        Each section should be specific and focused on one aspect.
-        
-        Format your response as a JSON array of section titles as simple strings and not numbered, like this example:
-        ["Introduction to {learning_session.topic}", "Key Concepts", ...]
-        
-        Important requirements:
-        - Make sections focused on one aspect each
-        - Use clear, straightforward language
-        - Keep titles concise (under 8 words)
-        - Arrange sections in a logical learning progression
-        - Do NOT return complex data structures, only string titles
-        
-        Only return the JSON array of section title strings, nothing else.
-        """
+        # Use the prompt from Config, formatting with the session topic
+        prompt = Config.LEARNING_OUTLINE_PROMPT.format(
+            topic=learning_session.topic
+        )
         
         response = client.models.generate_content(
             model=Config.GEMINI_MODEL,

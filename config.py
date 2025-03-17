@@ -86,6 +86,65 @@ class Config:
         "response_mime_type": "application/json"  # Explicitly request JSON for questions
     }
     
+    # Learning prompts 
+    LEARNING_OUTLINE_PROMPT = """
+        Create a structured learning outline for: {topic}
+        
+        Please provide a concise outline with 4-6 focused sections that would help someone learn this topic efficiently.
+        Each section should be specific and focused on one aspect.
+        
+        Format your response as a JSON array of section titles as simple strings and not numbered, like this example:
+        ["Introduction to {topic}", "Key Concepts", ...]
+        
+        Important requirements:
+        - Make sections focused on one aspect each
+        - Use clear, straightforward language
+        - Keep titles concise (under 8 words)
+        - Arrange sections in a logical learning progression
+        - Do NOT return complex data structures, only string titles
+        
+        Only return the JSON array of section title strings, nothing else.
+    """
+    
+    LEARNING_CONTENT_PROMPT = """
+        I'm learning about: {topic}
+        
+        Create concise, focused learning content for this specific section:
+        "{section_title}"
+        
+        Requirements:
+        1. Keep content brief but substantive (approximately 250-350 words)
+        2. Focus on core concepts and essential knowledge
+        3. Use simple language and explain technical terms
+        4. Include 1-2 clear examples or applications
+        5. Use bullet points or short paragraphs for readability
+        6. Format with HTML for structure (use h3, p, ul, li tags)
+        
+        The goal is to help me understand this topic without overwhelming me with too much information.
+    """
+    
+    LEARNING_QUESTIONS_PROMPT = """
+        Based on this educational content about "{topic}" on "{section_title}":
+        
+        {section_content}
+        
+        Generate {num_questions} focused multiple-choice questions that test understanding of the key concepts.
+        
+        Requirements:
+        1. Each question should test ONE important concept from the content
+        2. Questions should be clear and direct (avoid complex scenarios)
+        3. The correct answer must be unambiguously supported by the content
+        4. Provide 3 plausible but clearly incorrect alternatives
+        5. Format your response as a JSON array of question objects:
+        [{{
+            "question": "What is X?",
+            "correct_answer": "The correct answer",
+            "incorrect_answers": ["Wrong 1", "Wrong 2", "Wrong 3"]
+        }}]
+        
+        Only return the JSON array, nothing else.
+    """
+    
     @staticmethod
     def generate_prompt_template(topic, batch_size=None):
         """Generate a prompt template for AI flashcard generation"""
