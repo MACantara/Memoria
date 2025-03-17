@@ -86,7 +86,7 @@
                             {% elif session.current_section == section.order %}
                                 <span class="badge bg-primary rounded-pill"><i class="bi bi-arrow-right"></i></span>
                             {% else %}
-                                <span class="badge bg-light text-dark rounded-pill">{{ section.order + 1 }}</span>
+                                <span class="badge text-dark rounded-pill">{{ section.order + 1 }}</span>
                             {% endif %}
                         </a>
                         {% endfor %}
