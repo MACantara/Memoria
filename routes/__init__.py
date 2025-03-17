@@ -9,6 +9,7 @@ def register_blueprints(app: Flask):
     from routes.flashcard.__init__ import register_flashcard_blueprints
     from routes.search_routes import search_bp
     from routes.auth_routes import auth_bp
+    from routes.learning.__init__ import register_learning_blueprint
     
     # Register blueprints
     app.register_blueprint(main_bp)
@@ -19,3 +20,4 @@ def register_blueprints(app: Flask):
     
     # Register all flashcard blueprints
     register_flashcard_blueprints(app)
+    register_learning_blueprint(app)
