@@ -94,15 +94,66 @@ export function displaySectionContent(sectionData) {
 export function displayCompletedSection(sectionData) {
     const contentArea = document.getElementById('dynamicContentArea');
     
-    // Create completed section view
+    // Find next section if available
+    const nextSection = findNextSection(sectionData);
+    
+    // Create completed section view with next button
     contentArea.innerHTML = `
         <h2 class="h4 mb-4">${sectionData.title}</h2>
         <div class="learning-content mb-4">${sectionData.content}</div>
-        <div class="alert alert-success">
+        <div class="alert alert-success mb-4">
             <i class="bi bi-check-circle-fill me-2"></i>
-            You've already completed this section. You can review the content or select another section.
+            You've already completed this section.
+        </div>
+        
+        <div class="text-center mt-4">
+            ${nextSection ? `
+                <button class="btn btn-primary next-section-btn" data-section-id="${nextSection.learning_section_id}">
+                    <i class="bi bi-arrow-right me-1"></i> Continue to Next Section
+                </button>
+            ` : `
+                <a href="#" onclick="window.history.back()" class="btn btn-outline-primary">
+                    <i class="bi bi-arrow-left me-1"></i> Back to Learning Path
+                </a>
+            `}
         </div>
     `;
+}
+
+/**
+ * Find the next section in the learning path
+ * @param {Object} currentSection - The current section data
+ * @returns {Object|null} - The next section or null if none
+ */
+function findNextSection(currentSection) {
+    // Get all section elements from the sidebar
+    const allSections = document.querySelectorAll('.section-toc .toc-item');
+    
+    // Find the current section in the list
+    let foundCurrent = false;
+    let nextSection = null;
+    
+    for (const section of allSections) {
+        const sectionLink = section.querySelector('.section-link');
+        const sectionId = parseInt(sectionLink.dataset.sectionId, 10);
+        
+        if (foundCurrent) {
+            // This is the section after the current one
+            nextSection = {
+                learning_section_id: sectionId,
+                is_locked: sectionLink.dataset.isLocked === 'true'
+            };
+            break;
+        }
+        
+        // Check if this is the current section
+        if (sectionId === currentSection.id) {
+            foundCurrent = true;
+        }
+    }
+    
+    // Only return unlocked sections
+    return nextSection && !nextSection.is_locked ? nextSection : null;
 }
 
 /**
