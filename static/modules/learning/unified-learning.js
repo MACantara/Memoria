@@ -40,7 +40,12 @@ export function initializeUnifiedLearning(sessionId) {
         const sectionId = startLearningBtn.dataset.sectionId;
         if (sectionId) {
             startLearningBtn.addEventListener('click', () => {
-                handleLoadSection(sectionId);
+                // Always generate content for first section when starting learning
+                handleLoadSection(sectionId, true);
+                
+                // Update button state while generating
+                startLearningBtn.disabled = true;
+                startLearningBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Generating content...';
             });
         }
     }
