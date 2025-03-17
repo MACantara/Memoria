@@ -1,226 +1,328 @@
 /**
- * Learning module that handles all learning-related functionality
+ * Unified learning module that handles all learning functionality within a single page
  */
-export function initializeLearningModules() {
-    // Initialize different parts based on page context
-    if (document.getElementById('generationStatus') && document.getElementById('generationError')) {
-        // On outline or content generation page
-        if (window.location.href.includes('generate-outline')) {
-            // Outline generation page
-            generateOutline();
-        } else if (window.location.href.includes('generate')) {
-            // Content generation page
-            generateContent();
-        }
-    }
-    
-    // Section page components
-    if (document.getElementById('completeContentBtn')) {
-        document.getElementById('completeContentBtn').addEventListener('click', markContentRead);
-    }
-    
-    // Initialize question UI if we're on a section page with questions
-    if (document.getElementById('questionContainer')) {
-        initializeQuestionUI();
-    }
-    
-    // Initialize complete section button if present
-    if (document.getElementById('completeSectionBtn')) {
-        document.getElementById('completeSectionBtn').addEventListener('click', completeSection);
-    }
-}
+
+// Global state to track learning progress
+let currentState = {
+    sessionId: null,
+    sectionId: null,
+    step: 'content',  // 'content', 'question', 'complete'
+    currentQuestionIndex: 0,
+    questions: []
+};
 
 /**
- * Generate an outline for a learning session
+ * Initialize the unified learning experience
+ * @param {number} sessionId - The current learning session ID
  */
-async function generateOutline() {
-    const statusElement = document.getElementById('generationStatus');
-    const errorContainer = document.getElementById('generationError');
-    const errorMessage = document.getElementById('errorMessage');
-    const sessionId = getSessionIdFromUrl();
+export function initializeUnifiedLearning(sessionId) {
+    if (!sessionId) return;
     
-    if (!sessionId) {
-        console.error("Could not determine session ID");
-        return;
-    }
+    // Initialize state
+    currentState.sessionId = sessionId;
     
-    try {
-        statusElement.textContent = "Analyzing topic and creating structure...";
-        
-        // Send request to generate outline
-        const response = await fetch(`/learning/session/${sessionId}/process-outline`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        });
-        
-        const data = await response.json();
-        
-        if (!response.ok) {
-            throw new Error(data.error || "Failed to generate outline");
-        }
-        
-        if (data.success) {
-            statusElement.textContent = "Learning path created successfully! Redirecting...";
-            window.location.href = data.redirect;
-        } else {
-            throw new Error(data.error || "Unknown error");
-        }
-        
-    } catch (error) {
-        console.error("Outline generation error:", error);
-        statusElement.textContent = "Generation failed.";
-        errorMessage.textContent = error.message || "Failed to generate outline. Please try again.";
-        errorContainer.classList.remove('d-none');
-    }
-}
-
-/**
- * Generate content for a learning section
- */
-async function generateContent() {
-    const statusElement = document.getElementById('generationStatus');
-    const errorContainer = document.getElementById('generationError');
-    const errorMessage = document.getElementById('errorMessage');
-    const sectionId = getSectionIdFromUrl();
+    // Set up event listeners
+    setupEventListeners();
     
-    if (!sectionId) {
-        console.error("Could not determine section ID");
-        return;
-    }
-    
-    try {
-        statusElement.textContent = "Researching topic and creating educational content...";
-        
-        // Send request to generate content
-        const response = await fetch(`/learning/section/${sectionId}/process-content`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        });
-        
-        const data = await response.json();
-        
-        if (!response.ok) {
-            throw new Error(data.error || "Failed to generate content");
-        }
-        
-        if (data.success) {
-            statusElement.textContent = "Content created successfully! Redirecting...";
-            window.location.href = data.redirect;
-        } else {
-            throw new Error(data.error || "Unknown error");
-        }
-        
-    } catch (error) {
-        console.error("Content generation error:", error);
-        statusElement.textContent = "Generation failed.";
-        errorMessage.textContent = error.message || "Failed to generate content. Please try again.";
-        errorContainer.classList.remove('d-none');
-    }
-}
-
-/**
- * Retry content or outline generation
- */
-export function retryGeneration() {
-    const errorContainer = document.getElementById('generationError');
-    const statusElement = document.getElementById('generationStatus');
-    
-    errorContainer.classList.add('d-none');
-    statusElement.textContent = "Retrying generation...";
-    
-    if (window.location.href.includes('generate-outline')) {
-        generateOutline();
-    } else if (window.location.href.includes('generate')) {
-        generateContent();
-    }
-}
-
-/**
- * Initialize question UI components
- */
-function initializeQuestionUI() {
-    const answerOptions = document.querySelectorAll('.answer-option');
-    const nextButtonContainer = document.getElementById('nextButtonContainer');
-    const nextButton = document.getElementById('nextQuestionBtn');
-    
-    // Shuffle answer options - Add null checking
-    const optionsContainer = document.querySelector('.answer-options');
-    if (optionsContainer) {
-        const options = Array.from(optionsContainer.children);
-        for (let i = options.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            optionsContainer.appendChild(options[j]);
-        }
-    }
-    
-    // Add click handlers to answer options (only if they exist)
-    if (answerOptions.length > 0) {
-        answerOptions.forEach(option => {
-            option.addEventListener('click', function() {
-                if (this.classList.contains('selected') || 
-                    this.classList.contains('correct') || 
-                    this.classList.contains('incorrect')) {
-                    return; // Already answered
-                }
-                
-                // Select this option
-                answerOptions.forEach(opt => opt.classList.remove('selected'));
-                this.classList.add('selected');
-                
-                // Check if correct
-                const isCorrect = this.getAttribute('data-correct') === 'true';
-                const questionId = this.closest('.question-item').getAttribute('data-question-id');
-                const answerValue = this.getAttribute('data-answer');
-                
-                // Show feedback
-                showAnswerFeedback(isCorrect, questionId, answerValue);
+    // Check if we should auto-start first section
+    const startLearningBtn = document.getElementById('startLearningBtn');
+    if (startLearningBtn) {
+        const sectionId = startLearningBtn.dataset.sectionId;
+        if (sectionId) {
+            startLearningBtn.addEventListener('click', () => {
+                loadSectionContent(sectionId);
             });
-        });
-    }
-    
-    // Next question handler
-    if (nextButton) {
-        nextButton.addEventListener('click', function() {
-            window.location.reload();
-        });
+        }
     }
 }
 
 /**
- * Show feedback after answering a question
+ * Set up all event listeners needed for the unified learning experience
  */
-async function showAnswerFeedback(isCorrect, questionId, answerValue) {
-    const feedbackDiv = document.getElementById('questionFeedback');
-    const nextButtonContainer = document.getElementById('nextButtonContainer');
-    const selectedOption = document.querySelector('.answer-option.selected');
+function setupEventListeners() {
+    // Add click handlers for section links
+    document.querySelectorAll('.section-link').forEach(link => {
+        link.addEventListener('click', () => {
+            const sectionId = link.dataset.sectionId;
+            const hasContent = link.dataset.hasContent === 'true';
+            const isCompleted = link.dataset.isCompleted === 'true';
+            
+            if (isCompleted) {
+                // If completed, just show the content
+                loadSectionContent(sectionId);
+            } else if (hasContent) {
+                // If has content but not completed, load content
+                loadSectionContent(sectionId);
+            } else {
+                // If no content, generate it
+                loadSectionContent(sectionId, true);
+            }
+        });
+    });
     
-    if (!feedbackDiv || !selectedOption) return;
+    // Event delegation for dynamically created buttons
+    document.getElementById('dynamicContentArea').addEventListener('click', async (event) => {
+        // Continue to questions button
+        if (event.target.id === 'completeContentBtn' || event.target.closest('#completeContentBtn')) {
+            await markContentReadAndShowQuestions();
+        }
+        
+        // Complete section button
+        if (event.target.id === 'completeSectionBtn' || event.target.closest('#completeSectionBtn')) {
+            await completeSectionAndContinue();
+        }
+        
+        // Next section button
+        if (event.target.classList.contains('next-section-btn') || event.target.closest('.next-section-btn')) {
+            const nextSectionBtn = event.target.classList.contains('next-section-btn') ? 
+                event.target : event.target.closest('.next-section-btn');
+            
+            if (nextSectionBtn.dataset.sectionId) {
+                loadSectionContent(nextSectionBtn.dataset.sectionId);
+            }
+        }
+    });
+}
+
+/**
+ * Load section content, generating it if needed
+ * @param {number} sectionId - The section ID to load
+ * @param {boolean} generateContent - Whether to generate content or load existing
+ */
+async function loadSectionContent(sectionId, generateContent = false) {
+    showLoading('Loading section content...');
+    currentState.sectionId = sectionId;
+    
+    try {
+        if (generateContent) {
+            await generateSectionContent(sectionId);
+        }
+        
+        // Fetch section content
+        const response = await fetch(`/learning/api/section/${sectionId}`);
+        if (!response.ok) throw new Error('Failed to load section content');
+        
+        const sectionData = await response.json();
+        
+        if (sectionData.is_completed) {
+            currentState.step = 'complete';
+            displayCompletedSection(sectionData);
+        } else if (sectionData.content) {
+            currentState.step = 'content';
+            displaySectionContent(sectionData);
+        } else {
+            throw new Error('No content available for this section');
+        }
+        
+        // Update active section in the sidebar
+        updateActiveSectionInSidebar(sectionId);
+        
+    } catch (error) {
+        console.error('Error loading section content:', error);
+        displayError('Failed to load section content. Please try again.');
+    } finally {
+        hideLoading();
+    }
+}
+
+/**
+ * Generate content for a section
+ * @param {number} sectionId - The section ID to generate content for
+ */
+async function generateSectionContent(sectionId) {
+    showLoading('Generating educational content...');
+    
+    try {
+        const response = await fetch(`/learning/api/section/${sectionId}/generate-content`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to generate content');
+        }
+        
+        const data = await response.json();
+        if (!data.success) {
+            throw new Error(data.error || 'Content generation failed');
+        }
+        
+        return data;
+    } catch (error) {
+        console.error('Content generation error:', error);
+        throw error;
+    }
+}
+
+/**
+ * Display section content in the dynamic content area
+ * @param {Object} sectionData - The section data including content
+ */
+function displaySectionContent(sectionData) {
+    const contentArea = document.getElementById('dynamicContentArea');
+    const template = document.getElementById('sectionContentTemplate');
+    const content = template.content.cloneNode(true);
+    
+    // Set section title and content
+    content.querySelector('.section-title').textContent = sectionData.title;
+    content.querySelector('.learning-content').innerHTML = sectionData.content;
+    
+    // Clear existing content and append new content
+    contentArea.innerHTML = '';
+    contentArea.appendChild(content);
+}
+
+/**
+ * Mark content as read and show questions
+ */
+async function markContentReadAndShowQuestions() {
+    if (!currentState.sectionId) return;
+    
+    showLoading('Preparing questions...');
+    
+    try {
+        const response = await fetch(`/learning/api/section/${currentState.sectionId}/mark-read`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to process');
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Store questions for later use
+            currentState.questions = data.questions;
+            currentState.currentQuestionIndex = 0;
+            currentState.step = 'question';
+            
+            // Display first question
+            if (currentState.questions.length > 0) {
+                displayQuestion(currentState.questions[0]);
+            } else {
+                displayCompleteSectionPrompt();
+            }
+        } else {
+            throw new Error(data.error || 'Failed to generate questions');
+        }
+    } catch (error) {
+        console.error('Error preparing questions:', error);
+        displayError('Failed to prepare questions. Please try again.');
+    } finally {
+        hideLoading();
+    }
+}
+
+/**
+ * Display a question in the dynamic content area
+ * @param {Object} question - The question data
+ */
+function displayQuestion(question) {
+    const contentArea = document.getElementById('dynamicContentArea');
+    const template = document.getElementById('questionTemplate');
+    const content = template.content.cloneNode(true);
+    
+    // Set question text and ID
+    const questionItem = content.querySelector('.question-item');
+    questionItem.dataset.questionId = question.id;
+    content.querySelector('.question-text').textContent = question.question;
+    
+    // Create answer options
+    const optionsContainer = content.querySelector('.answer-options');
+    
+    // Add correct answer
+    const correctOption = document.createElement('div');
+    correctOption.className = 'answer-option';
+    correctOption.setAttribute('data-correct', 'true');
+    correctOption.setAttribute('data-answer', question.correct_answer);
+    correctOption.textContent = question.correct_answer;
+    optionsContainer.appendChild(correctOption);
+    
+    // Add incorrect answers
+    question.incorrect_answers.forEach(answer => {
+        const option = document.createElement('div');
+        option.className = 'answer-option';
+        option.setAttribute('data-correct', 'false');
+        option.setAttribute('data-answer', answer);
+        option.textContent = answer;
+        optionsContainer.appendChild(option);
+    });
+    
+    // Shuffle answer options
+    const options = Array.from(optionsContainer.children);
+    for (let i = options.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        optionsContainer.appendChild(options[j]);
+    }
+    
+    // Add click handlers to answer options
+    content.querySelectorAll('.answer-option').forEach(option => {
+        option.addEventListener('click', handleAnswerSelection);
+    });
+    
+    // Add event listener to next button (when it becomes visible)
+    const nextButton = content.querySelector('#nextQuestionBtn');
+    nextButton.addEventListener('click', showNextQuestion);
+    
+    // Clear existing content and append new content
+    contentArea.innerHTML = '';
+    contentArea.appendChild(content);
+}
+
+/**
+ * Handle when a user selects an answer
+ * @param {Event} event - The click event
+ */
+async function handleAnswerSelection(event) {
+    const option = event.currentTarget;
+    if (option.classList.contains('selected') || 
+        option.classList.contains('correct') || 
+        option.classList.contains('incorrect')) {
+        return; // Already answered
+    }
+    
+    // Select this option
+    document.querySelectorAll('.answer-option').forEach(opt => 
+        opt.classList.remove('selected'));
+    option.classList.add('selected');
+    
+    // Get question data
+    const isCorrect = option.getAttribute('data-correct') === 'true';
+    const questionItem = option.closest('.question-item');
+    const questionId = questionItem.dataset.questionId;
+    const answerValue = option.getAttribute('data-answer');
     
     // Mark all answers as correct/incorrect
-    document.querySelectorAll('.answer-option').forEach(option => {
-        if (option.getAttribute('data-correct') === 'true') {
-            option.classList.add('correct');
-        } else if (option === selectedOption) {
-            option.classList.add('incorrect');
+    document.querySelectorAll('.answer-option').forEach(opt => {
+        if (opt.getAttribute('data-correct') === 'true') {
+            opt.classList.add('correct');
+        } else if (opt === option) {
+            opt.classList.add('incorrect');
         }
     });
     
-    // Show feedback message
+    // Show feedback
+    const feedbackDiv = document.getElementById('questionFeedback');
     feedbackDiv.classList.remove('d-none');
     feedbackDiv.innerHTML = isCorrect ? 
         '<div class="alert alert-success"><i class="bi bi-check-circle-fill me-2"></i>Correct!</div>' : 
         '<div class="alert alert-danger"><i class="bi bi-x-circle-fill me-2"></i>Incorrect. The correct answer is highlighted.</div>';
     
     // Show next button
+    const nextButtonContainer = document.getElementById('nextButtonContainer');
     nextButtonContainer.classList.remove('d-none');
     
     // Save answer to database
     try {
-        const response = await fetch('/learning/question/answer', {
+        const response = await fetch('/learning/api/question/answer', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -241,119 +343,206 @@ async function showAnswerFeedback(isCorrect, questionId, answerValue) {
 }
 
 /**
- * Mark a section as read and proceed to questions
+ * Show the next question or complete section prompt
  */
-async function markContentRead() {
-    const button = document.getElementById('completeContentBtn');
-    const sectionId = getSectionIdFromUrl();
+function showNextQuestion() {
+    currentState.currentQuestionIndex++;
     
-    if (!sectionId) {
-        console.error("Could not determine section ID");
-        return;
-    }
-    
-    button.disabled = true;
-    button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
-    
-    try {
-        const response = await fetch(`/learning/section/${sectionId}/mark-read`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok && data.success) {
-            window.location.reload();
-        } else {
-            throw new Error(data.error || "Failed to mark section as read");
-        }
-    } catch (error) {
-        console.error('Error marking section as read:', error);
-        button.disabled = false;
-        button.innerHTML = '<i class="bi bi-check-circle me-1"></i> I\'ve Read This Section';
-        
-        // Show error message
-        const errorMsg = document.createElement('div');
-        errorMsg.className = 'alert alert-danger mt-3';
-        errorMsg.innerHTML = `<i class="bi bi-exclamation-triangle me-2"></i> ${error.message || "Error processing request"}`;
-        button.parentNode.appendChild(errorMsg);
+    // Check if there are more questions
+    if (currentState.currentQuestionIndex < currentState.questions.length) {
+        displayQuestion(currentState.questions[currentState.currentQuestionIndex]);
+    } else {
+        // No more questions, show complete section prompt
+        displayCompleteSectionPrompt();
     }
 }
 
 /**
- * Mark a section as complete and move to next section
+ * Display the prompt to complete the section
  */
-async function completeSection() {
-    const button = document.getElementById('completeSectionBtn');
-    const sectionId = getSectionIdFromUrl();
+function displayCompleteSectionPrompt() {
+    const contentArea = document.getElementById('dynamicContentArea');
+    const template = document.getElementById('completeSectionTemplate');
+    const content = template.content.cloneNode(true);
     
-    if (!sectionId) {
-        console.error("Could not determine section ID");
-        return;
-    }
-    
-    button.disabled = true;
-    button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
+    // Clear existing content and append new content
+    contentArea.innerHTML = '';
+    contentArea.appendChild(content);
+}
+
+/**
+ * Complete the section and continue to the next one
+ */
+async function completeSectionAndContinue() {
+    showLoading('Completing section...');
     
     try {
-        const response = await fetch(`/learning/section/${sectionId}/complete`, {
+        const response = await fetch(`/learning/api/section/${currentState.sectionId}/complete`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             }
         });
         
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to complete section');
+        }
+        
         const data = await response.json();
         
-        if (response.ok && data.success) {
-            if (data.redirect) {
-                window.location.href = data.redirect;
+        if (data.success) {
+            currentState.step = 'complete';
+            
+            if (data.all_completed) {
+                displayAllSectionsCompleted();
+            } else if (data.next_section_id) {
+                displaySectionCompleted(data.next_section_id);
             } else {
+                // Just refresh the page as a fallback
                 window.location.reload();
             }
+            
+            // Update section status in sidebar
+            updateSectionStatusInSidebar(currentState.sectionId, true);
         } else {
-            throw new Error(data.error || "Failed to complete section");
+            throw new Error(data.error || 'Failed to complete section');
         }
     } catch (error) {
         console.error('Error completing section:', error);
-        button.disabled = false;
-        button.innerHTML = '<i class="bi bi-check-circle me-1"></i> Complete Section';
+        displayError('Failed to complete section. Please try again.');
+    } finally {
+        hideLoading();
+    }
+}
+
+/**
+ * Display the section completed message
+ * @param {number} nextSectionId - The ID of the next section to load
+ */
+function displaySectionCompleted(nextSectionId) {
+    const contentArea = document.getElementById('dynamicContentArea');
+    const template = document.getElementById('sectionCompletedTemplate');
+    const content = template.content.cloneNode(true);
+    
+    // Set message and button functionality
+    content.querySelector('.section-completed-message').textContent = 
+        'Great job! You've completed this section. Ready to continue to the next section?';
+    
+    const nextButton = content.querySelector('.next-section-btn');
+    nextButton.dataset.sectionId = nextSectionId;
+    
+    // Clear existing content and append new content
+    contentArea.innerHTML = '';
+    contentArea.appendChild(content);
+}
+
+/**
+ * Display the all sections completed message
+ */
+function displayAllSectionsCompleted() {
+    const contentArea = document.getElementById('dynamicContentArea');
+    const template = document.getElementById('allCompletedTemplate');
+    const content = template.content.cloneNode(true);
+    
+    // Clear existing content and append new content
+    contentArea.innerHTML = '';
+    contentArea.appendChild(content);
+}
+
+/**
+ * Display completed section view
+ * @param {Object} sectionData - The section data
+ */
+function displayCompletedSection(sectionData) {
+    const contentArea = document.getElementById('dynamicContentArea');
+    
+    // Create completed section view
+    contentArea.innerHTML = `
+        <h2 class="h4 mb-4">${sectionData.title}</h2>
+        <div class="learning-content mb-4">${sectionData.content}</div>
+        <div class="alert alert-success">
+            <i class="bi bi-check-circle-fill me-2"></i>
+            You've already completed this section. You can review the content or select another section.
+        </div>
+    `;
+}
+
+/**
+ * Update the active section in the sidebar
+ * @param {number} sectionId - The active section ID
+ */
+function updateActiveSectionInSidebar(sectionId) {
+    // Remove active class from all sections
+    document.querySelectorAll('.section-toc .toc-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    
+    // Add active class to current section
+    const activeSection = document.querySelector(`.section-link[data-section-id="${sectionId}"]`);
+    if (activeSection) {
+        activeSection.closest('.toc-item').classList.add('active');
+    }
+}
+
+/**
+ * Update section status in sidebar (mark as completed)
+ * @param {number} sectionId - The section ID
+ * @param {boolean} completed - Whether the section is completed
+ */
+function updateSectionStatusInSidebar(sectionId, completed) {
+    const sectionLink = document.querySelector(`.section-link[data-section-id="${sectionId}"]`);
+    if (sectionLink) {
+        const sectionItem = sectionLink.closest('.toc-item');
         
-        // Show error message
-        const errorMsg = document.createElement('div');
-        errorMsg.className = 'alert alert-danger mt-3';
-        errorMsg.innerHTML = `<i class="bi bi-exclamation-triangle me-2"></i> ${error.message || "Error processing request"}`;
-        button.parentNode.appendChild(errorMsg);
+        if (completed) {
+            sectionItem.classList.add('completed');
+            sectionLink.dataset.isCompleted = 'true';
+            
+            // Update icon
+            const icon = sectionLink.querySelector('i');
+            if (icon) {
+                icon.className = 'bi bi-check-circle-fill me-2';
+            }
+        }
     }
 }
 
 /**
- * Helper function to extract section ID from URL
+ * Display an error message
+ * @param {string} message - The error message to display
  */
-function getSectionIdFromUrl() {
-    const urlParts = window.location.pathname.split('/');
-    const sectionIdIndex = urlParts.indexOf('section') + 1;
-    
-    if (sectionIdIndex < urlParts.length) {
-        return urlParts[sectionIdIndex];
-    }
-    
-    return null;
+function displayError(message) {
+    const contentArea = document.getElementById('dynamicContentArea');
+    contentArea.innerHTML = `
+        <div class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            ${message}
+        </div>
+        <div class="text-center mt-3">
+            <button class="btn btn-outline-primary" onclick="window.location.reload()">
+                <i class="bi bi-arrow-clockwise me-1"></i> Refresh Page
+            </button>
+        </div>
+    `;
 }
 
 /**
- * Helper function to extract session ID from URL
+ * Show loading indicator
+ * @param {string} message - The loading message to display
  */
-function getSessionIdFromUrl() {
-    const urlParts = window.location.pathname.split('/');
-    const sessionIdIndex = urlParts.indexOf('session') + 1;
+function showLoading(message = 'Loading...') {
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    const loadingMessage = document.getElementById('loadingMessage');
     
-    if (sessionIdIndex < urlParts.length) {
-        return urlParts[sessionIdIndex];
-    }
-    
-    return null;
+    loadingMessage.textContent = message;
+    loadingIndicator.classList.remove('d-none');
+}
+
+/**
+ * Hide loading indicator
+ */
+function hideLoading() {
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    loadingIndicator.classList.add('d-none');
 }
