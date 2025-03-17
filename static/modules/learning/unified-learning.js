@@ -5,6 +5,7 @@
 import { loadSectionContent, displaySectionContent, displayCompletedSection, generateOutline } from './content-manager.js';
 import { markContentReadAndShowQuestions, displayQuestion, displayCompleteSectionPrompt, 
          completeSectionAndContinue, displaySectionCompleted, displayAllSectionsCompleted } from './question-manager.js';
+import { showLoading, hideLoading, displayError } from './ui-utils.js';
 
 // Global state to track learning progress
 let currentState = {
@@ -79,13 +80,15 @@ function setupEventListeners() {
             await handleCompleteSection();
         }
         
-        // Next section button
+        // Next section button - Enhanced with auto content generation
         if (event.target.classList.contains('next-section-btn') || event.target.closest('.next-section-btn')) {
             const nextSectionBtn = event.target.classList.contains('next-section-btn') ? 
                 event.target : event.target.closest('.next-section-btn');
             
             if (nextSectionBtn.dataset.sectionId) {
-                handleLoadSection(nextSectionBtn.dataset.sectionId);
+                const sectionId = nextSectionBtn.dataset.sectionId;
+                // Check if the section already has content generated
+                await handleNextSectionNavigation(sectionId);
             }
         }
     });
@@ -233,6 +236,47 @@ function showLockedSectionToast() {
     const toastElement = document.getElementById(toastId);
     const toast = new bootstrap.Toast(toastElement, { delay: 5000 });
     toast.show();
+}
+
+/**
+ * Handle navigation to next section with automatic content generation if needed
+ * @param {number} sectionId - The section ID to navigate to
+ */
+async function handleNextSectionNavigation(sectionId) {
+    showLoading('Preparing next section...');
+    
+    try {
+        // First, check if the section has content
+        const response = await fetch(`/learning/api/section/${sectionId}`);
+        if (!response.ok) throw new Error('Failed to check section status');
+        
+        const sectionData = await response.json();
+        
+        if (sectionData.content) {
+            // Content already exists, just navigate to it
+            handleLoadSection(sectionId);
+        } else {
+            // Content doesn't exist, generate it first
+            showLoading('Generating content for next section...');
+            
+            // Update the button text to show generation is happening
+            const nextButton = document.querySelector('.next-section-btn');
+            if (nextButton) {
+                const btnText = nextButton.querySelector('.next-button-text');
+                if (btnText) btnText.textContent = 'Generating Content...';
+                nextButton.disabled = true;
+            }
+            
+            await generateSectionContent(sectionId);
+            
+            // Now navigate to the section with the fresh content
+            handleLoadSection(sectionId);
+        }
+    } catch (error) {
+        console.error('Failed to prepare next section:', error);
+        displayError('Failed to prepare the next section. Please try refreshing the page.');
+        hideLoading();
+    }
 }
 
 /**

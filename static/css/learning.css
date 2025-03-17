@@ -119,3 +119,16 @@
     background-color: rgba(255, 255, 255, 0.3);
     color: white;
 }
+
+/* Button spinner animation for content generation */
+.next-section-btn.generating {
+    opacity: 0.8;
+    cursor: progress;
+}
+
+.next-section-btn.generating .spinner-border {
+    width: 1rem;
+    height: 1rem;
+    border-width: 0.1rem;
+    margin-right: 0.5rem;
+}
