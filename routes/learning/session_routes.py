@@ -19,12 +19,12 @@ def index():
     active_sessions = LearningSession.query.filter_by(
         user_id=current_user.id,
         status='active'
-    ).order_by(LearningSession.last_updated.desc()).limit(5).all()
+    ).order_by(LearningSession.last_updated.desc()).all()
     
     completed_sessions = LearningSession.query.filter_by(
         user_id=current_user.id,
         status='completed'
-    ).order_by(LearningSession.last_updated.desc()).limit(5).all()
+    ).order_by(LearningSession.last_updated.desc()).all()
     
     return render_template(
         'learning/index.html',
