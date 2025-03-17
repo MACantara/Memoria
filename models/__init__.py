@@ -5,6 +5,7 @@ db = SQLAlchemy()
 from .flashcard_deck import FlashcardDecks
 from .flashcard import Flashcards, FlashcardSet, FlashcardGenerator
 from .user import User
+from .learning import LearningSession, LearningSection, LearningQuestion
 
 __all__ = ['db', 'FlashcardDecks', 'Flashcards']
 
