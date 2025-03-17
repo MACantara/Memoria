@@ -90,26 +90,37 @@
                     
                     <!-- Dynamic content area -->
                     <div id="dynamicContentArea">
-                        {% if not sections[0].content %}
-                            <!-- Initial welcome screen -->
-                            <div class="text-center py-4" id="welcomeScreen">
-                                <div class="mb-3">
-                                    <i class="bi bi-book text-primary" style="font-size: 3rem;"></i>
+                        {% if sections %}
+                            {% if not sections[0].content %}
+                                <!-- Initial welcome screen -->
+                                <div class="text-center py-4" id="welcomeScreen">
+                                    <div class="mb-3">
+                                        <i class="bi bi-book text-primary" style="font-size: 3rem;"></i>
+                                    </div>
+                                    <h3>Ready to begin learning?</h3>
+                                    <p class="lead mb-4">Let's start with the first section: <strong>{{ sections[0].title }}</strong></p>
+                                    <button class="btn btn-primary btn-lg" id="startLearningBtn" data-section-id="{{ sections[0].learning_section_id }}">
+                                        <i class="bi bi-play-fill me-1"></i> Start Learning
+                                    </button>
                                 </div>
-                                <h3>Ready to begin learning?</h3>
-                                <p class="lead mb-4">Let's start with the first section: <strong>{{ sections[0].title }}</strong></p>
-                                <button class="btn btn-primary btn-lg" id="startLearningBtn" data-section-id="{{ sections[0].learning_section_id }}">
-                                    <i class="bi bi-play-fill me-1"></i> Start Learning
-                                </button>
-                            </div>
+                            {% else %}
+                                <!-- If there's already active content, show message to select section -->
+                                <div class="text-center py-4">
+                                    <div class="mb-3">
+                                        <i class="bi bi-arrow-left-circle text-primary" style="font-size: 3rem;"></i>
+                                    </div>
+                                    <h3>Continue Learning</h3>
+                                    <p class="lead mb-4">Please select a section from the learning path to continue.</p>
+                                </div>
+                            {% endif %}
                         {% else %}
-                            <!-- If there's already active content, show message to select section -->
+                            <!-- No sections yet, show waiting message -->
                             <div class="text-center py-4">
                                 <div class="mb-3">
-                                    <i class="bi bi-arrow-left-circle text-primary" style="font-size: 3rem;"></i>
+                                    <i class="bi bi-hourglass-split text-warning" style="font-size: 3rem;"></i>
                                 </div>
-                                <h3>Continue Learning</h3>
-                                <p class="lead mb-4">Please select a section from the learning path to continue.</p>
+                                <h3>Preparing Your Learning Experience</h3>
+                                <p class="lead mb-4">We're setting up your learning path. Please wait a moment...</p>
                             </div>
                         {% endif %}
 
