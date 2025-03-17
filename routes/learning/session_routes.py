@@ -94,8 +94,8 @@ def process_outline(session_id):
         Please provide a concise outline with 4-6 focused sections that would help someone learn this topic efficiently.
         Each section should be specific and focused on one aspect.
         
-        Format your response as a JSON array of section titles as simple strings, like this example:
-        ["1: Introduction to {learning_session.topic}", "2: Key Concepts", ...]
+        Format your response as a JSON array of section titles as simple strings and not numbered, like this example:
+        ["Introduction to {learning_session.topic}", "Key Concepts", ...]
         
         Important requirements:
         - Make sections focused on one aspect each
