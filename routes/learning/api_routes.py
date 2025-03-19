@@ -31,6 +31,22 @@ def get_section_data(section_id):
         "session_id": section.learning_session_id
     })
 
+def clean_ai_generated_content(content):
+    """
+    Remove Markdown code block delimiters from AI-generated content
+    """
+    if not content:
+        return content
+        
+    # Remove ```html and ``` markers
+    content = content.replace('```html', '')
+    content = content.replace('```', '')
+    
+    # Remove leading/trailing whitespace that might have been left
+    content = content.strip()
+    
+    return content
+
 @learning_bp.route('/api/section/<int:section_id>/generate-content', methods=['POST'])
 @login_required
 def api_generate_section_content(section_id):
@@ -60,6 +76,9 @@ def api_generate_section_content(section_id):
         content_text = response.text
         if not isinstance(content_text, str):
             content_text = str(content_text)
+        
+        # Clean the content to remove any Markdown code block delimiters
+        content_text = clean_ai_generated_content(content_text)
             
         # Save the generated content
         section.content = content_text
@@ -229,6 +248,9 @@ def generate_section_content(section_id):
     content_text = response.text
     if not isinstance(content_text, str):
         content_text = str(content_text)
+        
+    # Clean the content to remove any Markdown code block delimiters
+    content_text = clean_ai_generated_content(content_text)
         
     # Save the generated content
     section.content = content_text

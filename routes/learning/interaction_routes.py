@@ -102,6 +102,22 @@ def generate_section_questions(section_id, num_questions=2):
         current_app.logger.error(traceback.format_exc())
         return False
 
+def clean_ai_generated_content(content):
+    """
+    Remove Markdown code block delimiters from AI-generated content
+    """
+    if not content:
+        return content
+        
+    # Remove ```html and ``` markers
+    content = content.replace('```html', '')
+    content = content.replace('```', '')
+    
+    # Remove leading/trailing whitespace that might have been left
+    content = content.strip()
+    
+    return content
+
 def generate_section_content(section_id):
     """Helper function to generate content for a section"""
     section = LearningSection.query.get(section_id)
@@ -126,6 +142,9 @@ def generate_section_content(section_id):
     content_text = response.text
     if not isinstance(content_text, str):
         content_text = str(content_text)
+    
+    # Clean the content to remove any Markdown code block delimiters
+    content_text = clean_ai_generated_content(content_text)
         
     # Save the generated content
     section.content = content_text
