@@ -138,7 +138,7 @@ def api_mark_section_read(section_id):
 @learning_bp.route('/api/question/answer', methods=['POST'])
 @login_required
 def api_answer_question():
-    """API endpoint to record a user's answer to a question and generate an explanation"""
+    """API endpoint to record a user's answer to a question and generate an explanation if incorrect"""
     try:
         data = request.json
         question_id = data.get('question_id')
@@ -157,9 +157,9 @@ def api_answer_question():
         question.is_correct = is_correct
         question.attempts += 1
         
-        # Generate explanation if not already present
+        # Generate explanation ONLY if answer is incorrect and explanation doesn't exist
         explanation = None
-        if not question.explanation:
+        if not is_correct and not question.explanation:
             try:
                 # Get all incorrect answers to pass to the explanation generator
                 incorrect_answers = question.get_incorrect_answers()
@@ -181,7 +181,7 @@ def api_answer_question():
         return jsonify({
             "success": True,
             "message": "Answer recorded successfully",
-            "explanation": question.explanation or explanation
+            "explanation": question.explanation or explanation if not is_correct else None
         })
         
     except Exception as e:
@@ -190,7 +190,11 @@ def api_answer_question():
         return jsonify({"error": str(e)}), 500
 
 def generate_answer_explanation(question_text, correct_answer, user_answer, is_correct, incorrect_answers):
-    """Generate a comprehensive explanation for a question answer"""
+    """Generate an explanation for an incorrect answer"""
+    # Only generate explanations for incorrect answers - additional safety check
+    if is_correct:
+        return None
+        
     client = genai.Client(api_key=api_key)
     
     # Format the prompt with the specific question details
@@ -198,7 +202,7 @@ def generate_answer_explanation(question_text, correct_answer, user_answer, is_c
         question=question_text,
         correct_answer=correct_answer,
         user_answer=user_answer,
-        is_correct=str(is_correct),  # Convert boolean to string for prompt
+        is_correct='false',  # Always false in this function as we only explain incorrect answers
         incorrect_answers=", ".join(incorrect_answers)  # Join all incorrect options
     )
     

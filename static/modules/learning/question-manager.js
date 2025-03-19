@@ -276,25 +276,39 @@ async function handleAnswerSelection(event, onComplete) {
         opt.style.pointerEvents = 'none';
     });
     
-    // Show temporary feedback while loading explanation
+    // Show feedback - different for correct vs incorrect answers
     const feedbackDiv = document.getElementById('questionFeedback');
     feedbackDiv.classList.remove('d-none');
-    feedbackDiv.innerHTML = `
-        <div class="alert ${isCorrect ? 'alert-success' : 'alert-danger'}">
-            <div class="d-flex align-items-center mb-2">
-                <i class="bi ${isCorrect ? 'bi-check-circle-fill' : 'bi-x-circle-fill'} me-2"></i>
-                <strong>${isCorrect ? 'Correct!' : 'Incorrect'}</strong>
-            </div>
-            <div class="explanation-container">
-                <div class="spinner-border spinner-border-sm me-2" role="status">
-                    <span class="visually-hidden">Loading explanation...</span>
-                </div>
-                Generating explanation...
-            </div>
-        </div>
-    `;
     
-    // Save answer to database and get explanation
+    if (isCorrect) {
+        // Simpler feedback for correct answers - no explanation needed
+        feedbackDiv.innerHTML = `
+            <div class="alert alert-success">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-check-circle-fill me-2"></i>
+                    <strong>Correct!</strong>
+                </div>
+            </div>
+        `;
+    } else {
+        // More detailed feedback with explanation for incorrect answers
+        feedbackDiv.innerHTML = `
+            <div class="alert alert-danger">
+                <div class="d-flex align-items-center mb-2">
+                    <i class="bi bi-x-circle-fill me-2"></i>
+                    <strong>Incorrect</strong>
+                </div>
+                <div class="explanation-container">
+                    <div class="spinner-border spinner-border-sm me-2" role="status">
+                        <span class="visually-hidden">Loading explanation...</span>
+                    </div>
+                    Generating explanation...
+                </div>
+            </div>
+        `;
+    }
+    
+    // Save answer to database and get explanation if wrong
     try {
         const response = await fetch('/learning/api/question/answer', {
             method: 'POST',
@@ -310,7 +324,8 @@ async function handleAnswerSelection(event, onComplete) {
         
         const data = await response.json();
         
-        if (response.ok && data.explanation) {
+        // Only update explanation for incorrect answers
+        if (!isCorrect && response.ok && data.explanation) {
             // Update feedback with explanation in a nicely formatted card
             const explanationContainer = feedbackDiv.querySelector('.explanation-container');
             explanationContainer.innerHTML = `
@@ -321,11 +336,29 @@ async function handleAnswerSelection(event, onComplete) {
                     </div>
                 </div>
             `;
-        } else {
-            console.error('Failed to get explanation or save answer');
+        } else if (!isCorrect && !data.explanation) {
+            // Handle case where no explanation was returned
+            const explanationContainer = feedbackDiv.querySelector('.explanation-container');
+            explanationContainer.innerHTML = `
+                <div class="alert alert-light mt-2">
+                    <i class="bi bi-info-circle me-2"></i>
+                    The correct answer was provided above.
+                </div>
+            `;
         }
     } catch (error) {
         console.error('Error saving answer:', error);
+        
+        // If there was an error and the answer was incorrect, update the UI
+        if (!isCorrect) {
+            const explanationContainer = feedbackDiv.querySelector('.explanation-container');
+            explanationContainer.innerHTML = `
+                <div class="alert alert-light mt-2">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    Failed to load explanation. The correct answer is highlighted.
+                </div>
+            `;
+        }
     }
     
     // Show next button with pulse animation to draw attention
