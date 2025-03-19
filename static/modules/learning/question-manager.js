@@ -63,65 +63,40 @@ export function displayQuestion(question, onAnswered) {
     questionItem.dataset.questionId = question.id;
     content.querySelector('.question-text').textContent = question.question;
     
-    // Create answer options container
+    // Create answer options
     const optionsContainer = content.querySelector('.answer-options');
-    optionsContainer.className = 'answer-options d-flex flex-column gap-2 mb-4';
     
-    // Combine all answers into one array for consistent processing
-    const allAnswers = [
-        { text: question.correct_answer, isCorrect: true },
-        ...question.incorrect_answers.map(answer => ({ text: answer, isCorrect: false }))
-    ];
+    // Add correct answer
+    const correctOption = document.createElement('div');
+    correctOption.className = 'answer-option';
+    correctOption.setAttribute('data-correct', 'true');
+    correctOption.setAttribute('data-answer', question.correct_answer);
+    correctOption.setAttribute('data-option-num', '1');  // Add number for keyboard navigation
+    correctOption.innerHTML = `<span class="option-num">1</span> ${question.correct_answer}`;
+    optionsContainer.appendChild(correctOption);
     
-    // Shuffle answers
-    const shuffledAnswers = shuffleArray([...allAnswers]);
-    
-    // Create answer options with UIManager.js style
-    shuffledAnswers.forEach((answer, index) => {
+    // Add incorrect answers
+    question.incorrect_answers.forEach((answer, index) => {
         const option = document.createElement('div');
-        option.className = 'answer-option position-relative p-3 rounded border d-flex justify-content-between align-items-center';
-        option.setAttribute('data-correct', answer.isCorrect.toString());
-        option.setAttribute('data-answer', answer.text);
-        option.setAttribute('data-option-num', (index + 1).toString());
-        
-        // Create left side with option number and text
-        const leftSide = document.createElement('div');
-        leftSide.className = 'd-flex align-items-center';
-        
-        // Add option number badge
-        const optionNum = document.createElement('span');
-        optionNum.className = 'option-num me-3';
-        optionNum.textContent = (index + 1).toString();
-        leftSide.appendChild(optionNum);
-        
-        // Add answer text
-        const textSpan = document.createElement('span');
-        textSpan.className = 'answer-text';
-        textSpan.textContent = answer.text;
-        leftSide.appendChild(textSpan);
-        
-        option.appendChild(leftSide);
-        
-        // Create right side for feedback icons (initially hidden)
-        const rightSide = document.createElement('div');
-        rightSide.className = 'answer-icon';
-        
-        // Create check mark for correct answers
-        if (answer.isCorrect) {
-            const checkIcon = document.createElement('i');
-            checkIcon.className = 'bi bi-check-circle-fill text-success';
-            checkIcon.style.opacity = '0';
-            rightSide.appendChild(checkIcon);
-        } else {
-            // Create X mark for incorrect answers
-            const xIcon = document.createElement('i');
-            xIcon.className = 'bi bi-x-circle-fill text-danger';
-            xIcon.style.opacity = '0';
-            rightSide.appendChild(xIcon);
-        }
-        
-        option.appendChild(rightSide);
+        option.className = 'answer-option';
+        option.setAttribute('data-correct', 'false');
+        option.setAttribute('data-answer', answer);
+        option.setAttribute('data-option-num', (index + 2).toString());  // Add number for keyboard navigation
+        option.innerHTML = `<span class="option-num">${index + 2}</span> ${answer}`;
         optionsContainer.appendChild(option);
+    });
+    
+    // Shuffle answer options
+    const options = Array.from(optionsContainer.children);
+    for (let i = options.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        optionsContainer.appendChild(options[j]);
+    }
+    
+    // Renumber options after shuffling
+    optionsContainer.querySelectorAll('.answer-option').forEach((option, index) => {
+        option.setAttribute('data-option-num', (index + 1).toString());
+        option.querySelector('.option-num').textContent = (index + 1).toString();
     });
     
     // Add click handlers to answer options
@@ -131,41 +106,20 @@ export function displayQuestion(question, onAnswered) {
         });
     });
     
+    // Add event listener to next button (when it becomes visible)
+    const nextButton = content.querySelector('#nextQuestionBtn');
+    nextButton.addEventListener('click', () => {
+        if (typeof onAnswered === 'function') {
+            onAnswered();
+        }
+    });
+    
     // Add keyboard navigation for answer selection and next question
     enableAnswerKeyboardNavigation(onAnswered);
-    
-    // Set up next button
-    const nextButton = content.querySelector('#nextQuestionBtn');
-    if (nextButton) {
-        nextButton.addEventListener('click', () => {
-            if (typeof onAnswered === 'function') {
-                onAnswered();
-            }
-        });
-    }
     
     // Clear existing content and append new content
     contentArea.innerHTML = '';
     contentArea.appendChild(content);
-    
-    // Add hint about keyboard shortcuts
-    const keyboardHint = document.createElement('div');
-    keyboardHint.className = 'keyboard-hints text-muted small';
-    keyboardHint.innerHTML = 'Tip: Use number keys 1-4 to select answers';
-    contentArea.appendChild(keyboardHint);
-}
-
-/**
- * Shuffle array elements using Fisher-Yates algorithm
- * @param {Array} array - The array to shuffle
- * @returns {Array} - The shuffled array
- */
-function shuffleArray(array) {
-    for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
-    }
-    return array;
 }
 
 /**
@@ -293,40 +247,34 @@ async function handleAnswerSelection(event, onComplete) {
         console.log('Sound effect could not be played:', error);
     }
     
-    // Apply UI feedback with a slight delay for animation effect
-    setTimeout(() => {
-        // Mark all options with proper styling
-        document.querySelectorAll('.answer-option').forEach(opt => {
-            // Disable all options
-            opt.style.pointerEvents = 'none';
+    // Enhanced visual feedback for answer selection
+    document.querySelectorAll('.answer-option').forEach(opt => {
+        // First, mark all options appropriately
+        if (opt.getAttribute('data-correct') === 'true') {
+            opt.classList.add('correct');
             
-            // Style correct answer
-            if (opt.getAttribute('data-correct') === 'true') {
-                opt.classList.add('correct');
-                opt.style.backgroundColor = 'rgba(var(--bs-success-rgb), 0.1)';
-                opt.style.borderColor = 'var(--bs-success)';
-                
-                // Show the check icon
-                const icon = opt.querySelector('.bi-check-circle-fill');
-                if (icon) {
-                    icon.style.opacity = '1';
-                }
-            } 
-            // Style selected incorrect answer
-            else if (opt === option && !isCorrect) {
-                opt.classList.add('incorrect');
-                opt.style.backgroundColor = 'rgba(var(--bs-danger-rgb), 0.1)';
-                opt.style.borderColor = 'var(--bs-danger)';
-                opt.style.textDecoration = 'line-through';
-                
-                // Show the X icon
-                const icon = opt.querySelector('.bi-x-circle-fill');
-                if (icon) {
-                    icon.style.opacity = '1';
-                }
+            // Add checkmark icon to correct answer
+            if (!opt.querySelector('.answer-icon')) {
+                const iconSpan = document.createElement('span');
+                iconSpan.className = 'answer-icon float-end';
+                iconSpan.innerHTML = '<i class="bi bi-check-circle-fill text-success"></i>';
+                opt.appendChild(iconSpan);
             }
-        });
-    }, 150); // Small delay for better UX
+        } else if (opt === option && !isCorrect) {
+            opt.classList.add('incorrect');
+            
+            // Add X icon to incorrect selected answer
+            if (!opt.querySelector('.answer-icon')) {
+                const iconSpan = document.createElement('span');
+                iconSpan.className = 'answer-icon float-end';
+                iconSpan.innerHTML = '<i class="bi bi-x-circle-fill text-danger"></i>';
+                opt.appendChild(iconSpan);
+            }
+        }
+        
+        // Disable all options
+        opt.style.pointerEvents = 'none';
+    });
     
     // Show feedback - different for correct vs incorrect answers
     const feedbackDiv = document.getElementById('questionFeedback');
