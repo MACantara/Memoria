@@ -5,6 +5,10 @@
 import { showLoading, hideLoading, displayError } from './ui-utils.js';
 import { updateSectionStatusInSidebar } from './ui-utils.js';
 
+// Add sound effect audio objects
+const correctSound = new Audio('/static/sounds/success.mp3');
+const incorrectSound = new Audio('/static/sounds/error.mp3');
+
 /**
  * Mark content as read and show questions
  * @param {number} sectionId - The section ID
@@ -102,9 +106,51 @@ export function displayQuestion(question, onAnswered) {
         }
     });
     
+    // Add keyboard navigation for next question
+    enableKeyboardNavigation(onAnswered);
+    
     // Clear existing content and append new content
     contentArea.innerHTML = '';
     contentArea.appendChild(content);
+}
+
+/**
+ * Enable keyboard navigation for proceeding to the next question
+ * @param {Function} onAnswered - Callback for when the next button is triggered
+ */
+function enableKeyboardNavigation(onAnswered) {
+    // Remove any existing keydown handler first
+    document.removeEventListener('keydown', handleKeyNavigation);
+    
+    // Add the event handler
+    document.addEventListener('keydown', handleKeyNavigation);
+    
+    // Store the callback in a global variable to make it accessible to the handler
+    window._nextQuestionCallback = onAnswered;
+}
+
+/**
+ * Handle keyboard navigation for next question
+ * @param {KeyboardEvent} event - The keyboard event
+ */
+function handleKeyNavigation(event) {
+    // Only proceed if the next button is visible
+    const nextButtonContainer = document.getElementById('nextButtonContainer');
+    if (nextButtonContainer && !nextButtonContainer.classList.contains('d-none')) {
+        // Skip if user is typing in an input field
+        if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
+            return;
+        }
+        
+        // Any key will trigger the next question
+        const nextButton = document.getElementById('nextQuestionBtn');
+        if (nextButton && !nextButton.disabled) {
+            nextButton.click();
+        }
+        
+        // Remove the event listener after it's been used
+        document.removeEventListener('keydown', handleKeyNavigation);
+    }
 }
 
 /**
@@ -131,13 +177,46 @@ async function handleAnswerSelection(event, onComplete) {
     const questionId = questionItem.dataset.questionId;
     const answerValue = option.getAttribute('data-answer');
     
-    // Mark all answers as correct/incorrect
+    // Play appropriate sound effect
+    try {
+        if (isCorrect) {
+            correctSound.currentTime = 0;
+            await correctSound.play();
+        } else {
+            incorrectSound.currentTime = 0;
+            await incorrectSound.play();
+        }
+    } catch (error) {
+        console.log('Sound effect could not be played:', error);
+    }
+    
+    // Enhanced visual feedback for answer selection
     document.querySelectorAll('.answer-option').forEach(opt => {
+        // First, mark all options appropriately
         if (opt.getAttribute('data-correct') === 'true') {
             opt.classList.add('correct');
-        } else if (opt === option) {
+            
+            // Add checkmark icon to correct answer
+            if (!opt.querySelector('.answer-icon')) {
+                const iconSpan = document.createElement('span');
+                iconSpan.className = 'answer-icon float-end';
+                iconSpan.innerHTML = '<i class="bi bi-check-circle-fill text-success"></i>';
+                opt.appendChild(iconSpan);
+            }
+        } else if (opt === option && !isCorrect) {
             opt.classList.add('incorrect');
+            
+            // Add X icon to incorrect selected answer
+            if (!opt.querySelector('.answer-icon')) {
+                const iconSpan = document.createElement('span');
+                iconSpan.className = 'answer-icon float-end';
+                iconSpan.innerHTML = '<i class="bi bi-x-circle-fill text-danger"></i>';
+                opt.appendChild(iconSpan);
+            }
         }
+        
+        // Disable all options
+        opt.style.pointerEvents = 'none';
     });
     
     // Show temporary feedback while loading explanation
@@ -192,9 +271,20 @@ async function handleAnswerSelection(event, onComplete) {
         console.error('Error saving answer:', error);
     }
     
-    // Show next button
+    // Show next button with pulse animation to draw attention
     const nextButtonContainer = document.getElementById('nextButtonContainer');
     nextButtonContainer.classList.remove('d-none');
+    const nextButton = document.getElementById('nextQuestionBtn');
+    nextButton.classList.add('animate__animated', 'animate__pulse');
+    
+    // Let the user know they can press any key to continue
+    const keyHintSpan = document.createElement('div');
+    keyHintSpan.className = 'text-muted small mt-2';
+    keyHintSpan.innerHTML = 'Press any key to continue';
+    nextButtonContainer.appendChild(keyHintSpan);
+    
+    // Enable keyboard navigation to proceed to next question
+    enableKeyboardNavigation(onComplete);
 }
 
 /**
