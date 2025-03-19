@@ -371,6 +371,13 @@ export class FlashcardManager {
         const card = this.currentCard;
         if (!card || card.id != flashcardId) return;
         
+        // Check if modal is already open
+        const modalElement = document.getElementById('editFlashcardModal');
+        if (modalElement && modalElement.classList.contains('show')) {
+            console.log('Edit modal is already open');
+            return;
+        }
+        
         // Get modal elements
         const editModal = new bootstrap.Modal(document.getElementById('editFlashcardModal'));
         const form = document.getElementById('editFlashcardForm');

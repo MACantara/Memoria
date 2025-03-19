@@ -109,6 +109,13 @@ export class EventManager {
      * Edit the current flashcard
      */
     editCurrentCard() {
+        // Check if modal is already open to prevent multiple instances
+        const modalElement = document.getElementById('editFlashcardModal');
+        if (modalElement && modalElement.classList.contains('show')) {
+            console.log('Edit modal is already open');
+            return;
+        }
+        
         if (this.manager && this.manager.currentCard) {
             const flashcardId = this.manager.currentCard.id;
             if (flashcardId) {
