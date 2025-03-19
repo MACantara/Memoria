@@ -19,25 +19,27 @@ Study {{ deck.name }} (All Cards)
 <div class="flashcard-nav py-2 mb-2">
     <div class="d-flex justify-content-between align-items-center">
         <!-- Back button (icon only) -->
-        <a href="{{ url_for('deck.deck_view.get_deck_flashcards', deck_id=deck.flashcard_deck_id) }}" class="btn btn-sm btn-outline-primary">
+        <a href="{{ url_for('deck.deck_view.get_deck_flashcards', deck_id=deck.flashcard_deck_id) }}"
+            class="btn btn-sm btn-outline-primary">
             <i class="bi bi-arrow-left"></i>
         </a>
-        
+
         <!-- Deck name with truncation -->
         <div class="text-center deck-title">
             <h2 class="h5 mb-0">{{ deck.name }}</h2>
         </div>
-        
-        <!-- Empty space to balance layout -->
-        <div style="width: 32px;"></div>
+
+        <button id="editCurrentCardBtn" class="btn btn-sm btn-link text-muted ms-2" title="Edit Current Card (E)"
+            aria-label="Edit Current Card">
+            <i class="bi bi-pencil-square"></i>
+        </button>
     </div>
-    
+
     <!-- Progress bar without text -->
     <div class="mt-2">
         <div class="progress" style="height: 4px;">
-            <div id="progressBar" class="progress-bar bg-success" role="progressbar" 
-                 style="width: 0%;" aria-valuenow="0" aria-valuemin="0" 
-                 aria-valuemax="100"></div>
+            <div id="progressBar" class="progress-bar bg-success" role="progressbar" style="width: 0%;"
+                aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
         </div>
     </div>
 </div>
@@ -45,7 +47,7 @@ Study {{ deck.name }} (All Cards)
 <!-- Flashcard counter and state badge -->
 <div class="d-flex justify-content-between align-items-center mb-2">
     <div id="cardCounter" class="text-muted small">
-        <span id="scoreCount">0</span> / {{ flashcards_count }} completed 
+        <span id="scoreCount">0</span> / {{ flashcards_count }} completed
         (<span id="remainingCount">{{ flashcards_count }}</span> remaining)
     </div>
     <div>
@@ -58,8 +60,9 @@ Study {{ deck.name }} (All Cards)
     <div class="d-flex align-items-center">
         <i class="bi bi-info-circle me-2 fs-5"></i>
         <div>
-            <strong>No due cards found!</strong> 
-            <p class="mb-0">There are no cards due for review in any of your decks. You can still study this randomly selected deck with all cards.</p>
+            <strong>No due cards found!</strong>
+            <p class="mb-0">There are no cards due for review in any of your decks. You can still study this randomly
+                selected deck with all cards.</p>
         </div>
     </div>
     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
@@ -75,12 +78,14 @@ Study {{ deck.name }} (All Cards)
         <p class="mb-0">
             {% if due_only %}
             There are no cards due for review today. Try studying all cards instead.
-            <a href="{{ url_for('deck.deck_view.study_deck', deck_id=deck.flashcard_deck_id) }}" class="btn btn-sm btn-primary mt-2">
+            <a href="{{ url_for('deck.deck_view.study_deck', deck_id=deck.flashcard_deck_id) }}"
+                class="btn btn-sm btn-primary mt-2">
                 <i class="bi bi-collection me-1"></i> Study All Cards
             </a>
             {% else %}
             This deck doesn't have any flashcards yet. Add some cards first.
-            <a href="{{ url_for('deck.deck_view.get_deck_flashcards', deck_id=deck.flashcard_deck_id) }}" class="btn btn-sm btn-primary mt-2">
+            <a href="{{ url_for('deck.deck_view.get_deck_flashcards', deck_id=deck.flashcard_deck_id) }}"
+                class="btn btn-sm btn-primary mt-2">
                 <i class="bi bi-arrow-left me-1"></i> Back to Deck
             </a>
             {% endif %}
@@ -95,7 +100,7 @@ Study {{ deck.name }} (All Cards)
         <p class="mt-3">Loading your flashcards...</p>
         <p class="text-muted small">Preparing {{ flashcards_count }} cards for review</p>
     </div>
-    
+
     <!-- Single card template that will be dynamically populated -->
     <div id="currentFlashcard" class="card flashcard mb-4" style="display: none;">
         <div class="card-body">
@@ -112,32 +117,82 @@ Study {{ deck.name }} (All Cards)
 <input type="hidden" id="studyMode" value="{{ 'due_only' if due_only else 'all' }}">
 <input type="hidden" id="deckId" value="{{ deck.flashcard_deck_id }}">
 <input type="hidden" id="totalFlashcards" value="{{ flashcards_count }}">
+
+<!-- Add the Edit Flashcard Modal -->
+<div class="modal fade" id="editFlashcardModal" tabindex="-1" aria-labelledby="editFlashcardModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editFlashcardModalLabel">Edit Flashcard</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editFlashcardForm">
+                    <input type="hidden" id="editFlashcardId" name="flashcard_id">
+
+                    <!-- Question field -->
+                    <div class="mb-3">
+                        <label for="editFlashcardQuestion" class="form-label">Question</label>
+                        <textarea class="form-control" id="editFlashcardQuestion" name="question" rows="2"
+                            required></textarea>
+                    </div>
+
+                    <!-- Correct Answer field -->
+                    <div class="mb-3">
+                        <label for="editFlashcardCorrectAnswer" class="form-label">Correct Answer</label>
+                        <textarea class="form-control" id="editFlashcardCorrectAnswer" name="correct_answer" rows="2"
+                            required></textarea>
+                    </div>
+
+                    <!-- Incorrect Answers fields -->
+                    <div class="mb-3">
+                        <label class="form-label">Incorrect Answers</label>
+                        <div id="editIncorrectAnswersContainer">
+                            <!-- Will be populated dynamically -->
+                        </div>
+                    </div>
+
+                    <div id="editFlashcardStatus"></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="updateFlashcardBtn">
+                    <span class="normal-state"><i class="bi bi-save me-1"></i> Update Flashcard</span>
+                    <span class="loading-state d-none"><span class="spinner-border spinner-border-sm" role="status"
+                            aria-hidden="true"></span> Updating...</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script type="module">
     import { FlashcardManager } from '{{ url_for("static", filename="modules/flashcards/FlashcardManager.js") }}';
-    
+
     document.addEventListener('DOMContentLoaded', () => {
         console.log("Page loaded. Initializing FlashcardManager...");
         console.log("Total flashcards to study: {{ flashcards_count }}");
-        
+
         const manager = new FlashcardManager();
-        
+
         // Once the cards are loaded, hide the initial loading indicator
         manager.addEventListener('firstBatchLoaded', () => {
             const initialLoader = document.getElementById('initialLoadingIndicator');
             if (initialLoader) {
                 initialLoader.style.display = 'none';
             }
-            
+
             // Show the first card
             const currentCard = document.getElementById('currentFlashcard');
             if (currentCard) {
                 currentCard.style.display = 'block';
             }
         });
-        
+
         // Initialize the manager
         manager.initialize();
 

@@ -379,10 +379,11 @@ export class UIManager {
         
         // Create button container for multiple buttons
         const buttonContainer = document.createElement('div');
-        buttonContainer.className = 'd-flex gap-2 mt-2';
+        buttonContainer.className = 'd-flex gap-2 mt-2 flex-wrap';
         
-        // If incorrect, add explain button
+        // For incorrect answers, add the explain button
         if (!isCorrect) {
+            // Add explain button
             const explainButton = document.createElement('button');
             explainButton.type = 'button';
             explainButton.className = 'btn btn-outline-secondary flex-grow-1 d-flex justify-content-center align-items-center py-2';

@@ -361,4 +361,166 @@ export class FlashcardManager {
                 this.ui.showCompletionScreen(this.deckId, this.score, this.totalDueCards, isDueOnly, 0);
             });
     }
+
+    /**
+     * Show the edit modal for a flashcard
+     * @param {string} flashcardId - The ID of the flashcard to edit
+     */
+    showEditModal(flashcardId) {
+        // Get the current card
+        const card = this.currentCard;
+        if (!card || card.id != flashcardId) return;
+        
+        // Check if modal is already open
+        const modalElement = document.getElementById('editFlashcardModal');
+        if (modalElement && modalElement.classList.contains('show')) {
+            console.log('Edit modal is already open');
+            return;
+        }
+        
+        // Get modal elements
+        const editModal = new bootstrap.Modal(document.getElementById('editFlashcardModal'));
+        const form = document.getElementById('editFlashcardForm');
+        const idInput = document.getElementById('editFlashcardId');
+        const questionInput = document.getElementById('editFlashcardQuestion');
+        const correctAnswerInput = document.getElementById('editFlashcardCorrectAnswer');
+        const incorrectContainer = document.getElementById('editIncorrectAnswersContainer');
+        
+        if (!form || !idInput || !questionInput || !correctAnswerInput || !incorrectContainer) {
+            console.error('Edit modal elements not found');
+            return;
+        }
+        
+        // Populate form
+        idInput.value = card.id;
+        questionInput.value = card.question;
+        correctAnswerInput.value = card.correct_answer;
+        
+        // Clear container
+        incorrectContainer.innerHTML = '';
+        
+        // Add incorrect answers
+        card.incorrect_answers.forEach((answer, index) => {
+            incorrectContainer.innerHTML += `
+                <div class="mb-2">
+                    <textarea class="form-control mb-2" name="incorrect_answers[]" rows="2" required 
+                             placeholder="Incorrect Answer ${index + 1}">${answer || ''}</textarea>
+                </div>
+            `;
+        });
+        
+        // Make sure we have at least 3 options
+        while (incorrectContainer.children.length < 3) {
+            incorrectContainer.innerHTML += `
+                <div class="mb-2">
+                    <textarea class="form-control mb-2" name="incorrect_answers[]" rows="2" required 
+                             placeholder="Incorrect Answer ${incorrectContainer.children.length + 1}"></textarea>
+                </div>
+            `;
+        }
+        
+        // Clear status area
+        document.getElementById('editFlashcardStatus').innerHTML = '';
+        
+        // Assign update handler to the button
+        const updateBtn = document.getElementById('updateFlashcardBtn');
+        if (updateBtn) {
+            // Remove existing event listeners
+            const newBtn = updateBtn.cloneNode(true);
+            updateBtn.parentNode.replaceChild(newBtn, updateBtn);
+            
+            // Add new event listener
+            newBtn.addEventListener('click', async () => {
+                await this.updateFlashcard();
+            });
+        }
+        
+        // Show modal
+        editModal.show();
+    }
+    
+    /**
+     * Update a flashcard based on the edit form
+     */
+    async updateFlashcard() {
+        const form = document.getElementById('editFlashcardForm');
+        const statusDiv = document.getElementById('editFlashcardStatus');
+        const button = document.getElementById('updateFlashcardBtn');
+        const normalState = button.querySelector('.normal-state');
+        const loadingState = button.querySelector('.loading-state');
+        
+        // Basic validation
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+        
+        // Show loading state
+        button.disabled = true;
+        normalState.classList.add('d-none');
+        loadingState.classList.remove('d-none');
+        
+        // Collect form data
+        const flashcardId = document.getElementById('editFlashcardId').value;
+        const question = document.getElementById('editFlashcardQuestion').value;
+        const correctAnswer = document.getElementById('editFlashcardCorrectAnswer').value;
+        const incorrectAnswers = Array.from(form.querySelectorAll('textarea[name="incorrect_answers[]"]'))
+            .map(ta => ta.value);
+        
+        try {
+            // Send API request
+            const response = await fetch(`/flashcard/update/${flashcardId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    question: question,
+                    correct_answer: correctAnswer,
+                    incorrect_answers: incorrectAnswers
+                }),
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok) {
+                statusDiv.innerHTML = `
+                    <div class="alert alert-success">
+                        <i class="bi bi-check-circle me-2"></i> Flashcard updated successfully!
+                    </div>
+                `;
+                
+                // Update the current card in memory
+                if (this.currentCard && this.currentCard.id == flashcardId) {
+                    this.currentCard.question = question;
+                    this.currentCard.correct_answer = correctAnswer;
+                    this.currentCard.incorrect_answers = incorrectAnswers;
+                    
+                    // Re-render the current card to show changes
+                    this.ui.renderCard(this.currentCard);
+                }
+                
+                // Close the modal after a short delay
+                setTimeout(() => {
+                    const editModal = bootstrap.Modal.getInstance(document.getElementById('editFlashcardModal'));
+                    if (editModal) {
+                        editModal.hide();
+                    }
+                }, 1500);
+            } else {
+                throw new Error(result.error || 'Failed to update flashcard');
+            }
+        } catch (error) {
+            statusDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle me-2"></i> ${error.message}
+                </div>
+            `;
+        } finally {
+            // Restore button state
+            button.disabled = false;
+            normalState.classList.remove('d-none');
+            loadingState.classList.add('d-none');
+        }
+    }
 }

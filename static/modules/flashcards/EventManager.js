@@ -34,47 +34,94 @@ export class EventManager {
         }
         
         // Set up keyboard navigation events
-        document.addEventListener('keydown', (e) => {
-            // Ignore key events if there's an active dialog, modal, or if in a text field
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
-                return;
-            }
-            
-            // Check if we're in answer selection mode (not after answer is shown)
-            const feedbackContainer = document.querySelector('.feedback-container');
-            
-            if (!feedbackContainer) {
-                // Handle numeric keys 1-9 for answer selection
-                if (e.key >= '1' && e.key <= '9') {
-                    const index = parseInt(e.key) - 1;
-                    const answerOptions = document.querySelectorAll('.answer-option');
-                    
-                    if (index < answerOptions.length) {
-                        const option = answerOptions[index];
-                        const radio = option.querySelector('input[type="radio"]');
-                        
-                        if (radio) {
-                            // Update visual selection first
-                            this.updateSelectionState(option);
-                            
-                            // Then handle the answer
-                            radio.checked = true;
-                            this.manager.handleAnswer(radio.value);
-                            
-                            // Prevent default behavior (page scrolling)
-                            e.preventDefault();
-                            return;
-                        }
-                    }
-                }
-            }
-            
-            // For other keys, delegate to the manager
-            this.manager.handleKeyboardNavigation(e.key);
-        });
+        document.addEventListener('keydown', this.handleKeyboardShortcut.bind(this));
+        
+        // Set up click handler for edit button in header
+        const editButton = document.getElementById('editCurrentCardBtn');
+        if (editButton) {
+            editButton.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.editCurrentCard();
+            });
+        }
         
         // Handle swipe gestures for mobile (optional)
         this.setupMobileGestures();
+    }
+    
+    /**
+     * Handle keyboard shortcuts
+     * @param {KeyboardEvent} e - The keyboard event
+     */
+    handleKeyboardShortcut(e) {
+        // Don't interfere with input fields
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+            return;
+        }
+        
+        // Check if we're in answer selection mode (not after answer is shown)
+        const feedbackContainer = document.querySelector('.feedback-container');
+        
+        if (!feedbackContainer) {
+            // Handle numeric keys 1-9 for answer selection
+            if (e.key >= '1' && e.key <= '9') {
+                const index = parseInt(e.key) - 1;
+                const answerOptions = document.querySelectorAll('.answer-option');
+                
+                if (index < answerOptions.length) {
+                    const option = answerOptions[index];
+                    const radio = option.querySelector('input[type="radio"]');
+                    
+                    if (radio) {
+                        // Update visual selection first
+                        this.updateSelectionState(option);
+                        
+                        // Then handle the answer
+                        radio.checked = true;
+                        this.manager.handleAnswer(radio.value);
+                        
+                        // Prevent default behavior (page scrolling)
+                        e.preventDefault();
+                        return;
+                    }
+                }
+            }
+        } else {
+            // In feedback mode, any key continues to next question
+            if (e.key !== 'e' && e.key !== 'E') { // Skip 'E' key which is for editing
+                // Find the next button and click it
+                const nextButton = document.querySelector('#nextQuestionBtn');
+                if (nextButton) {
+                    nextButton.click();
+                    e.preventDefault();
+                }
+            }
+        }
+        
+        // Add 'E' shortcut for edit functionality - available at any time
+        if ((e.key === 'e' || e.key === 'E') && !e.ctrlKey && !e.altKey && !e.metaKey) {
+            this.editCurrentCard();
+            e.preventDefault();
+        }
+    }
+    
+    /**
+     * Edit the current flashcard
+     */
+    editCurrentCard() {
+        // Check if modal is already open to prevent multiple instances
+        const modalElement = document.getElementById('editFlashcardModal');
+        if (modalElement && modalElement.classList.contains('show')) {
+            console.log('Edit modal is already open');
+            return;
+        }
+        
+        if (this.manager && this.manager.currentCard) {
+            const flashcardId = this.manager.currentCard.id;
+            if (flashcardId) {
+                this.manager.showEditModal(flashcardId);
+            }
+        }
     }
     
     /**
