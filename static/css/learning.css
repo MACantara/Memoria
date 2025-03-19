@@ -22,13 +22,14 @@
     padding: 1.5rem;
 }
 
+/* Updated Answer Option styling to match UIManager.js */
 .answer-option {
     cursor: pointer;
     border: 1px solid var(--bs-border-color);
-    border-radius: 6px;
-    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    padding: 1rem;
     margin-bottom: 0.75rem;
-    transition: all 0.2s;
+    transition: all 0.25s ease-in-out;
     position: relative;
     display: flex;
     justify-content: space-between;
@@ -37,70 +38,85 @@
 
 /* Add styling for the number indicators on answer options */
 .option-num {
-    display: inline-flex;
+    display: flex;
     align-items: center;
     justify-content: center;
-    width: 1.5rem;
-    height: 1.5rem;
+    min-width: 28px;
+    height: 28px;
     border-radius: 50%;
     background-color: var(--bs-primary);
-    color: white;
-    font-size: 0.875rem;
+    color: #fff;
+    font-size: 0.9rem;
     font-weight: 500;
     margin-right: 0.75rem;
-    flex-shrink: 0;
 }
 
-/* Hover effect only if not already answered */
-.answer-option:not(.correct):not(.incorrect):hover {
-    background-color: rgba(var(--bs-primary-rgb), 0.1);
-    border-color: var(--bs-primary);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-}
-
-.answer-option.selected {
-    border-width: 2px;
-    border-color: var(--bs-primary);
-    background-color: rgba(var(--bs-primary-rgb), 0.1);
-}
-
-.answer-option.correct {
-    border-width: 2px;
-    border-color: var(--bs-success);
-    background-color: rgba(var(--bs-success-rgb), 0.1);
-}
-
-.answer-option.incorrect {
-    border-width: 2px;
-    border-color: var(--bs-danger);
-    background-color: rgba(var(--bs-danger-rgb), 0.1);
-    text-decoration: line-through;
-    opacity: 0.8;
+.answer-text {
+    flex-grow: 1;
+    font-size: 1rem;
+    line-height: 1.5;
 }
 
 .answer-icon {
     font-size: 1.25rem;
-    opacity: 0;
-    transform: scale(0);
-    transition: all 0.3s;
+    margin-left: 1rem;
 }
 
-.answer-option.correct .answer-icon,
-.answer-option.incorrect .answer-icon {
-    opacity: 1;
-    transform: scale(1);
+/* Hover effect only if not already answered */
+.answer-option:not(.correct):not(.incorrect):hover {
+    background-color: rgba(var(--bs-primary-rgb), 0.08);
+    border-color: var(--bs-primary);
+    transform: translateY(-2px);
+    box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+}
+
+/* Selection states */
+.answer-option.selected {
+    border-width: 2px;
+    border-color: var(--bs-primary);
+    background-color: rgba(var(--bs-primary-rgb), 0.05);
+    box-shadow: 0 2px 5px rgba(var(--bs-primary-rgb), 0.2);
+}
+
+.answer-option.correct {
+    border-width: 2px;
+    transition: all 0.3s ease;
+}
+
+.answer-option.incorrect {
+    border-width: 2px;
+    transition: all 0.3s ease;
+}
+
+.answer-option.correct .option-num,
+.answer-option.selected .option-num {
+    background-color: var(--bs-success);
+}
+
+.answer-option.incorrect .option-num {
+    background-color: var(--bs-danger);
+}
+
+/* Feedback icon animations */
+@keyframes fade-in-scale {
+    0% { opacity: 0; transform: scale(0.5); }
+    100% { opacity: 1; transform: scale(1); }
+}
+
+.answer-option.correct .answer-icon i,
+.answer-option.incorrect .answer-icon i {
+    animation: fade-in-scale 0.3s forwards;
 }
 
 /* Animation for keyboard selection */
 @keyframes keyboard-flash {
     0% { transform: scale(1); }
-    50% { transform: scale(1.05); }
+    50% { transform: scale(1.03); box-shadow: 0 0 0 3px rgba(var(--bs-primary-rgb), 0.4); }
     100% { transform: scale(1); }
 }
 
 .answer-option.keyboard-selected {
-    animation: keyboard-flash 0.2s ease;
+    animation: keyboard-flash 0.3s ease;
 }
 
 /* Next button animation */
