@@ -1,0 +1,264 @@
+/* Styles for section content */
+.learning-content h3 {
+    margin-top: 1.5rem;
+    margin-bottom: 0.75rem;
+    font-size: 1.35rem;
+    color: var(--bs-primary);
+}
+
+.learning-content ul {
+    padding-left: 1.2rem;
+}
+
+.learning-content p, .learning-content li {
+    line-height: 1.6;
+    margin-bottom: 0.75rem;
+}
+
+/* Enhanced Question styles */
+.question-container {
+    border-radius: 8px;
+    background-color: rgba(var(--bs-primary-rgb), 0.05);
+    padding: 1.5rem;
+}
+
+/* Updated Answer Option styling to match UIManager.js */
+.answer-option {
+    cursor: pointer;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+    transition: all 0.25s ease-in-out;
+    position: relative;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Add styling for the number indicators on answer options */
+.option-num {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background-color: var(--bs-primary);
+    color: #fff;
+    font-size: 0.9rem;
+    font-weight: 500;
+    margin-right: 0.75rem;
+}
+
+.answer-text {
+    flex-grow: 1;
+    font-size: 1rem;
+    line-height: 1.5;
+}
+
+.answer-icon {
+    font-size: 1.25rem;
+    margin-left: 1rem;
+}
+
+/* Hover effect only if not already answered */
+.answer-option:not(.correct):not(.incorrect):hover {
+    background-color: rgba(var(--bs-primary-rgb), 0.08);
+    border-color: var(--bs-primary);
+    transform: translateY(-2px);
+    box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+}
+
+/* Selection states */
+.answer-option.selected {
+    border-width: 2px;
+    border-color: var(--bs-primary);
+    background-color: rgba(var(--bs-primary-rgb), 0.05);
+    box-shadow: 0 2px 5px rgba(var(--bs-primary-rgb), 0.2);
+}
+
+.answer-option.correct {
+    border-width: 2px;
+    transition: all 0.3s ease;
+}
+
+.answer-option.incorrect {
+    border-width: 2px;
+    transition: all 0.3s ease;
+}
+
+.answer-option.correct .option-num,
+.answer-option.selected .option-num {
+    background-color: var(--bs-success);
+}
+
+.answer-option.incorrect .option-num {
+    background-color: var(--bs-danger);
+}
+
+/* Feedback icon animations */
+@keyframes fade-in-scale {
+    0% { opacity: 0; transform: scale(0.5); }
+    100% { opacity: 1; transform: scale(1); }
+}
+
+.answer-option.correct .answer-icon i,
+.answer-option.incorrect .answer-icon i {
+    animation: fade-in-scale 0.3s forwards;
+}
+
+/* Animation for keyboard selection */
+@keyframes keyboard-flash {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.03); box-shadow: 0 0 0 3px rgba(var(--bs-primary-rgb), 0.4); }
+    100% { transform: scale(1); }
+}
+
+.answer-option.keyboard-selected {
+    animation: keyboard-flash 0.3s ease;
+}
+
+/* Next button animation */
+@keyframes pulse-highlight {
+    0% { box-shadow: 0 0 0 0 rgba(var(--bs-primary-rgb), 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(var(--bs-primary-rgb), 0); }
+    100% { box-shadow: 0 0 0 0 rgba(var(--bs-primary-rgb), 0); }
+}
+
+#nextQuestionBtn.animate__pulse {
+    animation: pulse-highlight 1.5s infinite;
+}
+
+/* Section navigation */
+.section-nav {
+    position: sticky;
+    top: 20px;
+}
+
+/* Section navigation table of contents */
+.section-toc {
+    border-left: 3px solid var(--bs-light);
+}
+
+.section-toc .toc-item {
+    padding: 0.5rem 1rem;
+    border-left: 3px solid transparent;
+    margin-left: -3px;
+}
+
+.section-toc .toc-item.active {
+    border-left-color: var(--bs-primary);
+    font-weight: 500;
+}
+
+.section-toc .toc-item.completed {
+    color: var(--bs-success);
+}
+
+.section-toc .toc-item.completed .bi {
+    color: var(--bs-success);
+}
+
+/* Locked section styling */
+.section-toc .toc-item.locked {
+    color: var(--bs-gray);
+    cursor: not-allowed;
+}
+
+.section-toc .toc-item.locked .bi {
+    color: var(--bs-gray-600);
+}
+
+.section-toc .toc-item.locked a {
+    opacity: 0.7;
+    cursor: not-allowed;
+    pointer-events: all; /* Override pointer-events to allow our click handler */
+}
+
+.section-toc .toc-item.locked:hover {
+    background-color: rgba(var(--bs-danger-rgb), 0.05);
+    border-left-color: var(--bs-danger);
+}
+
+/* Session number styling */
+.section-number {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background-color: var(--bs-light);
+    color: var(--bs-dark);
+    font-weight: 500;
+}
+
+.list-group-item.active .section-number {
+    background-color: rgba(255, 255, 255, 0.3);
+    color: white;
+}
+
+/* Button spinner animation for content generation */
+.next-section-btn.generating {
+    opacity: 0.8;
+    cursor: progress;
+}
+
+.next-section-btn.generating .spinner-border {
+    width: 1rem;
+    height: 1rem;
+    border-width: 0.1rem;
+    margin-right: 0.5rem;
+}
+
+/* Button loading states */
+button .loading-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+button .loading-state .spinner-border {
+    margin-right: 0.5rem;
+}
+
+button:disabled {
+    cursor: wait;
+}
+
+/* Session list styling */
+.session-scroll-container {
+    scrollbar-width: thin;
+    scrollbar-color: var(--bs-primary) var(--bs-light);
+}
+
+.session-scroll-container::-webkit-scrollbar {
+    width: 6px;
+}
+
+.session-scroll-container::-webkit-scrollbar-track {
+    background: var(--bs-light);
+    border-radius: 10px;
+}
+
+.session-scroll-container::-webkit-scrollbar-thumb {
+    background-color: var(--bs-primary);
+    border-radius: 10px;
+}
+
+.session-scroll-container .list-group-item:hover {
+    background-color: rgba(var(--bs-primary-rgb), 0.05);
+}
+
+.session-scroll-container .list-group-item:last-child {
+    border-bottom: 0 !important;
+}
+
+/* Add visual hints for keyboard shortcuts at the bottom of questions */
+.keyboard-hints {
+    margin-top: 1rem;
+    font-size: 0.875rem;
+    color: var(--bs-secondary);
+    text-align: center;
+}

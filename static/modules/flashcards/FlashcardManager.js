@@ -78,6 +78,8 @@ export class FlashcardManager {
                 const currentCard = document.getElementById('currentFlashcard');
                 if (currentCard) {
                     currentCard.style.display = 'block';
+                    // Add the current flashcard ID as a data attribute
+                    currentCard.dataset.flashcardId = this.currentCard.id;
                 }
                 
                 this.ui.renderCard(this.currentCard);
@@ -185,6 +187,12 @@ export class FlashcardManager {
                 this.currentCard = card;
                 const visibleCardIndex = this.getDisplayIndex(i);
                 console.log(`Moving to card ${visibleCardIndex}/${this.totalDueCards} with ID ${card.id}`);
+                
+                // Add the current flashcard ID as a data attribute
+                const currentCardElement = document.getElementById('currentFlashcard');
+                if (currentCardElement) {
+                    currentCardElement.dataset.flashcardId = card.id;
+                }
                 
                 // Render this card
                 this.ui.renderCard(card);

@@ -18,6 +18,11 @@
 
 <!-- Hide buttons on mobile, show on md screens and larger -->
 <div class="d-none d-md-flex flex-wrap gap-2">
+    <!-- Learn button -->
+    <a href="{{ url_for('learning.index') }}" class="btn btn-outline-info">
+        <i class="bi bi-mortarboard me-1"></i> Learn
+    </a>
+    
     <!-- Study Button - Context-aware implementation -->
     {% if show_study %}
         {% if deck %}
@@ -65,7 +70,7 @@
                     <li>
                         <!-- Random deck option - improved styling -->
                         <a class="dropdown-item d-flex align-items-center" href="{{ url_for('deck.deck_view.random_deck') }}">
-                            <i class="bi bi-shuffle text-primary me-2"></i>
+                            <i class="bi bi-shuffle me-2"></i>
                             <span class="flex-grow-1">Random Deck</span>
                         </a>
                     </li>

@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block title %}Learn New Topics{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/learning.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <header class="my-4">
+        <div class="d-flex align-items-center justify-content-between">
+            <h1 class="h2">Learning Topics</h1>
+        </div>
+        <p class="lead text-muted">Use AI to help you learn and understand new subjects</p>
+    </header>
+
+    <div class="row">
+        <div class="col-lg-12">
+            <!-- Topic Entry Form - Simplified view -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h2 class="h5 card-title">Quick Start</h2>
+                    <p class="card-text">Enter a topic you want to learn about:</p>
+                    
+                    <form action="{{ url_for('learning.start_session') }}" method="POST" class="row g-3 align-items-center">
+                        <div class="col-md-10">
+                            <input type="text" class="form-control" name="topic" placeholder="e.g., Quantum Computing, Modern Poetry, Blockchain Technology..." required>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-primary w-100" id="learnSubmitBtn">
+                                <span class="normal-state"><i class="bi bi-book me-1"></i> Learn</span>
+                                <span class="loading-state d-none">
+                                    <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                    Loading...
+                                </span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Active Learning Sessions -->
+        <div class="col-lg-6">
+            <h2 class="h4 mb-3">Active Sessions</h2>
+            
+            {% if active_sessions %}
+                <div class="card shadow-sm mb-4">
+                    <div class="list-group list-group-flush session-scroll-container" style="max-height: 350px; overflow-y: auto;">
+                        {% for session in active_sessions %}
+                        <a href="{{ url_for('learning.view_session', session_id=session.learning_session_id) }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center border-0 border-bottom">
+                            <div>
+                                <h3 class="h6 mb-0">{{ session.topic }}</h3>
+                                <small class="text-muted">Started {{ session.created_at.strftime('%Y-%m-%d') }}</small>
+                            </div>
+                            <div>
+                                <span class="badge bg-primary rounded-pill">{{ session.get_completion_percentage() }}%</span>
+                            </div>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% else %}
+                <div class="alert alert-light text-center py-4">
+                    <i class="bi bi-info-circle mb-2" style="font-size: 2rem;"></i>
+                    <p>You don't have any active learning sessions.</p>
+                    <small class="text-muted">Your active sessions will appear here.</small>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Completed Learning Sessions -->
+        <div class="col-lg-6">
+            <h2 class="h4 mb-3">Completed Sessions</h2>
+            
+            {% if completed_sessions %}
+                <div class="card shadow-sm mb-4">
+                    <div class="list-group list-group-flush session-scroll-container" style="max-height: 350px; overflow-y: auto;">
+                        {% for session in completed_sessions %}
+                        <a href="{{ url_for('learning.view_session', session_id=session.learning_session_id) }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center border-0 border-bottom">
+                            <div>
+                                <h3 class="h6 mb-0">{{ session.topic }}</h3>
+                                <small class="text-muted">Completed {{ session.last_updated.strftime('%Y-%m-%d') }}</small>
+                            </div>
+                            <div>
+                                <span class="badge bg-success rounded-pill">100%</span>
+                            </div>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% else %}
+                <div class="alert alert-light text-center py-4">
+                    <i class="bi bi-emoji-smile mb-2" style="font-size: 2rem;"></i>
+                    <p>You haven't completed any learning sessions yet.</p>
+                    <small class="text-muted">Your completed sessions will appear here.</small>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script type="module">
+    // Import from a dedicated learning index module instead of the monolithic learning.js
+    import { initializeLearningIndex } from "{{ url_for('static', filename='modules/learning/learning-index.js') }}";
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeLearningIndex();
+    });
+</script>
+{% endblock %}
