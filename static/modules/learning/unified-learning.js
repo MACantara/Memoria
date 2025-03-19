@@ -204,6 +204,9 @@ async function handleCompleteSection() {
         
         const result = await completeSectionAndContinue(currentState.sectionId);
         
+        // Update the progress bar after completing a section
+        updateProgressDisplay();
+        
         if (result.all_completed) {
             // If all sections are completed, show the completion screen
             displayAllSectionsCompleted();
@@ -337,6 +340,39 @@ async function handleNextSectionNavigation(sectionId) {
         console.error('Failed to prepare next section:', error);
         displayError('Failed to prepare the next section. Please try refreshing the page.');
         hideLoading();
+    }
+}
+
+/**
+ * Update the progress display in the UI
+ */
+function updateProgressDisplay() {
+    // Count total and completed sections
+    const allSections = document.querySelectorAll('.section-toc .toc-item');
+    const completedSections = document.querySelectorAll('.section-toc .toc-item.completed');
+    
+    // Calculate percentage
+    const total = allSections.length;
+    const completed = completedSections.length;
+    const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+    
+    // Update progress bar width
+    const progressBar = document.querySelector('.progress-bar');
+    if (progressBar) {
+        progressBar.style.width = `${percentage}%`;
+        progressBar.setAttribute('aria-valuenow', percentage);
+        
+        // Update color if completed
+        if (percentage === 100) {
+            progressBar.classList.remove('bg-primary');
+            progressBar.classList.add('bg-success');
+        }
+    }
+    
+    // Update percentage text
+    const percentageText = document.querySelector('.progress + .mt-3 span, .d-flex > span.fs-5');
+    if (percentageText) {
+        percentageText.textContent = `${percentage}% Complete`;
     }
 }
 
