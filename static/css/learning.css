@@ -24,31 +24,45 @@
 
 .answer-option {
     cursor: pointer;
-    border: 1px solid var(--bs-border-color);
-    border-radius: 6px;
+    transition: all 0.2s ease-in-out;
+    border: 2px solid var(--bs-border-color);
     padding: 0.75rem 1rem;
     margin-bottom: 0.75rem;
-    transition: all 0.2s;
     position: relative;
     display: flex;
     justify-content: space-between;
     align-items: center;
 }
 
+.answer-option:hover:not(.selected):not(.correct):not(.incorrect) {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    border-color: var(--bs-primary);
+}
+
 /* Add styling for the number indicators on answer options */
 .option-num {
-    display: inline-flex;
+    display: flex;
     align-items: center;
     justify-content: center;
-    width: 1.5rem;
-    height: 1.5rem;
+    width: 28px;
+    height: 28px;
     border-radius: 50%;
     background-color: var(--bs-primary);
     color: white;
     font-size: 0.875rem;
     font-weight: 500;
-    margin-right: 0.75rem;
     flex-shrink: 0;
+    transition: all 0.2s;
+}
+
+.answer-option.correct .option-num {
+    background-color: var(--bs-success);
+}
+
+.answer-option.incorrect .option-num {
+    background-color: var(--bs-danger);
+    text-decoration: line-through;
 }
 
 /* Hover effect only if not already answered */
@@ -245,4 +259,15 @@ button:disabled {
     font-size: 0.875rem;
     color: var(--bs-secondary);
     text-align: center;
+}
+
+/* Animation for keyboard selection */
+@keyframes pulse-keyboard {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+    100% { transform: scale(1); }
+}
+
+.answer-option.keyboard-selected {
+    animation: pulse-keyboard 0.3s ease;
 }
