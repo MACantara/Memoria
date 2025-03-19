@@ -502,7 +502,7 @@ export class UIManager {
             
             // Update the explanation container
             explanationContainer.innerHTML = `
-                <div class="card border-0 bg-light bg-opacity-50 mt-3">
+                <div class="card border-0 bg-opacity-50 mt-3">
                     <div class="card-body">
                         <h6 class="card-subtitle mb-2">
                             <i class="bi bi-lightbulb-fill text-warning me-2"></i>Explanation
