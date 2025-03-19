@@ -500,17 +500,26 @@ export class UIManager {
                 console.warn("Sound playback failed:", error);
             }
             
-            // Update the explanation container
-            explanationContainer.innerHTML = `
-                <div class="card border-0 bg-opacity-50 mt-3">
-                    <div class="card-body">
-                        <h6 class="card-subtitle mb-2">
-                            <i class="bi bi-lightbulb-fill text-warning me-2"></i>Explanation
-                        </h6>
-                        <p class="card-text mb-0">${data.explanation}</p>
+            // Check if explanation data exists
+            if (data.explanation) {
+                // Update feedback with explanation in a nicely formatted card (matching question-manager.js style)
+                explanationContainer.innerHTML = `
+                    <div class="card border-0 mt-3">
+                        <div>
+                            <h6 class="card-subtitle mb-2 text-muted">Explanation</h6>
+                            <p class="card-text mb-0">${data.explanation}</p>
+                        </div>
                     </div>
-                </div>
-            `;
+                `;
+            } else {
+                // Handle case where no explanation was returned (matching question-manager.js style)
+                explanationContainer.innerHTML = `
+                    <div class="alert alert-light mt-2">
+                        <i class="bi bi-info-circle me-2"></i>
+                        The correct answer was provided above.
+                    </div>
+                `;
+            }
             
             // Update the explain button
             if (explainButton) {
@@ -520,10 +529,11 @@ export class UIManager {
         })
         .catch(error => {
             console.error('Error getting explanation:', error);
+            // If there was an error, update the UI (matching question-manager.js style)
             explanationContainer.innerHTML = `
-                <div class="alert alert-warning">
+                <div class="alert alert-light mt-2">
                     <i class="bi bi-exclamation-triangle me-2"></i>
-                    Could not generate explanation. Please try again.
+                    Failed to load explanation. The correct answer is highlighted.
                 </div>
             `;
             
