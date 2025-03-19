@@ -140,18 +140,25 @@ async function handleAnswerSelection(event, onComplete) {
         }
     });
     
-    // Show feedback
+    // Show temporary feedback while loading explanation
     const feedbackDiv = document.getElementById('questionFeedback');
     feedbackDiv.classList.remove('d-none');
-    feedbackDiv.innerHTML = isCorrect ? 
-        '<div class="alert alert-success"><i class="bi bi-check-circle-fill me-2"></i>Correct!</div>' : 
-        '<div class="alert alert-danger"><i class="bi bi-x-circle-fill me-2"></i>Incorrect. The correct answer is highlighted.</div>';
+    feedbackDiv.innerHTML = `
+        <div class="alert ${isCorrect ? 'alert-success' : 'alert-danger'}">
+            <div class="d-flex align-items-center mb-2">
+                <i class="bi ${isCorrect ? 'bi-check-circle-fill' : 'bi-x-circle-fill'} me-2"></i>
+                <strong>${isCorrect ? 'Correct!' : 'Incorrect'}</strong>
+            </div>
+            <div class="explanation-container">
+                <div class="spinner-border spinner-border-sm me-2" role="status">
+                    <span class="visually-hidden">Loading explanation...</span>
+                </div>
+                Generating explanation...
+            </div>
+        </div>
+    `;
     
-    // Show next button
-    const nextButtonContainer = document.getElementById('nextButtonContainer');
-    nextButtonContainer.classList.remove('d-none');
-    
-    // Save answer to database
+    // Save answer to database and get explanation
     try {
         const response = await fetch('/learning/api/question/answer', {
             method: 'POST',
@@ -165,12 +172,29 @@ async function handleAnswerSelection(event, onComplete) {
             })
         });
         
-        if (!response.ok) {
-            console.error('Failed to save answer');
+        const data = await response.json();
+        
+        if (response.ok && data.explanation) {
+            // Update feedback with explanation in a nicely formatted card
+            const explanationContainer = feedbackDiv.querySelector('.explanation-container');
+            explanationContainer.innerHTML = `
+                <div class="card border-0 mt-3">
+                    <div class="card-body py-2">
+                        <h6 class="card-subtitle mb-2 text-muted">Explanation</h6>
+                        <p class="card-text mb-0">${data.explanation}</p>
+                    </div>
+                </div>
+            `;
+        } else {
+            console.error('Failed to get explanation or save answer');
         }
     } catch (error) {
         console.error('Error saving answer:', error);
     }
+    
+    // Show next button
+    const nextButtonContainer = document.getElementById('nextButtonContainer');
+    nextButtonContainer.classList.remove('d-none');
 }
 
 /**

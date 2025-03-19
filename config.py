@@ -205,6 +205,29 @@ class Config:
     }}]
     """
     
+    # Enhanced prompt for generating more comprehensive explanations for quiz answers
+    LEARNING_EXPLANATION_PROMPT = """
+    # Task: Generate a Comprehensive Educational Explanation for a Quiz Answer
+    
+    ## Context
+    Question: "{question}"
+    Correct Answer: "{correct_answer}"
+    Student's Answer: "{user_answer}"
+    Is Student Correct: {is_correct}
+    All Incorrect Answer Options: {incorrect_answers}
+    
+    ## Instructions
+    1. Explain why the correct answer is the right choice in 1-2 sentences
+    2. Briefly explain why each incorrect option is wrong
+    3. Keep the explanation concise and educational in tone
+    4. Focus on facts and accuracy rather than emotional language
+    5. Do not use phrases like "I'm sorry" or "I apologize"
+    6. Write no more than 100 words total
+    
+    ## Output Format
+    Provide ONLY the explanation text without any additional formatting, headers, or commentary.
+    """
+    
     @staticmethod
     def generate_prompt_template(topic, batch_size=None):
         """Generate a prompt template for AI flashcard generation"""

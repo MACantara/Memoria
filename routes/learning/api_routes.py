@@ -138,7 +138,7 @@ def api_mark_section_read(section_id):
 @learning_bp.route('/api/question/answer', methods=['POST'])
 @login_required
 def api_answer_question():
-    """API endpoint to record a user's answer to a question"""
+    """API endpoint to record a user's answer to a question and generate an explanation"""
     try:
         data = request.json
         question_id = data.get('question_id')
@@ -157,17 +157,64 @@ def api_answer_question():
         question.is_correct = is_correct
         question.attempts += 1
         
+        # Generate explanation if not already present
+        explanation = None
+        if not question.explanation:
+            try:
+                # Get all incorrect answers to pass to the explanation generator
+                incorrect_answers = question.get_incorrect_answers()
+                
+                explanation = generate_answer_explanation(
+                    question.question,
+                    question.correct_answer,
+                    answer,
+                    is_correct,
+                    incorrect_answers
+                )
+                question.explanation = explanation
+            except Exception as e:
+                current_app.logger.error(f"Error generating explanation: {e}")
+                # Continue even if explanation generation fails
+        
         db.session.commit()
         
         return jsonify({
             "success": True,
-            "message": "Answer recorded successfully"
+            "message": "Answer recorded successfully",
+            "explanation": question.explanation or explanation
         })
         
     except Exception as e:
         current_app.logger.error(f"Error recording answer: {e}")
         current_app.logger.error(traceback.format_exc())
         return jsonify({"error": str(e)}), 500
+
+def generate_answer_explanation(question_text, correct_answer, user_answer, is_correct, incorrect_answers):
+    """Generate a comprehensive explanation for a question answer"""
+    client = genai.Client(api_key=api_key)
+    
+    # Format the prompt with the specific question details
+    prompt = Config.LEARNING_EXPLANATION_PROMPT.format(
+        question=question_text,
+        correct_answer=correct_answer,
+        user_answer=user_answer,
+        is_correct=str(is_correct),  # Convert boolean to string for prompt
+        incorrect_answers=", ".join(incorrect_answers)  # Join all incorrect options
+    )
+    
+    # Set slightly different config for explanations (more focused)
+    explanation_config = Config.LEARNING_GEMINI_CONFIG.copy()
+    explanation_config["temperature"] = 0.1  # Lower temperature for more factual responses
+    
+    response = client.models.generate_content(
+        model=Config.GEMINI_MODEL,
+        contents=prompt,
+        config=explanation_config
+    )
+    
+    # Return the explanation text, cleaned up
+    explanation_text = response.text.strip()
+    return explanation_text
 
 @learning_bp.route('/api/section/<int:section_id>/complete', methods=['POST'])
 @login_required
