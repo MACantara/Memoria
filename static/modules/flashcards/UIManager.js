@@ -18,6 +18,10 @@ export class UIManager {
         // Preload the sounds
         this.successSound.load();
         this.errorSound.load();
+
+        // Add explanation sound
+        this.insightSound = new Audio('/static/sounds/insight.mp3');
+        this.insightSound.load();
     }
 
     renderCard(card) {
@@ -373,10 +377,32 @@ export class UIManager {
         feedback.appendChild(messageContainer);
         feedbackContainer.appendChild(feedback);
         
+        // Create button container for multiple buttons
+        const buttonContainer = document.createElement('div');
+        buttonContainer.className = 'd-flex gap-2 mt-2';
+        
+        // If incorrect, add explain button
+        if (!isCorrect) {
+            const explainButton = document.createElement('button');
+            explainButton.type = 'button';
+            explainButton.className = 'btn btn-outline-secondary flex-grow-1 d-flex justify-content-center align-items-center py-2';
+            explainButton.innerHTML = '<i class="bi bi-lightbulb me-2"></i><span>Explain</span>';
+            explainButton.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                // Get the flashcard ID from the URL or data attribute
+                const flashcardId = this.getCurrentFlashcardId();
+                if (flashcardId) {
+                    this.showExplanation(flashcardId, explainButton);
+                }
+            });
+            buttonContainer.appendChild(explainButton);
+        }
+        
         // Add next button with improved styling
         const nextButton = document.createElement('button');
         nextButton.type = 'button';
-        nextButton.className = 'btn btn-primary w-100 d-flex justify-content-center align-items-center py-2';
+        nextButton.className = 'btn btn-primary flex-grow-1 d-flex justify-content-center align-items-center py-2';
         nextButton.innerHTML = '<span>Next Question</span><i class="bi bi-arrow-right ms-2"></i>';
         nextButton.addEventListener('click', (e) => {
             e.preventDefault();
@@ -385,13 +411,21 @@ export class UIManager {
                 nextCardCallback();
             }
         });
-        feedbackContainer.appendChild(nextButton);
+        buttonContainer.appendChild(nextButton);
+        
+        feedbackContainer.appendChild(buttonContainer);
         
         // Add keyboard hint with improved styling
         const keyboardHint = document.createElement('div');
         keyboardHint.className = 'text-center text-muted small mt-2 py-1 d-flex justify-content-center align-items-center';
         keyboardHint.innerHTML = '<i class="bi bi-keyboard me-1"></i><span>Press any key to continue</span>';
         feedbackContainer.appendChild(keyboardHint);
+        
+        // Add container for explanation that will be populated later
+        const explanationContainer = document.createElement('div');
+        explanationContainer.id = 'explanationContainer';
+        explanationContainer.className = 'd-none mt-3';
+        feedbackContainer.appendChild(explanationContainer);
         
         // Add container to the form
         this.answerForm.appendChild(feedbackContainer);
@@ -400,6 +434,232 @@ export class UIManager {
         setTimeout(() => nextButton.focus(), 100);
     }
     
+    /**
+     * Get the current flashcard ID from the DOM
+     * @returns {string|null} The flashcard ID or null if not found
+     */
+    getCurrentFlashcardId() {
+        // Try to get it from the current card in the UI
+        const currentCard = document.getElementById('currentFlashcard');
+        if (currentCard && currentCard.dataset.flashcardId) {
+            return currentCard.dataset.flashcardId;
+        }
+        
+        // Try to get from FlashcardManager instance
+        if (window.flashcardManager && window.flashcardManager.currentCard) {
+            return window.flashcardManager.currentCard.id;
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Show an explanation for the current flashcard
+     * @param {string} flashcardId - The ID of the current flashcard
+     * @param {HTMLElement} explainButton - The explain button element
+     */
+    showExplanation(flashcardId, explainButton) {
+        const explanationContainer = document.getElementById('explanationContainer');
+        if (!explanationContainer) return;
+        
+        // Show loading state
+        explanationContainer.classList.remove('d-none');
+        explanationContainer.innerHTML = `
+            <div class="explanation-loading text-center py-3">
+                <div class="spinner-border spinner-border-sm text-secondary me-2" role="status">
+                    <span class="visually-hidden">Generating explanation...</span>
+                </div>
+                <span>Generating explanation...</span>
+            </div>
+        `;
+        
+        // Disable the explain button
+        if (explainButton) {
+            explainButton.disabled = true;
+            explainButton.innerHTML = '<i class="bi bi-hourglass-split me-2"></i><span>Generating...</span>';
+        }
+        
+        // Fetch the explanation from the server
+        fetch(`/flashcard/explain/${flashcardId}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to get explanation');
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Play insight sound
+            try {
+                this.insightSound.play();
+            } catch (error) {
+                console.warn("Sound playback failed:", error);
+            }
+            
+            // Update the explanation container
+            explanationContainer.innerHTML = `
+                <div class="card border-0 bg-light bg-opacity-50 mt-3">
+                    <div class="card-body">
+                        <h6 class="card-subtitle mb-2">
+                            <i class="bi bi-lightbulb-fill text-warning me-2"></i>Explanation
+                        </h6>
+                        <p class="card-text mb-0">${data.explanation}</p>
+                    </div>
+                </div>
+            `;
+            
+            // Update the explain button
+            if (explainButton) {
+                explainButton.disabled = true;
+                explainButton.innerHTML = '<i class="bi bi-lightbulb-fill text-warning me-2"></i><span>Explained</span>';
+            }
+        })
+        .catch(error => {
+            console.error('Error getting explanation:', error);
+            explanationContainer.innerHTML = `
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    Could not generate explanation. Please try again.
+                </div>
+            `;
+            
+            // Reset the explain button
+            if (explainButton) {
+                explainButton.disabled = false;
+                explainButton.innerHTML = '<i class="bi bi-lightbulb me-2"></i><span>Try Again</span>';
+            }
+        });
+    }
+
+    showCompletionScreen(deckId, score, totalDue, isDueOnly, remainingDueCards) {
+        // Update card counters first to show all completed
+        this.updateCardCounter(totalDue - 1, totalDue, score, 0);
+        this.updateScore(score, totalDue);
+        
+        // Create different completion screens depending on the mode and whether there are more due cards
+        if (!this.flashcardContainer) return;
+        
+        if (isDueOnly) {
+            if (remainingDueCards > 0) {
+                // Due Only mode with more cards due - show option to continue
+                this.flashcardContainer.innerHTML = `
+                    <div class="text-center p-3">
+                        <div>
+                            <h2 class="card-title mb-4">
+                                <i class="bi bi-check2-circle text-success"></i> Session Complete!
+                            </h2>
+                            <p class="card-text fs-5">You've reviewed ${score} flashcards in this session.</p>
+                            <div class="progress mb-3" style="height: 20px;">
+                                <div class="progress-bar bg-success" role="progressbar" 
+                                    style="width: 100%" aria-valuenow="100" aria-valuemin="0" 
+                                    aria-valuemax="100">100%</div>
+                            </div>
+                            
+                            <div class="alert alert-info mt-4">
+                                <i class="bi bi-info-circle me-2"></i>
+                                <strong>${remainingDueCards} more cards</strong> have become due for review since you started this session.
+                            </div>
+                            
+                            <div class="d-flex justify-content-center gap-3 mt-4 flex-wrap">
+                                <a href="/deck/study/${deckId}?due_only=true" class="btn btn-primary">
+                                    <i class="bi bi-arrow-right"></i> Continue Studying Due Cards
+                                </a>
+                                <a href="/deck/${deckId}" class="btn btn-outline-secondary">
+                                    <i class="bi bi-house-door"></i> Back to Deck
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                // Due Only mode with no more cards due - show standard completion
+                this.flashcardContainer.innerHTML = `
+                    <div class="text-center p-3">
+                        <div>
+                            <h2 class="card-title mb-4">
+                                <i class="bi bi-calendar-check-fill text-success"></i> All Due Cards Completed!
+                            </h2>
+                            <p class="card-text fs-5">You've reviewed all flashcards that were due today.</p>
+                            <div class="progress mb-3" style="height: 20px;">
+                                <div class="progress-bar bg-success" role="progressbar" 
+                                    style="width: 100%" aria-valuenow="100" aria-valuemin="0" 
+                                    aria-valuemax="100">100%</div>
+                            </div>
+                            
+                            <div class="alert alert-info mt-4">
+                                <i class="bi bi-info-circle me-2"></i>
+                                Want to study more? You can also review cards that aren't due yet.
+                            </div>
+                            
+                            <div class="d-flex justify-content-center gap-3 mt-4 flex-wrap">
+                                <a href="/deck/study/${deckId}" class="btn btn-primary">
+                                    <i class="bi bi-collection"></i> Study All Cards
+                                </a>
+                                <a href="/deck/${deckId}" class="btn btn-outline-secondary">
+                                    <i class="bi bi-house-door"></i> Back to Deck
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+        } else {
+            // Study All mode - show standard completion
+            this.flashcardContainer.innerHTML = `
+                <div class="card text-center p-5">
+                    <div class="card-body">
+                        <h2 class="card-title mb-4">
+                            <i class="bi bi-emoji-smile-fill text-success"></i> Session Complete!
+                        </h2>
+                        <p class="card-text fs-5">You've completed your flashcard review session.</p>
+                        <div class="progress mb-3" style="height: 20px;">
+                            <div class="progress-bar bg-success" role="progressbar" 
+                                style="width: 100%" aria-valuenow="100" aria-valuemin="0" 
+                                aria-valuemax="100">100%</div>
+                        </div>
+                        <p class="card-text fs-4 text-success fw-bold">
+                            <i class="bi bi-trophy-fill"></i> Session Score: ${score}/${totalDue}
+                        </p>
+                        <div class="d-flex justify-content-center gap-3 mt-4 flex-wrap">
+                            <a href="${window.location.href}" class="btn btn-primary">
+                                <i class="bi bi-arrow-repeat"></i> Study Again
+                            </a>
+                            <a href="/deck/${deckId}" class="btn btn-outline-secondary">
+                                <i class="bi bi-house-door"></i> Back to Deck
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Update badge to show completion status
+        if (this.statusBadge) {
+            this.statusBadge.textContent = 'Completed';
+            this.statusBadge.className = 'badge bg-success';
+        }
+    }
+
+    showNoCardsMessage() {
+        if (!this.flashcardContainer) return;
+        
+        this.flashcardContainer.innerHTML = `
+            <div class="alert alert-info">
+                <h3 class="h5"><i class="bi bi-info-circle me-2"></i>No Cards to Study</h3>
+                <p class="mb-0">
+                    There are no cards available for study in this deck.
+                    <a href="/deck/${document.getElementById('deckId').value}" class="btn btn-sm btn-primary mt-2">
+                        <i class="bi bi-arrow-left me-1"></i> Back to Deck
+                    </a>
+                </p>
+            </div>
+        `;
+    }
+
     /**
      * Apply visual feedback to the selected answer
      * @param {boolean} isCorrect - Whether the selected answer is correct

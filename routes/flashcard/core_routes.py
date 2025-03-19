@@ -3,6 +3,9 @@ from models import db, FlashcardDecks, Flashcards
 from services.fsrs_scheduler import process_review, get_current_time
 from flask_login import current_user, login_required
 import traceback
+import os
+from config import Config
+from google import genai
 
 # Update blueprint name to be more specific since it's now part of flashcard package
 flashcard_bp = Blueprint('flashcard', __name__)
@@ -189,3 +192,83 @@ def delete_flashcard(flashcard_id):
         print(f"Error deleting flashcard: {str(e)}")
         print(traceback.format_exc())
         return jsonify({"success": False, "error": str(e)}), 500
+
+@flashcard_bp.route("/explain/<int:flashcard_id>", methods=["GET"])
+@login_required
+def explain_flashcard(flashcard_id):
+    """Generate an explanation for a flashcard"""
+    try:
+        # Get the flashcard
+        flashcard = Flashcards.query.get_or_404(flashcard_id)
+        
+        # Verify ownership through deck
+        deck = FlashcardDecks.query.get(flashcard.flashcard_deck_id)
+        if not deck or deck.user_id != current_user.id:
+            return jsonify({"success": False, "error": "You don't have permission to access this flashcard"}), 403
+        
+        # Check if we already have an explanation saved (for future enhancement)
+        if hasattr(flashcard, 'explanation') and flashcard.explanation:
+            return jsonify({
+                "success": True,
+                "explanation": flashcard.explanation
+            })
+        
+        # No saved explanation, generate one with AI
+        explanation = generate_flashcard_explanation(flashcard)
+        
+        # For future enhancements, could save the explanation to the database
+        # flashcard.explanation = explanation
+        # db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "explanation": explanation
+        })
+        
+    except Exception as e:
+        print(f"Error generating explanation: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify({"success": False, "error": "Could not generate explanation"}), 500
+
+def generate_flashcard_explanation(flashcard):
+    """Generate an explanation for a flashcard using AI"""
+    try:
+        # Get API key from environment
+        api_key = os.getenv("GOOGLE_GEMINI_API_KEY")
+        if not api_key:
+            raise ValueError("Missing Gemini API key")
+        
+        client = genai.Client(api_key=api_key)
+        
+        # Format the prompt using the template from Config class
+        prompt = Config.LEARNING_EXPLANATION_PROMPT.format(
+            question=flashcard.question,
+            correct_answer=flashcard.correct_answer,
+            user_answer="",  # We don't have a specific user answer for flashcards
+            is_correct="false",  # We use this for incorrect answer explanations
+            incorrect_answers=", ".join(flashcard.incorrect_answers)
+        )
+        
+        # Set config for explanation generation - use similar settings as learning module
+        explanation_config = {
+            "temperature": 0.2,
+            "max_output_tokens": 256,
+            "top_p": 0.8,
+            "top_k": 40
+        }
+        
+        # Generate the explanation
+        response = client.models.generate_content(
+            model=Config.GEMINI_MODEL,
+            contents=prompt,
+            config=explanation_config
+        )
+        
+        # Return the explanation text
+        explanation_text = response.text.strip()
+        return explanation_text
+        
+    except Exception as e:
+        print(f"Error in generate_flashcard_explanation: {e}")
+        print(traceback.format_exc())
+        return "Explanation could not be generated at this time. The correct answer is shown above."
