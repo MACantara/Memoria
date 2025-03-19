@@ -35,6 +35,22 @@
     align-items: center;
 }
 
+/* Add styling for the number indicators on answer options */
+.option-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 50%;
+    background-color: var(--bs-primary);
+    color: white;
+    font-size: 0.875rem;
+    font-weight: 500;
+    margin-right: 0.75rem;
+    flex-shrink: 0;
+}
+
 /* Hover effect only if not already answered */
 .answer-option:not(.correct):not(.incorrect):hover {
     background-color: rgba(var(--bs-primary-rgb), 0.1);
@@ -74,6 +90,17 @@
 .answer-option.incorrect .answer-icon {
     opacity: 1;
     transform: scale(1);
+}
+
+/* Animation for keyboard selection */
+@keyframes keyboard-flash {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.answer-option.keyboard-selected {
+    animation: keyboard-flash 0.2s ease;
 }
 
 /* Next button animation */
@@ -210,4 +237,12 @@ button:disabled {
 
 .session-scroll-container .list-group-item:last-child {
     border-bottom: 0 !important;
+}
+
+/* Add visual hints for keyboard shortcuts at the bottom of questions */
+.keyboard-hints {
+    margin-top: 1rem;
+    font-size: 0.875rem;
+    color: var(--bs-secondary);
+    text-align: center;
 }

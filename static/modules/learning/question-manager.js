@@ -71,16 +71,18 @@ export function displayQuestion(question, onAnswered) {
     correctOption.className = 'answer-option';
     correctOption.setAttribute('data-correct', 'true');
     correctOption.setAttribute('data-answer', question.correct_answer);
-    correctOption.textContent = question.correct_answer;
+    correctOption.setAttribute('data-option-num', '1');  // Add number for keyboard navigation
+    correctOption.innerHTML = `<span class="option-num">1</span> ${question.correct_answer}`;
     optionsContainer.appendChild(correctOption);
     
     // Add incorrect answers
-    question.incorrect_answers.forEach(answer => {
+    question.incorrect_answers.forEach((answer, index) => {
         const option = document.createElement('div');
         option.className = 'answer-option';
         option.setAttribute('data-correct', 'false');
         option.setAttribute('data-answer', answer);
-        option.textContent = answer;
+        option.setAttribute('data-option-num', (index + 2).toString());  // Add number for keyboard navigation
+        option.innerHTML = `<span class="option-num">${index + 2}</span> ${answer}`;
         optionsContainer.appendChild(option);
     });
     
@@ -90,6 +92,12 @@ export function displayQuestion(question, onAnswered) {
         const j = Math.floor(Math.random() * (i + 1));
         optionsContainer.appendChild(options[j]);
     }
+    
+    // Renumber options after shuffling
+    optionsContainer.querySelectorAll('.answer-option').forEach((option, index) => {
+        option.setAttribute('data-option-num', (index + 1).toString());
+        option.querySelector('.option-num').textContent = (index + 1).toString();
+    });
     
     // Add click handlers to answer options
     content.querySelectorAll('.answer-option').forEach(option => {
@@ -106,8 +114,8 @@ export function displayQuestion(question, onAnswered) {
         }
     });
     
-    // Add keyboard navigation for next question
-    enableKeyboardNavigation(onAnswered);
+    // Add keyboard navigation for answer selection and next question
+    enableAnswerKeyboardNavigation(onAnswered);
     
     // Clear existing content and append new content
     contentArea.innerHTML = '';
@@ -115,18 +123,57 @@ export function displayQuestion(question, onAnswered) {
 }
 
 /**
- * Enable keyboard navigation for proceeding to the next question
+ * Enable keyboard navigation for answering questions and proceeding to next question
  * @param {Function} onAnswered - Callback for when the next button is triggered
  */
-function enableKeyboardNavigation(onAnswered) {
-    // Remove any existing keydown handler first
+function enableAnswerKeyboardNavigation(onAnswered) {
+    // Remove any existing keydown handlers first
     document.removeEventListener('keydown', handleKeyNavigation);
+    document.removeEventListener('keydown', handleAnswerKeyNavigation);
     
-    // Add the event handler
-    document.addEventListener('keydown', handleKeyNavigation);
+    // Add the answer selection handler
+    document.addEventListener('keydown', handleAnswerKeyNavigation);
     
     // Store the callback in a global variable to make it accessible to the handler
     window._nextQuestionCallback = onAnswered;
+}
+
+/**
+ * Handle keyboard navigation for answer selection
+ * @param {KeyboardEvent} event - The keyboard event
+ */
+function handleAnswerKeyNavigation(event) {
+    // Only proceed if an answer hasn't been selected yet
+    if (document.querySelector('.answer-option.selected, .answer-option.correct, .answer-option.incorrect')) {
+        // If an answer is already selected, switch to the next question handler
+        document.removeEventListener('keydown', handleAnswerKeyNavigation);
+        document.addEventListener('keydown', handleKeyNavigation);
+        return;
+    }
+    
+    // Skip if user is typing in an input field
+    if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
+        return;
+    }
+    
+    // Check if a number key 1-4 was pressed
+    const num = parseInt(event.key);
+    if (num >= 1 && num <= 4) {
+        // Find the corresponding option
+        const option = document.querySelector(`.answer-option[data-option-num="${num}"]`);
+        if (option) {
+            // Simulate click on this option
+            option.click();
+            
+            // Add visual feedback
+            option.classList.add('keyboard-selected');
+            setTimeout(() => option.classList.remove('keyboard-selected'), 200);
+            
+            // Switch to next question handler
+            document.removeEventListener('keydown', handleAnswerKeyNavigation);
+            document.addEventListener('keydown', handleKeyNavigation);
+        }
+    }
 }
 
 /**
@@ -145,11 +192,21 @@ function handleKeyNavigation(event) {
         // Any key will trigger the next question
         const nextButton = document.getElementById('nextQuestionBtn');
         if (nextButton && !nextButton.disabled) {
-            nextButton.click();
+            console.log('Key pressed - advancing to next question');
+            
+            // Execute the stored callback directly instead of clicking the button
+            if (typeof window._nextQuestionCallback === 'function') {
+                // Remove the event listeners before proceeding
+                document.removeEventListener('keydown', handleKeyNavigation);
+                document.removeEventListener('keydown', handleAnswerKeyNavigation);
+                
+                // Call the callback function
+                window._nextQuestionCallback();
+            } else {
+                // Fallback to clicking the button if callback isn't available
+                nextButton.click();
+            }
         }
-        
-        // Remove the event listener after it's been used
-        document.removeEventListener('keydown', handleKeyNavigation);
     }
 }
 
@@ -277,14 +334,25 @@ async function handleAnswerSelection(event, onComplete) {
     const nextButton = document.getElementById('nextQuestionBtn');
     nextButton.classList.add('animate__animated', 'animate__pulse');
     
+    // Switch from answer selection keyboard handling to next question handling
+    document.removeEventListener('keydown', handleAnswerKeyNavigation);
+    document.addEventListener('keydown', handleKeyNavigation);
+    
+    // Store the callback for later use
+    window._nextQuestionCallback = onComplete;
+    
     // Let the user know they can press any key to continue
     const keyHintSpan = document.createElement('div');
     keyHintSpan.className = 'text-muted small mt-2';
     keyHintSpan.innerHTML = 'Press any key to continue';
     nextButtonContainer.appendChild(keyHintSpan);
     
-    // Enable keyboard navigation to proceed to next question
-    enableKeyboardNavigation(onComplete);
+    // Make sure the next button properly responds to clicks
+    nextButton.onclick = function() {
+        if (typeof onComplete === 'function') {
+            onComplete();
+        }
+    };
 }
 
 /**
@@ -369,4 +437,20 @@ export function displayAllSectionsCompleted() {
     // Clear existing content and append new content
     contentArea.innerHTML = '';
     contentArea.appendChild(content);
+}
+
+/**
+ * Show the next question or complete section prompt
+ * (This would be the implementation in unified-learning.js)
+ */
+export function showNextQuestion(questions, currentIndex, onComplete) {
+    console.log(`Showing next question: ${currentIndex + 1} of ${questions.length}`);
+    
+    // Check if there are more questions
+    if (currentIndex < questions.length) {
+        displayQuestion(questions[currentIndex], onComplete);
+    } else {
+        // No more questions, show complete section prompt
+        displayCompleteSectionPrompt();
+    }
 }
