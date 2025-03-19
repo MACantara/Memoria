@@ -379,10 +379,11 @@ export class UIManager {
         
         // Create button container for multiple buttons
         const buttonContainer = document.createElement('div');
-        buttonContainer.className = 'd-flex gap-2 mt-2';
+        buttonContainer.className = 'd-flex gap-2 mt-2 flex-wrap';
         
-        // If incorrect, add explain button
+        // For incorrect answers, show both Explain and Edit buttons
         if (!isCorrect) {
+            // Add explain button
             const explainButton = document.createElement('button');
             explainButton.type = 'button';
             explainButton.className = 'btn btn-outline-secondary flex-grow-1 d-flex justify-content-center align-items-center py-2';
@@ -397,6 +398,21 @@ export class UIManager {
                 }
             });
             buttonContainer.appendChild(explainButton);
+            
+            // Add edit button
+            const editButton = document.createElement('button');
+            editButton.type = 'button';
+            editButton.className = 'btn btn-outline-primary flex-grow-1 d-flex justify-content-center align-items-center py-2';
+            editButton.innerHTML = '<i class="bi bi-pencil-square me-2"></i><span>Edit Card</span>';
+            editButton.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const flashcardId = this.getCurrentFlashcardId();
+                if (flashcardId && window.flashcardManager) {
+                    window.flashcardManager.showEditModal(flashcardId);
+                }
+            });
+            buttonContainer.appendChild(editButton);
         }
         
         // Add next button with improved styling

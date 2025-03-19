@@ -112,6 +112,52 @@ Study {{ deck.name }} (All Cards)
 <input type="hidden" id="studyMode" value="{{ 'due_only' if due_only else 'all' }}">
 <input type="hidden" id="deckId" value="{{ deck.flashcard_deck_id }}">
 <input type="hidden" id="totalFlashcards" value="{{ flashcards_count }}">
+
+<!-- Add the Edit Flashcard Modal -->
+<div class="modal fade" id="editFlashcardModal" tabindex="-1" aria-labelledby="editFlashcardModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editFlashcardModalLabel">Edit Flashcard</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editFlashcardForm">
+                    <input type="hidden" id="editFlashcardId" name="flashcard_id">
+                    
+                    <!-- Question field -->
+                    <div class="mb-3">
+                        <label for="editFlashcardQuestion" class="form-label">Question</label>
+                        <textarea class="form-control" id="editFlashcardQuestion" name="question" rows="2" required></textarea>
+                    </div>
+                    
+                    <!-- Correct Answer field -->
+                    <div class="mb-3">
+                        <label for="editFlashcardCorrectAnswer" class="form-label">Correct Answer</label>
+                        <textarea class="form-control" id="editFlashcardCorrectAnswer" name="correct_answer" rows="2" required></textarea>
+                    </div>
+                    
+                    <!-- Incorrect Answers fields -->
+                    <div class="mb-3">
+                        <label class="form-label">Incorrect Answers</label>
+                        <div id="editIncorrectAnswersContainer">
+                            <!-- Will be populated dynamically -->
+                        </div>
+                    </div>
+                    
+                    <div id="editFlashcardStatus"></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="updateFlashcardBtn">
+                    <span class="normal-state"><i class="bi bi-save me-1"></i> Update Flashcard</span>
+                    <span class="loading-state d-none"><span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
