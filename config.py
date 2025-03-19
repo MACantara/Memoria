@@ -169,10 +169,15 @@ class Config:
     ```
 
     ## Instructions
-    1. Create exactly {num_questions} multiple-choice questions that test understanding of key concepts
+    1. Create exactly {num_questions} clear, concisemultiple-choice questions that test understanding of key concepts
     2. Each question should focus on ONE specific concept from the content
     3. The correct answer must be clearly supported by the provided content
     4. Create 3 plausible but unambiguously incorrect alternatives for each question
+    5. CRITICAL: All answers (correct and incorrect) MUST:
+        - Be similar in length (within 10-15 characters of each other)
+        - Use the same level of detail and complexity
+        - Follow the same grammatical structure
+        - Be equally specific/general
 
     ## Question Requirements
     - Questions should be clear, direct, and unambiguous
@@ -180,6 +185,8 @@ class Config:
     - Ensure questions test understanding, not just memorization
     - Vary question styles (definition, application, example identification)
     - Avoid extremely similar or overlapping questions
+    - No duplicate questions or answers
+    - All content is factually accurate
 
     ## Answer Requirements
     - Correct answer must be clearly defensible from the content
@@ -187,6 +194,7 @@ class Config:
     - Avoid using absolute terms (always, never, all, none)
     - All answers should be roughly similar in length and style
     - Don't include obvious incorrect options
+    - Don't make the correct answer stand out by length or detail
 
     ## Output Format
     Return ONLY a JSON array with this exact structure:
