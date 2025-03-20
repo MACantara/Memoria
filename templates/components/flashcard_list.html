@@ -47,7 +47,7 @@
                         {% elif flashcard.get_state_name() == 'mastered' %}bg-success
                         {% elif flashcard.get_state_name() == 'forgotten' %}bg-danger
                         {% endif %}">
-                        {{ flashcard.get_state_name() }}
+                        {{ flashcard.get_state_name().capitalize() }}
                     </span>
                     
                     <!-- Flashcard actions dropdown -->
