@@ -31,23 +31,6 @@ export async function updateProgress(flashcardId, isCorrect) {
     }
 }
 
-export async function deleteTopic(topicId) {
-    if (!confirm('Are you sure you want to delete this topic?')) return;
-    try {
-        const response = await fetch(`/topic/delete/${topicId}`, {
-            method: 'DELETE'
-        });
-        if (response.ok) {
-            location.reload();
-        } else {
-            throw new Error('Failed to delete topic');
-        }
-    } catch (error) {
-        console.error('Error deleting topic:', error);
-        alert('Failed to delete topic. Please try again.');
-    }
-}
-
 /**
  * Delete a deck with the given ID
  * @param {number} deckId - The ID of the deck to delete
@@ -68,26 +51,6 @@ export async function deleteDeck(deckId) {
     } catch (error) {
         console.error('Error deleting deck:', error);
         throw error;
-    }
-}
-
-export async function renameTopic(topicId, newName) {
-    try {
-        const response = await fetch(`/topic/rename/${topicId}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ name: newName })
-        });
-        if (response.ok) {
-            location.reload();
-        } else {
-            throw new Error('Failed to rename topic');
-        }
-    } catch (error) {
-        console.error('Error renaming topic:', error);
-        alert('Failed to rename topic. Please try again.');
     }
 }
 
