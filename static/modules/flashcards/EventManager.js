@@ -87,13 +87,19 @@ export class EventManager {
                 }
             }
         } else {
-            // In feedback mode, any key continues to next question
-            if (e.key !== 'e' && e.key !== 'E') { // Skip 'E' key which is for editing
-                // Find the next button and click it
-                const nextButton = document.querySelector('#nextQuestionBtn');
-                if (nextButton) {
-                    nextButton.click();
-                    e.preventDefault();
+            // In feedback mode, any key continues to next question BUT ONLY if:
+            // 1. The key press is not 'e' or 'E' (which is for editing)
+            // 2. The Explain button is not focused (don't want to trigger it with keyboard)
+            if (e.key !== 'e' && e.key !== 'E') { 
+                // Make sure we're not focused on the Explain button
+                const explainButton = document.getElementById('explainFlashcardBtn');
+                if (document.activeElement !== explainButton) {
+                    // Only click the specific next button, not any button
+                    const nextButton = document.getElementById('nextQuestionBtn');
+                    if (nextButton) {
+                        nextButton.click();
+                        e.preventDefault();
+                    }
                 }
             }
         }

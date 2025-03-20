@@ -383,9 +383,10 @@ export class UIManager {
         
         // For incorrect answers, add the explain button
         if (!isCorrect) {
-            // Add explain button
+            // Add explain button with specific ID
             const explainButton = document.createElement('button');
             explainButton.type = 'button';
+            explainButton.id = 'explainFlashcardBtn'; // Add specific ID
             explainButton.className = 'btn btn-outline-secondary flex-grow-1 d-flex justify-content-center align-items-center py-2';
             explainButton.innerHTML = '<i class="bi bi-lightbulb me-2"></i><span>Explain</span>';
             explainButton.addEventListener('click', (e) => {
@@ -400,9 +401,10 @@ export class UIManager {
             buttonContainer.appendChild(explainButton);
         }
         
-        // Add next button with improved styling
+        // Add next button with improved styling and specific ID
         const nextButton = document.createElement('button');
         nextButton.type = 'button';
+        nextButton.id = 'nextQuestionBtn'; // Keep this ID as it's already used elsewhere
         nextButton.className = 'btn btn-primary flex-grow-1 d-flex justify-content-center align-items-center py-2';
         nextButton.innerHTML = '<span>Next Question</span><i class="bi bi-arrow-right ms-2"></i>';
         nextButton.addEventListener('click', (e) => {
@@ -416,10 +418,10 @@ export class UIManager {
         
         feedbackContainer.appendChild(buttonContainer);
         
-        // Add keyboard hint with improved styling
+        // Add keyboard hint with improved styling - UPDATED to be more specific
         const keyboardHint = document.createElement('div');
         keyboardHint.className = 'text-center text-muted small mt-2 py-1 d-flex justify-content-center align-items-center';
-        keyboardHint.innerHTML = '<i class="bi bi-keyboard me-1"></i><span>Press any key to continue</span>';
+        keyboardHint.innerHTML = '<i class="bi bi-keyboard me-1"></i><span>Press any key to go to next question</span>';
         feedbackContainer.appendChild(keyboardHint);
         
         // Add container for explanation that will be populated later
