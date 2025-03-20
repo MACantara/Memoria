@@ -34,11 +34,17 @@ export class NavigationManager {
         // If user has already answered and feedback is showing
         const feedbackContainer = document.querySelector('.feedback-container');
         if (feedbackContainer) {
-            // Press any key to continue to next question
-            const nextButton = feedbackContainer.querySelector('button');
-            if (nextButton) {
-                nextButton.click();
-                return true;
+            // Press any key to continue to next question, but be careful about which button we activate
+            // Only trigger the next button, NOT the explain button
+            const explainButton = document.getElementById('explainFlashcardBtn');
+            
+            // Only proceed if the explain button is not focused
+            if (document.activeElement !== explainButton) {
+                const nextButton = document.getElementById('nextQuestionBtn');
+                if (nextButton) {
+                    nextButton.click();
+                    return true;
+                }
             }
         } else {
             // If we're in answering mode, numeric keys are handled in EventManager
