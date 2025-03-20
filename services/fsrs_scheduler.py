@@ -42,6 +42,24 @@ def process_review(flashcard, is_correct):
         fsrs_card = flashcard.get_fsrs_card()
         now = get_current_time()
         
+        # COMPREHENSIVE INITIALIZATION: Ensure all required fields are properly initialized
+        # This prevents multiple errors like "'>=' not supported between instances of 'NoneType' and 'int'"
+        # and "unsupported operand type(s) for ** or pow(): 'NoneType' and 'float'"
+        
+        if fsrs_card.step is None:
+            print(f"Card {flashcard.flashcard_id} has step=None, initializing to 0")
+            fsrs_card.step = 0
+            
+        if fsrs_card.difficulty is None:
+            print(f"Card {flashcard.flashcard_id} has difficulty=None, initializing to 0.3 (default)")
+            fsrs_card.difficulty = 0.3  # Default difficulty in FSRS
+            
+        # CRITICAL FIX: stability cannot be zero since FSRS raises it to negative powers
+        # Initialize with small positive value to avoid division by zero errors
+        if fsrs_card.stability is None or fsrs_card.stability <= 0.0:
+            print(f"Card {flashcard.flashcard_id} has stability={fsrs_card.stability}, initializing to 0.1")
+            fsrs_card.stability = 0.1  # Small positive value to avoid math errors
+        
         # If this is a first review of a card in our custom "New" state,
         # change to state 1 (Learning) to work with FSRS algorithm
         if flashcard.state == NEW_STATE:
@@ -52,6 +70,7 @@ def process_review(flashcard, is_correct):
         rating = Rating.Good if is_correct else Rating.Again
         
         print(f"FSRS: Processing review with rating {rating}, current state: {fsrs_card.state}")
+        print(f"Card parameters: step={fsrs_card.step}, difficulty={fsrs_card.difficulty}, stability={fsrs_card.stability}")
         
         # Process with FSRS
         next_card, review_log = scheduler.review_card(fsrs_card, rating, now)
