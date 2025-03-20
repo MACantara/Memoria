@@ -120,7 +120,7 @@ export class ChartManager {
         // Extract labels and data from reviews
         upcomingReviews.forEach(item => {
             try {
-                // Parse the ISO date string
+                // Parse the ISO date string and convert to local time zone
                 const date = new Date(item.date);
                 
                 // Check if date is valid
@@ -129,8 +129,8 @@ export class ChartManager {
                     return;
                 }
                 
-                // Format as "Mon DD"
-                const formatted = date.toLocaleDateString('en-US', {
+                // Format as "Mon DD" in local timezone
+                const formatted = date.toLocaleDateString(undefined, {
                     weekday: 'short',
                     day: 'numeric'
                 });

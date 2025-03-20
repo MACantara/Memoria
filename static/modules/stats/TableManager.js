@@ -39,12 +39,12 @@ export class TableManager {
         
         // Populate the table with card data
         data.cards.forEach(card => {
-            // Format dates for display
+            // Format dates for display with proper timezone conversion
             const dueDate = card.due_date !== "Not scheduled" ? 
-                new Date(card.due_date).toLocaleString() : "Not scheduled";
+                this.formatDateToLocal(card.due_date) : "Not scheduled";
             
             const lastReviewed = card.last_reviewed !== "Never" ?
-                new Date(card.last_reviewed).toLocaleString() : "Never";
+                this.formatDateToLocal(card.last_reviewed) : "Never";
             
             // Create state badge with appropriate color
             let stateBadgeClass = 'bg-secondary'; // default for "New"
@@ -73,6 +73,36 @@ export class TableManager {
             
             tableBody.appendChild(row);
         });
+    }
+    
+    /**
+     * Convert UTC ISO date string to localized date-time string
+     * @param {string} isoDateString - The ISO date string from the server (in UTC)
+     * @returns {string} Localized date-time string
+     */
+    formatDateToLocal(isoDateString) {
+        if (!isoDateString) return "N/A";
+        
+        try {
+            // Parse the ISO string to a Date object (automatically converts to local time)
+            const date = new Date(isoDateString);
+            
+            // Check if date is valid
+            if (isNaN(date.getTime())) return "Invalid Date";
+            
+            // Format with date, time and timezone name
+            return date.toLocaleString(undefined, {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                timeZoneName: 'short'
+            });
+        } catch (error) {
+            console.error("Error formatting date:", error);
+            return isoDateString; // Return the original string if there's an error
+        }
     }
     
     /**

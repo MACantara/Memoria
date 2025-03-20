@@ -109,6 +109,15 @@ export class StatsManager {
     }
 
     /**
+     * Helper method to convert UTC date string to local date
+     * @param {string} utcDateString - ISO date string from server (UTC)
+     * @returns {Date} Date object in local timezone
+     */
+    convertToLocalDate(utcDateString) {
+        return this.statsLoader.convertToLocalDate(utcDateString);
+    }
+
+    /**
      * Clean up method to prevent memory leaks
      */
     destroy() {

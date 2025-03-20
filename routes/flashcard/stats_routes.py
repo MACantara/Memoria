@@ -146,9 +146,9 @@ def get_upcoming_reviews(deck_id):
             elif card.state == 3:
                 state_name = "Forgotten"
             
-            # Format due date
-            due_date_str = "Not scheduled" if card.due_date is None else card.due_date.isoformat()
-            last_reviewed_str = "Never" if card.last_reviewed is None else card.last_reviewed.isoformat()
+            # Format due date with timezone information - ensure UTC is explicit in ISO format
+            due_date_str = "Not scheduled" if card.due_date is None else card.due_date.isoformat() + 'Z'
+            last_reviewed_str = "Never" if card.last_reviewed is None else card.last_reviewed.isoformat() + 'Z'
             
             results.append({
                 'id': card.flashcard_id,
