@@ -1,4 +1,4 @@
-import { renameDeck } from '../utils.js';
+import { renameDeck, deleteDeck } from '../utils.js';
 
 export function initializeDeckOperations() {
     let deckToDelete = null;
@@ -85,22 +85,14 @@ async function handleDelete(deckToDelete) {
     loadingState.classList.remove('d-none');
     
     try {
-        const response = await fetch(`/deck/delete/${deckToDelete}`, {
-            method: 'DELETE'
-        });
+        const data = await deleteDeck(deckToDelete);
         
-        const data = await response.json();
-        
-        if (response.ok) {
-            statusDiv.innerHTML = `
-                <div class="alert alert-success">
-                    <i class="bi bi-check-circle"></i> ${data.message}
-                </div>
-            `;
-            setTimeout(() => location.reload(), 2000);
-        } else {
-            throw new Error(data.error || 'Failed to delete deck');
-        }
+        statusDiv.innerHTML = `
+            <div class="alert alert-success">
+                <i class="bi bi-check-circle"></i> ${data.message}
+            </div>
+        `;
+        setTimeout(() => location.reload(), 2000);
     } catch (error) {
         statusDiv.innerHTML = `
             <div class="alert alert-danger">
