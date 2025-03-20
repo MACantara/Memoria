@@ -31,16 +31,6 @@ export function initializeFormHandlers(modals = {}) {
         }
     }
 
-    // Create empty deck form handler
-    const createEmptyDeckForm = document.getElementById('createEmptyDeckForm');
-    if (createEmptyDeckForm) {
-        // Remove any existing submit handlers
-        createEmptyDeckForm.removeEventListener('submit', handleCreateEmptyDeckSubmit);
-        createEmptyDeckForm.addEventListener('submit', function(e) {
-            handleCreateEmptyDeckSubmit(e, emptyDeckModal);
-        });
-    }
-
     // Generate flashcards form handler
     const generateForm = document.getElementById('generateForm');
     if (generateForm) {
@@ -139,90 +129,6 @@ export function initializeFormHandlers(modals = {}) {
                     errorMsg.classList.remove('d-none');
                     const textEl = errorMsg.querySelector('.message-text');
                     if (textEl) textEl.textContent = 'Failed to create sub-deck. Please try again.';
-                }
-            }
-            
-            submitButton.disabled = false;
-            if (normalState && loadingState) {
-                normalState.classList.remove('d-none');
-                loadingState.classList.add('d-none');
-            }
-        }
-    }
-
-    async function handleCreateEmptyDeckSubmit(e, emptyDeckModalInstance) {
-        e.preventDefault();
-        const form = e.target;
-        const submitButton = form.querySelector('button[type="submit"]');
-        const normalState = submitButton.querySelector('.normal-state');
-        const loadingState = submitButton.querySelector('.loading-state');
-        
-        // Show processing message in the new message container
-        const messagesContainer = document.getElementById('createEmptyDeckMessages');
-        if (messagesContainer) {
-            messagesContainer.classList.remove('d-none');
-            const processingMsg = messagesContainer.querySelector('.processing-message');
-            const successMsg = messagesContainer.querySelector('.success-message');
-            const errorMsg = messagesContainer.querySelector('.error-message');
-            
-            // Hide all messages and show processing
-            if (processingMsg) processingMsg.classList.remove('d-none');
-            if (successMsg) successMsg.classList.add('d-none');
-            if (errorMsg) errorMsg.classList.add('d-none');
-        }
-
-        submitButton.disabled = true;
-        if (normalState && loadingState) {
-            normalState.classList.add('d-none');
-            loadingState.classList.remove('d-none');
-        }
-        
-        try {
-            const response = await fetch('/deck/create_empty', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    name: document.getElementById('emptyDeckName').value,
-                    description: document.getElementById('emptyDeckDescription').value
-                })
-            });
-            
-            if (response.ok) {
-                // Show success message in new container
-                if (messagesContainer) {
-                    const processingMsg = messagesContainer.querySelector('.processing-message');
-                    const successMsg = messagesContainer.querySelector('.success-message');
-                    
-                    if (processingMsg) processingMsg.classList.add('d-none');
-                    if (successMsg) {
-                        successMsg.classList.remove('d-none');
-                        const textEl = successMsg.querySelector('.message-text');
-                        if (textEl) textEl.textContent = 'Deck created successfully!';
-                    }
-                }
-                
-                setTimeout(() => {
-                    if (emptyDeckModalInstance) emptyDeckModalInstance.hide();
-                    location.reload();
-                }, 1000);
-            } else {
-                throw new Error('Failed to create deck');
-            }
-        } catch (error) {
-            console.error('Error creating deck:', error);
-            
-            // Show error message in new container
-            if (messagesContainer) {
-                const processingMsg = messagesContainer.querySelector('.processing-message');
-                const errorMsg = messagesContainer.querySelector('.error-message');
-                
-                if (processingMsg) processingMsg.classList.add('d-none');
-                if (errorMsg) {
-                    errorMsg.classList.remove('d-none');
-                    const textEl = errorMsg.querySelector('.message-text');
-                    if (textEl) textEl.textContent = 'Failed to create deck. Please try again.';
                 }
             }
             
