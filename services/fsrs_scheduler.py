@@ -42,12 +42,26 @@ def process_review(flashcard, is_correct):
         fsrs_card = flashcard.get_fsrs_card()
         now = get_current_time()
         
-        # COMPREHENSIVE INITIALIZATION: Ensure all required fields are properly initialized
-        # This prevents multiple errors like "'>=' not supported between instances of 'NoneType' and 'int'"
-        # and "unsupported operand type(s) for ** or pow(): 'NoneType' and 'float'"
+        # Debug the card state before any modifications
+        print(f"Processing card {flashcard.flashcard_id} with initial state: step={fsrs_card.step}, state={fsrs_card.state}")
         
-        if fsrs_card.step is None:
-            print(f"Card {flashcard.flashcard_id} has step=None, initializing to 0")
+        # COMPREHENSIVE INITIALIZATION: Ensure all required fields are properly initialized
+        # START WITH STATE-SPECIFIC INITIALIZATION
+        
+        # For forgotten cards (state 3), step MUST be initialized based on relearning steps
+        # This is critical to prevent the '>=' not supported between instances of 'NoneType' and 'int' error
+        if int(fsrs_card.state) == 3 and fsrs_card.step is None:
+            print(f"Card {flashcard.flashcard_id} is in forgotten state with step=None, initializing to 0")
+            fsrs_card.step = 0  # For relearning cards, always start at step 0
+            
+        # For learning cards (state 1), step is also required
+        elif int(fsrs_card.state) == 1 and fsrs_card.step is None:
+            print(f"Card {flashcard.flashcard_id} is in learning state with step=None, initializing to 0")
+            fsrs_card.step = 0
+            
+        # General initialization for any other cards with None step
+        elif fsrs_card.step is None:
+            print(f"Card {flashcard.flashcard_id} has step=None (state={fsrs_card.state}), initializing to 0")
             fsrs_card.step = 0
             
         if fsrs_card.difficulty is None:
@@ -66,9 +80,15 @@ def process_review(flashcard, is_correct):
             print(f"Converting card from New state (0) to Learning state (1)")
             fsrs_card.state = State(1)  # Convert to Learning state
         
+        # Final verification of card parameters before processing
+        if fsrs_card.step is None:
+            print(f"CRITICAL ERROR: Card {flashcard.flashcard_id} still has step=None after initialization!")
+            fsrs_card.step = 0  # Force it again as a safeguard
+            
         # Determine rating based on correctness
         rating = Rating.Good if is_correct else Rating.Again
         
+        # Log the finalized parameters before FSRS processing
         print(f"FSRS: Processing review with rating {rating}, current state: {fsrs_card.state}")
         print(f"Card parameters: step={fsrs_card.step}, difficulty={fsrs_card.difficulty}, stability={fsrs_card.stability}")
         
