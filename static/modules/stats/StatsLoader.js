@@ -122,12 +122,73 @@ export class StatsLoader {
             const response = await fetch(url);
             const data = await response.json();
             
-            console.log("Upcoming reviews data:", data);
+            // Process dates in the data to add local time versions if needed
+            if (data.cards && data.cards.length > 0) {
+                data.cards.forEach(card => {
+                    // Add locally formatted date strings for use in components
+                    if (card.due_date && card.due_date !== "Not scheduled") {
+                        card.due_date_local = this.formatDateWithTimezone(card.due_date);
+                    }
+                    
+                    if (card.last_reviewed && card.last_reviewed !== "Never") {
+                        card.last_reviewed_local = this.formatDateWithTimezone(card.last_reviewed);
+                    }
+                });
+            }
+            
+            console.log("Upcoming reviews data (with local dates):", data);
             
             return data;
         } catch (error) {
             console.error('Error loading upcoming reviews:', error);
             throw error;
+        }
+    }
+    
+    /**
+     * Convert a UTC ISO string to local date object
+     * @param {string} utcDateString - ISO date string in UTC format
+     * @returns {Date} Date object in local time
+     */
+    convertToLocalDate(utcDateString) {
+        if (!utcDateString) return null;
+        
+        try {
+            // Create a date object - JS automatically converts to local time
+            return new Date(utcDateString);
+        } catch (error) {
+            console.error("Error converting date:", error);
+            return null;
+        }
+    }
+    
+    /**
+     * Format a date object with local timezone information
+     * @param {Date|string} date - Date object or ISO string
+     * @returns {string} Formatted date string with timezone info
+     */
+    formatDateWithTimezone(date) {
+        if (!date) return "N/A";
+        
+        try {
+            // Convert string to Date if needed
+            const dateObj = typeof date === 'string' ? new Date(date) : date;
+            
+            // Check if date is valid
+            if (isNaN(dateObj.getTime())) return "Invalid Date";
+            
+            // Format with date, time and timezone
+            return dateObj.toLocaleString(undefined, {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                timeZoneName: 'short'
+            });
+        } catch (error) {
+            console.error("Error formatting date with timezone:", error);
+            return String(date);
         }
     }
 }

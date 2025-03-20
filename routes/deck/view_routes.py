@@ -225,7 +225,7 @@ def study_deck(deck_id):
         due_only=due_only
     )
 
-# Update the get_due_cards function to remove pagination parameters
+# Update the get_due_cards function to explicitly order cards by due date
 def get_due_cards(deck_id, due_only=False):
     """Get cards due for review"""
     from models import db  # Import here to avoid circular imports
@@ -257,6 +257,17 @@ def get_due_cards(deck_id, due_only=False):
             db.or_(Flashcards.due_date <= current_time, Flashcards.due_date == None),
             Flashcards.state != 2  # Exclude cards already mastered
         )
+    
+    # Always order by due date (null values first, then earliest due date)
+    # This ensures consistent ordering in both Due Only and Study All modes
+    query = query.order_by(
+        # Cards with no due date come first
+        case((Flashcards.due_date == None, 0), else_=1),
+        # Then order by due date (earliest first)
+        asc(Flashcards.due_date),
+        # Finally by ID for stable ordering of cards with the same due date
+        asc(Flashcards.flashcard_id)
+    )
         
     return query.all()
 

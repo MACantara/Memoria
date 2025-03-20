@@ -95,7 +95,7 @@ def get_due_cards(deck_id, due_only=False):
                  If False, return all cards regardless of due date.
     
     Returns:
-        A list of Flashcards objects that are due for review.
+        A list of Flashcards objects that are due for review, ordered by due date.
     """
     from models import FlashcardDecks, Flashcards
     from sqlalchemy import case
@@ -137,8 +137,9 @@ def get_due_cards(deck_id, due_only=False):
         )
         print(f"Due cards: {query.count()} (out of {total_cards})")
     
-    # Order by due date (earliest first), with None values at the beginning
-    # Updated to use SQLAlchemy's newer case syntax
+    # Order by due date - cards with no due date come first (new cards)
+    # followed by cards with the earliest due dates first to ensure
+    # users study the most overdue cards first
     flashcards = query.order_by(
         # Put cards without due date first - FIXED CASE EXPRESSION
         case((Flashcards.due_date == None, 0), else_=1),
