@@ -57,10 +57,14 @@ export class TableManager {
             
             // Create table row with data-label attributes for responsive display
             const row = document.createElement('tr');
+            
+            // Escape HTML in question text to prevent HTML rendering
+            const escapedQuestion = this.escapeHtml(card.question);
+            
             row.innerHTML = `
                 <td class="align-middle" data-label="Question">
-                    <div class="text-truncate" style="max-width: 250px;" title="${card.question}">
-                        ${card.question}
+                    <div class="text-truncate" style="max-width: 250px;" title="${escapedQuestion}">
+                        ${escapedQuestion}
                     </div>
                 </td>
                 <td class="align-middle" data-label="Last Reviewed">${lastReviewed}</td>
@@ -73,6 +77,22 @@ export class TableManager {
             
             tableBody.appendChild(row);
         });
+    }
+    
+    /**
+     * Escape HTML special characters to prevent HTML injection
+     * @param {string} unsafe - Raw text that might contain HTML
+     * @returns {string} - Escaped safe text
+     */
+    escapeHtml(unsafe) {
+        if (!unsafe) return '';
+        
+        return unsafe
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
     }
     
     /**
