@@ -441,8 +441,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         </button>
                     </div>
                     <div class="card-body">
-                        <h5 class="card-title text-primary">
-                            <i class="bi bi-question-circle me-2"></i> ${card.q}
+                        <h5 class="card-title">
+                            ${card.q}
                         </h5>
                         <hr>
                         <div class="card-text">
