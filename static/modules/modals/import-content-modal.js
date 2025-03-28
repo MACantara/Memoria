@@ -639,7 +639,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     Showing ${startIndex + 1}-${endIndex} of ${generatedFlashcards.length} generated flashcards
                 </div>
                 <div class="dropdown">
-                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="showPerPageBtn" data-bs-toggle="dropdown" aria-expanded="false">
+                    <button class="btn btn-sm btn-secondary dropdown-toggle" type="button" id="showPerPageBtn" data-bs-toggle="dropdown" aria-expanded="false">
                         ${cardsPerPage} per page
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="showPerPageBtn">
