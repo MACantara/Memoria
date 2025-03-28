@@ -111,7 +111,7 @@ export class EventManager {
         }
 
         // Add 'Delete' or 'D' shortcut for delete functionality
-        if ((e.key === 'Delete' || e.key === 'd') && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        if ((e.key === 'Delete' || e.key.toLowerCase() === 'd') && !e.ctrlKey && !e.altKey && !e.metaKey) {
             const deleteBtn = document.getElementById('deleteCurrentCardBtn');
             if (deleteBtn) {
                 deleteBtn.click();
