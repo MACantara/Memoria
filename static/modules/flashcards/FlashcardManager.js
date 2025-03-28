@@ -29,6 +29,10 @@ export class FlashcardManager {
         
         // Log the total due cards for debugging
         console.log(`Total cards to study: ${this.totalDueCards}`);
+        
+        // Initialize delete card modal
+        this.deleteCardModal = new bootstrap.Modal(document.getElementById('deleteCardModal'));
+        this.setupDeleteCardHandlers();
     }
 
     // Add event listener system
@@ -561,6 +565,126 @@ export class FlashcardManager {
             button.disabled = false;
             normalState.classList.remove('d-none');
             loadingState.classList.add('d-none');
+        }
+    }
+
+    setupDeleteCardHandlers() {
+        const topRightDeleteBtn = document.getElementById('deleteCurrentCardBtn');
+        const confirmDeleteBtn = document.getElementById('confirmDeleteCardBtn');
+        
+        // Handle the top right delete button
+        if (topRightDeleteBtn) {
+            topRightDeleteBtn.addEventListener('click', () => this.showDeleteConfirmation());
+        }
+        
+        if (confirmDeleteBtn) {
+            confirmDeleteBtn.addEventListener('click', () => this.deleteCurrentCard());
+        }
+    }
+    
+    showDeleteConfirmation() {
+        if (!this.currentCard) return;
+        
+        // Display the card question in the confirmation modal
+        const questionEl = document.getElementById('deleteCardQuestion');
+        if (questionEl) {
+            questionEl.textContent = this.currentCard.question;
+        }
+        
+        // Reset status message
+        const statusEl = document.getElementById('deleteCardStatus');
+        if (statusEl) {
+            statusEl.innerHTML = '';
+        }
+        
+        // Show the modal
+        this.deleteCardModal.show();
+    }
+    
+    async deleteCurrentCard() {
+        if (!this.currentCard) return;
+        
+        const cardId = this.currentCard.id;
+        const button = document.getElementById('confirmDeleteCardBtn');
+        const statusEl = document.getElementById('deleteCardStatus');
+        
+        // Show loading state
+        if (button) {
+            const normalState = button.querySelector('.normal-state');
+            const loadingState = button.querySelector('.loading-state');
+            if (normalState && loadingState) {
+                button.disabled = true;
+                normalState.classList.add('d-none');
+                loadingState.classList.remove('d-none');
+            }
+        }
+        
+        try {
+            const response = await fetch(`/flashcard/delete/${cardId}`, {
+                method: 'DELETE'
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to delete flashcard');
+            }
+            
+            const data = await response.json();
+            
+            // Remove the card from our array
+            const index = this.flashcards.findIndex(card => card.id === cardId);
+            if (index !== -1) {
+                this.flashcards.splice(index, 1);
+                this.totalDueCards = this.flashcards.length;
+                
+                // Update counter
+                this.updateCardCounter();
+                
+                // Show success message
+                if (statusEl) {
+                    statusEl.innerHTML = `
+                        <div class="alert alert-success mt-2">
+                            <i class="bi bi-check-circle me-2"></i>Flashcard deleted successfully!
+                        </div>
+                    `;
+                }
+                
+                // Close the modal after a short delay and move to next card
+                setTimeout(() => {
+                    this.deleteCardModal.hide();
+                    
+                    // If we deleted the last card, show completion state
+                    if (this.flashcards.length === 0) {
+                        this.ui.showCompletionScreen(this.deckId, this.score, this.totalDueCards, this.studyMode, 0);
+                    } else {
+                        // If we deleted the current card, we need to show a new one
+                        // Make sure we don't go out of bounds
+                        this.currentCardIndex = Math.min(this.currentCardIndex, this.flashcards.length - 1);
+                        this.moveToNextCard();
+                    }
+                }, 1000);
+            }
+        } catch (error) {
+            console.error('Error deleting flashcard:', error);
+            
+            // Show error message
+            if (statusEl) {
+                statusEl.innerHTML = `
+                    <div class="alert alert-danger mt-2">
+                        <i class="bi bi-exclamation-triangle me-2"></i>Error: Failed to delete flashcard
+                    </div>
+                `;
+            }
+        } finally {
+            // Reset button state
+            if (button) {
+                const normalState = button.querySelector('.normal-state');
+                const loadingState = button.querySelector('.loading-state');
+                if (normalState && loadingState) {
+                    button.disabled = false;
+                    normalState.classList.remove('d-none');
+                    loadingState.classList.add('d-none');
+                }
+            }
         }
     }
 }
