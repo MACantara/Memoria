@@ -220,6 +220,9 @@ document.addEventListener('DOMContentLoaded', function() {
         processingProgress.textContent = '0%';
         processingProgress.classList.add('progress-bar-striped', 'progress-bar-animated');
         
+        // Add the processing-active class to enable the pulse animation
+        processingInfo.classList.add('processing-active');
+        
         processingStatus.innerHTML = `
             <div class="d-flex align-items-center">
                 <div class="upload-spinner me-2">
@@ -227,7 +230,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <span class="visually-hidden">Uploading...</span>
                     </div>
                 </div>
-                Uploading file...
+                <span>Uploading file<span class="status-text"></span></span>
             </div>
         `;
         
@@ -248,12 +251,27 @@ document.addEventListener('DOMContentLoaded', function() {
             if (data.error) throw new Error(data.error);
             
             fileKey = data.file_key;
-            processingStatus.textContent = `Processing file ${data.filename}... 0/${data.total_chunks} chunks`;
+            
+            // Show "preparing to process" message with animated spinner
+            processingStatus.innerHTML = `
+                <div class="d-flex align-items-center">
+                    <div class="chunk-spinner me-2">
+                        <div class="spinner-grow spinner-grow-sm text-primary" role="status">
+                            <span class="visually-hidden">Preparing...</span>
+                        </div>
+                    </div>
+                    <span>Preparing to process file ${data.filename}<span class="status-text"></span></span>
+                </div>
+            `;
             
             // Start processing chunks
             return processNextChunk(fileKey);
         })
         .catch(error => {
+            // Remove animation classes on error
+            processingProgress.classList.remove('progress-bar-striped', 'progress-bar-animated');
+            processingInfo.classList.remove('processing-active');
+            
             processingInfo.innerHTML = `
                 <div class="alert alert-danger">
                     <i class="bi bi-exclamation-triangle me-2"></i>
@@ -292,12 +310,9 @@ document.addEventListener('DOMContentLoaded', function() {
                             <span class="visually-hidden">Processing...</span>
                         </div>
                     </div>
-                    Processing file... (${data.chunk_index + 1}/${data.total_chunks} chunks)
+                    <span>Processing file... (${data.chunk_index + 1}/${data.total_chunks} chunks)<span class="status-text"></span></span>
                 </div>
             `;
-            
-            // Add pulse animation to the progress bar for visual feedback
-            processingProgress.classList.add('progress-bar-animated');
             
             // Update results
             return updateResults(fileKey)
@@ -307,9 +322,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         return processNextChunk(fileKey);
                     } else {
                         // Stop animations when complete
-                        processingProgress.classList.remove('progress-bar-animated');
+                        processingProgress.classList.remove('progress-bar-animated', 'progress-bar-striped');
+                        processingInfo.classList.remove('processing-active');
                         
-                        processingStatus.textContent = 'Processing complete!';
                         processingInfo.innerHTML = `
                             <div class="alert alert-success">
                                 <i class="bi bi-check-circle me-2"></i>
