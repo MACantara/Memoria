@@ -63,7 +63,7 @@
                     
                     <div class="card-text mt-auto mb-3">
                         <p class="mb-1">
-                            <i class="bi bi-layers"></i> {{ deck.count_all_flashcards() if not is_subdeck else deck.flashcards|length }} Cards
+                            <i class="bi bi-layers"></i> {{ deck.count_all_flashcards() }} Cards
                         </p>
                         {% if deck.count_all_sub_decks() > 0 %}
                         <p class="mb-0">
