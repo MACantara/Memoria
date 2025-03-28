@@ -589,7 +589,7 @@ export class UIManager {
                     </div>
                 `;
             } else {
-                // Due Only mode with no more cards due - show standard completion
+                // Due Only mode with no more cards due - show standard completion with dropdown
                 this.flashcardContainer.innerHTML = `
                     <div class="text-center p-3">
                         <div>
@@ -605,13 +605,29 @@ export class UIManager {
                             
                             <div class="alert alert-info mt-4">
                                 <i class="bi bi-info-circle me-2"></i>
-                                Want to study more? You can also review cards that aren't due yet.
+                                Want to study more? You can review other cards or try a different deck.
                             </div>
                             
                             <div class="d-flex justify-content-center gap-3 mt-4 flex-wrap">
-                                <a href="/deck/study/${deckId}" class="btn btn-primary">
-                                    <i class="bi bi-collection"></i> Study All Cards
-                                </a>
+                                <div class="dropdown">
+                                    <button class="btn btn-primary dropdown-toggle" type="button" id="studyOptionsDropdown" 
+                                        data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="bi bi-book"></i> Study Options
+                                    </button>
+                                    <ul class="dropdown-menu" aria-labelledby="studyOptionsDropdown">
+                                        <li>
+                                            <a href="/deck/study/${deckId}" class="dropdown-item">
+                                                <i class="bi bi-collection me-2"></i> Study All Cards
+                                            </a>
+                                        </li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li>
+                                            <a href="/deck/random-deck" class="dropdown-item">
+                                                <i class="bi bi-shuffle me-2"></i> Study Random Deck
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </div>
                                 <a href="/deck/${deckId}" class="btn btn-outline-secondary">
                                     <i class="bi bi-house-door"></i> Back to Deck
                                 </a>
@@ -621,7 +637,7 @@ export class UIManager {
                 `;
             }
         } else {
-            // Study All mode - show standard completion
+            // Study All mode - show standard completion with random deck option
             this.flashcardContainer.innerHTML = `
                 <div class="card text-center p-5">
                     <div class="card-body">
@@ -638,9 +654,25 @@ export class UIManager {
                             <i class="bi bi-trophy-fill"></i> Session Score: ${score}/${totalDue}
                         </p>
                         <div class="d-flex justify-content-center gap-3 mt-4 flex-wrap">
-                            <a href="${window.location.href}" class="btn btn-primary">
-                                <i class="bi bi-arrow-repeat"></i> Study Again
-                            </a>
+                            <div class="dropdown">
+                                <button class="btn btn-primary dropdown-toggle" type="button" id="studyOptionsDropdown" 
+                                    data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="bi bi-book"></i> Study Options
+                                </button>
+                                <ul class="dropdown-menu" aria-labelledby="studyOptionsDropdown">
+                                    <li>
+                                        <a href="${window.location.href}" class="dropdown-item">
+                                            <i class="bi bi-arrow-repeat me-2"></i> Study Again
+                                        </a>
+                                    </li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <a href="/deck/random-deck" class="dropdown-item">
+                                            <i class="bi bi-shuffle me-2"></i> Study Random Deck
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
                             <a href="/deck/${deckId}" class="btn btn-outline-secondary">
                                 <i class="bi bi-house-door"></i> Back to Deck
                             </a>
@@ -822,130 +854,5 @@ export class UIManager {
             // Silently fail if sound playback fails
             console.warn("Sound playback failed:", error);
         }
-    }
-
-    showCompletionScreen(deckId, score, totalDue, isDueOnly, remainingDueCards) {
-        // Update card counters first to show all completed
-        this.updateCardCounter(totalDue - 1, totalDue, score, 0);
-        this.updateScore(score, totalDue);
-        
-        // Create different completion screens depending on the mode and whether there are more due cards
-        if (!this.flashcardContainer) return;
-        
-        if (isDueOnly) {
-            if (remainingDueCards > 0) {
-                // Due Only mode with more cards due - show option to continue
-                this.flashcardContainer.innerHTML = `
-                    <div class="text-center p-3">
-                        <div>
-                            <h2 class="card-title mb-4">
-                                <i class="bi bi-check2-circle text-success"></i> Session Complete!
-                            </h2>
-                            <p class="card-text fs-5">You've reviewed ${score} flashcards in this session.</p>
-                            <div class="progress mb-3" style="height: 20px;">
-                                <div class="progress-bar bg-success" role="progressbar" 
-                                    style="width: 100%" aria-valuenow="100" aria-valuemin="0" 
-                                    aria-valuemax="100">100%</div>
-                            </div>
-                            
-                            <div class="alert alert-info mt-4">
-                                <i class="bi bi-info-circle me-2"></i>
-                                <strong>${remainingDueCards} more cards</strong> have become due for review since you started this session.
-                            </div>
-                            
-                            <div class="d-flex justify-content-center gap-3 mt-4 flex-wrap">
-                                <a href="/deck/study/${deckId}?due_only=true" class="btn btn-primary">
-                                    <i class="bi bi-arrow-right"></i> Continue Studying Due Cards
-                                </a>
-                                <a href="/deck/${deckId}" class="btn btn-outline-secondary">
-                                    <i class="bi bi-house-door"></i> Back to Deck
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            } else {
-                // Due Only mode with no more cards due - show standard completion
-                this.flashcardContainer.innerHTML = `
-                    <div class="text-center p-3">
-                        <div>
-                            <h2 class="card-title mb-4">
-                                <i class="bi bi-calendar-check-fill text-success"></i> All Due Cards Completed!
-                            </h2>
-                            <p class="card-text fs-5">You've reviewed all flashcards that were due today.</p>
-                            <div class="progress mb-3" style="height: 20px;">
-                                <div class="progress-bar bg-success" role="progressbar" 
-                                    style="width: 100%" aria-valuenow="100" aria-valuemin="0" 
-                                    aria-valuemax="100">100%</div>
-                            </div>
-                            
-                            <div class="alert alert-info mt-4">
-                                <i class="bi bi-info-circle me-2"></i>
-                                Want to study more? You can also review cards that aren't due yet.
-                            </div>
-                            
-                            <div class="d-flex justify-content-center gap-3 mt-4 flex-wrap">
-                                <a href="/deck/study/${deckId}" class="btn btn-primary">
-                                    <i class="bi bi-collection"></i> Study All Cards
-                                </a>
-                                <a href="/deck/${deckId}" class="btn btn-outline-secondary">
-                                    <i class="bi bi-house-door"></i> Back to Deck
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }
-        } else {
-            // Study All mode - show standard completion
-            this.flashcardContainer.innerHTML = `
-                <div class="card text-center p-5">
-                    <div class="card-body">
-                        <h2 class="card-title mb-4">
-                            <i class="bi bi-emoji-smile-fill text-success"></i> Session Complete!
-                        </h2>
-                        <p class="card-text fs-5">You've completed your flashcard review session.</p>
-                        <div class="progress mb-3" style="height: 20px;">
-                            <div class="progress-bar bg-success" role="progressbar" 
-                                style="width: 100%" aria-valuenow="100" aria-valuemin="0" 
-                                aria-valuemax="100">100%</div>
-                        </div>
-                        <p class="card-text fs-4 text-success fw-bold">
-                            <i class="bi bi-trophy-fill"></i> Session Score: ${score}/${totalDue}
-                        </p>
-                        <div class="d-flex justify-content-center gap-3 mt-4 flex-wrap">
-                            <a href="${window.location.href}" class="btn btn-primary">
-                                <i class="bi bi-arrow-repeat"></i> Study Again
-                            </a>
-                            <a href="/deck/${deckId}" class="btn btn-outline-secondary">
-                                <i class="bi bi-house-door"></i> Back to Deck
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
-        // Update badge to show completion status
-        if (this.statusBadge) {
-            this.statusBadge.textContent = 'Completed';
-            this.statusBadge.className = 'badge bg-success';
-        }
-    }
-
-    showNoCardsMessage() {
-        if (!this.flashcardContainer) return;
-        
-        this.flashcardContainer.innerHTML = `
-            <div class="alert alert-info">
-                <h3 class="h5"><i class="bi bi-info-circle me-2"></i>No Cards to Study</h3>
-                <p class="mb-0">
-                    There are no cards available for study in this deck.
-                    <a href="/deck/${document.getElementById('deckId').value}" class="btn btn-sm btn-primary mt-2">
-                        <i class="bi bi-arrow-left me-1"></i> Back to Deck
-                    </a>
-                </p>
-            </div>
-        `;
     }
 }
