@@ -214,11 +214,23 @@ document.addEventListener('DOMContentLoaded', function() {
         const resultsTabInstance = new bootstrap.Tab(resultsTab);
         resultsTabInstance.show();
         
-        // Show processing info
+        // Show processing info with initial animation
         processingInfo.classList.remove('d-none');
         processingProgress.style.width = '0%';
         processingProgress.textContent = '0%';
-        processingStatus.textContent = 'Uploading file...';
+        processingProgress.classList.add('progress-bar-striped', 'progress-bar-animated');
+        
+        processingStatus.innerHTML = `
+            <div class="d-flex align-items-center">
+                <div class="upload-spinner me-2">
+                    <div class="spinner-border spinner-border-sm text-primary" role="status">
+                        <span class="visually-hidden">Uploading...</span>
+                    </div>
+                </div>
+                Uploading file...
+            </div>
+        `;
+        
         importResults.innerHTML = '';
         
         // Upload file
@@ -271,7 +283,21 @@ document.addEventListener('DOMContentLoaded', function() {
             const progress = Math.round((data.chunk_index + 1) / data.total_chunks * 100);
             processingProgress.style.width = `${progress}%`;
             processingProgress.textContent = `${progress}%`;
-            processingStatus.textContent = `Processing file... (${data.chunk_index + 1}/${data.total_chunks} chunks)`;
+            
+            // Update processing status with animated spinner for each chunk
+            processingStatus.innerHTML = `
+                <div class="d-flex align-items-center">
+                    <div class="chunk-spinner me-2">
+                        <div class="spinner-grow spinner-grow-sm text-primary" role="status">
+                            <span class="visually-hidden">Processing...</span>
+                        </div>
+                    </div>
+                    Processing file... (${data.chunk_index + 1}/${data.total_chunks} chunks)
+                </div>
+            `;
+            
+            // Add pulse animation to the progress bar for visual feedback
+            processingProgress.classList.add('progress-bar-animated');
             
             // Update results
             return updateResults(fileKey)
@@ -280,6 +306,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (!data.is_complete) {
                         return processNextChunk(fileKey);
                     } else {
+                        // Stop animations when complete
+                        processingProgress.classList.remove('progress-bar-animated');
+                        
                         processingStatus.textContent = 'Processing complete!';
                         processingInfo.innerHTML = `
                             <div class="alert alert-success">
@@ -358,7 +387,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             Showing ${startIndex + 1}-${endIndex} of ${generatedFlashcards.length} generated flashcards
                         </div>
                         <div class="dropdown">
-                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="showPerPageBtn" data-bs-toggle="dropdown" aria-expanded="false">
+                            <button class="btn btn-sm btn-secondary dropdown-toggle" type="button" id="showPerPageBtn" data-bs-toggle="dropdown" aria-expanded="false">
                                 ${cardsPerPage} per page
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="showPerPageBtn">
