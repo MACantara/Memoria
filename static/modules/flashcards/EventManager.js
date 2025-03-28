@@ -109,6 +109,15 @@ export class EventManager {
             this.editCurrentCard();
             e.preventDefault();
         }
+
+        // Add 'Delete' or 'D' shortcut for delete functionality
+        if ((e.key === 'Delete' || e.key === 'd') && !e.ctrlKey && !e.altKey && !e.metaKey) {
+            const deleteBtn = document.getElementById('deleteCurrentCardBtn');
+            if (deleteBtn) {
+                deleteBtn.click();
+                e.preventDefault();
+            }
+        }
     }
     
     /**
