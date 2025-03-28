@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Pagination state
     let currentPage = 1;
-    const cardsPerPage = 6; // Show 6 cards per page (3 rows of 2 cards)
+    const cardsPerPage = 25; // Increased from 6 to 25 cards per page
     
     // Initialize when modal is shown
     $('#importContentModal').on('shown.bs.modal', function () {
@@ -357,10 +357,16 @@ document.addEventListener('DOMContentLoaded', function() {
                             <i class="bi bi-info-circle me-2"></i> 
                             Showing ${startIndex + 1}-${endIndex} of ${generatedFlashcards.length} generated flashcards
                         </div>
-                        <div>
-                            <button class="btn btn-sm btn-outline-secondary" id="showPerPageBtn">
-                                ${cardsPerPage} per page <i class="bi bi-chevron-down ms-1"></i>
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="showPerPageBtn" data-bs-toggle="dropdown" aria-expanded="false">
+                                ${cardsPerPage} per page
                             </button>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="showPerPageBtn">
+                                <li><a class="dropdown-item per-page-option ${cardsPerPage === 25 ? 'active' : ''}" href="#" data-value="25">25 cards</a></li>
+                                <li><a class="dropdown-item per-page-option ${cardsPerPage === 50 ? 'active' : ''}" href="#" data-value="50">50 cards</a></li>
+                                <li><a class="dropdown-item per-page-option ${cardsPerPage === 75 ? 'active' : ''}" href="#" data-value="75">75 cards</a></li>
+                                <li><a class="dropdown-item per-page-option ${cardsPerPage === 100 ? 'active' : ''}" href="#" data-value="100">100 cards</a></li>
+                            </ul>
                         </div>
                     </div>
                 `;
@@ -381,6 +387,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Add event listeners for delete buttons
                 setupDeleteCardButtons();
+                
+                // Setup per-page dropdown handlers
+                setupPerPageHandlers();
             });
     }
 
@@ -589,10 +598,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     <i class="bi bi-info-circle me-2"></i> 
                     Showing ${startIndex + 1}-${endIndex} of ${generatedFlashcards.length} generated flashcards
                 </div>
-                <div>
-                    <button class="btn btn-sm btn-outline-secondary" id="showPerPageBtn">
-                        ${cardsPerPage} per page <i class="bi bi-chevron-down ms-1"></i>
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="showPerPageBtn" data-bs-toggle="dropdown" aria-expanded="false">
+                        ${cardsPerPage} per page
                     </button>
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="showPerPageBtn">
+                        <li><a class="dropdown-item per-page-option ${cardsPerPage === 25 ? 'active' : ''}" href="#" data-value="25">25 cards</a></li>
+                        <li><a class="dropdown-item per-page-option ${cardsPerPage === 50 ? 'active' : ''}" href="#" data-value="50">50 cards</a></li>
+                        <li><a class="dropdown-item per-page-option ${cardsPerPage === 75 ? 'active' : ''}" href="#" data-value="75">75 cards</a></li>
+                        <li><a class="dropdown-item per-page-option ${cardsPerPage === 100 ? 'active' : ''}" href="#" data-value="100">100 cards</a></li>
+                    </ul>
                 </div>
             </div>
         `;
@@ -613,6 +628,9 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Add event listeners for delete buttons
         setupDeleteCardButtons();
+        
+        // Setup per-page dropdown handlers
+        setupPerPageHandlers();
     }
 
     // Add function to setup delete card buttons
@@ -653,6 +671,30 @@ document.addEventListener('DOMContentLoaded', function() {
                             saveFlashcardsBtn.classList.add('d-none');
                         }
                     }, 300);
+                }
+            });
+        });
+    }
+    
+    // Add function to handle changing cards per page
+    function setupPerPageHandlers() {
+        document.querySelectorAll('.per-page-option').forEach(option => {
+            option.addEventListener('click', function(e) {
+                e.preventDefault();
+                const newPerPage = parseInt(this.dataset.value);
+                
+                if (newPerPage && newPerPage !== cardsPerPage) {
+                    // Store the current first visible card index before changing
+                    const currentStartIndex = (currentPage - 1) * cardsPerPage;
+                    
+                    // Update the cards per page
+                    window.cardsPerPage = newPerPage;
+                    
+                    // Calculate which page the current first visible card would be on with new per-page setting
+                    currentPage = Math.floor(currentStartIndex / newPerPage) + 1;
+                    
+                    // Re-render with new pagination settings
+                    renderFlashcardPage();
                 }
             });
         });
