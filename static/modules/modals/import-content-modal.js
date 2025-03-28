@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Pagination state
     let currentPage = 1;
-    const cardsPerPage = 25; // Increased from 6 to 25 cards per page
+    let cardsPerPage = 25;
     
     // Initialize when modal is shown
     $('#importContentModal').on('shown.bs.modal', function () {
@@ -632,7 +632,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Setup per-page dropdown handlers
         setupPerPageHandlers();
     }
-
+    
     // Add function to setup delete card buttons
     function setupDeleteCardButtons() {
         const deleteButtons = document.querySelectorAll('.delete-card-btn');
@@ -687,8 +687,23 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Store the current first visible card index before changing
                     const currentStartIndex = (currentPage - 1) * cardsPerPage;
                     
-                    // Update the cards per page
-                    window.cardsPerPage = newPerPage;
+                    // Update the cards per page in the original variable, not window
+                    cardsPerPage = newPerPage;
+                    
+                    // Update the dropdown button text
+                    const perPageBtn = document.getElementById('showPerPageBtn');
+                    if (perPageBtn) {
+                        perPageBtn.textContent = `${cardsPerPage} per page`;
+                    }
+                    
+                    // Update active state in dropdown
+                    document.querySelectorAll('.per-page-option').forEach(opt => {
+                        if (parseInt(opt.dataset.value) === cardsPerPage) {
+                            opt.classList.add('active');
+                        } else {
+                            opt.classList.remove('active');
+                        }
+                    });
                     
                     // Calculate which page the current first visible card would be on with new per-page setting
                     currentPage = Math.floor(currentStartIndex / newPerPage) + 1;
