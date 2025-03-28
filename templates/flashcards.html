@@ -29,10 +29,16 @@ Study {{ deck.name }} (All Cards)
             <h2 class="h5 mb-0">{{ deck.name }}</h2>
         </div>
 
-        <button id="editCurrentCardBtn" class="btn btn-sm btn-link text-muted ms-2" title="Edit Current Card (E)"
-            aria-label="Edit Current Card">
-            <i class="bi bi-pencil-square"></i>
-        </button>
+        <div class="btn-group ms-2">
+            <button id="editCurrentCardBtn" class="btn btn-sm btn-link text-muted" title="Edit Current Card (E)"
+                aria-label="Edit Current Card">
+                <i class="bi bi-pencil-square"></i>
+            </button>
+            <button id="deleteCurrentCardBtn" class="btn btn-sm btn-link text-danger" title="Delete Current Card"
+                aria-label="Delete Current Card" data-bs-toggle="modal" data-bs-target="#deleteCardModal">
+                <i class="bi bi-trash"></i>
+            </button>
+        </div>
     </div>
 
     <!-- Progress bar without text -->
@@ -167,6 +173,9 @@ Study {{ deck.name }} (All Cards)
         </div>
     </div>
 </div>
+
+{% include "modals/delete_flashcard_modal.html" %}
+
 {% endblock %}
 
 {% block scripts %}
