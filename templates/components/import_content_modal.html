@@ -37,21 +37,28 @@
                         <form id="importFileForm">
                             <div class="mb-3">
                                 <label for="importDeckSelect" class="form-label">Choose a deck:</label>
+                                                               
                                 <div class="select-container">
-                                    <select class="form-select deck-search-select" id="importDeckSelect" name="deck_id" required>
-                                        <option value="" disabled selected>Select a deck...</option>
-                                        {% for deck in g.all_decks if not deck.parent_deck_id %} <!-- Only top-level decks -->
-                                            <option value="{{ deck.flashcard_deck_id }}">{{ deck.name }}</option>
-                                            {% for subdeck in deck.child_decks %}
-                                                <option value="{{ subdeck.flashcard_deck_id }}">&nbsp;&nbsp;└ {{ subdeck.name }}</option>
+                                    <select class="form-select deck-search-select" id="importDeckSelect" name="deck_id" required 
+                                            size="8" style="height: auto;">
+                                        <option value="" disabled selected>Choose a deck...</option>
+                                        
+                                        {% macro render_deck_option(deck, depth=0) %}
+                                            {% set indent = "&nbsp;&nbsp;" * depth %}
+                                            {% set prefix = "└ " if depth > 0 else "" %}
+                                            <option value="{{ deck.flashcard_deck_id }}" data-deck-name="{{ deck.name | lower }}">{{ indent | safe }}{{ prefix }}{{ deck.name }}</option>
+                                            
+                                            {% for child_deck in deck.child_decks %}
+                                                {{ render_deck_option(child_deck, depth+1) }}
                                             {% endfor %}
+                                        {% endmacro %}
+                                        
+                                        {% for deck in g.all_decks if not deck.parent_deck_id %}
+                                            {{ render_deck_option(deck) }}
                                         {% endfor %}
                                     </select>
-                                    <div class="loading-spinner spinner-border spinner-border-sm text-primary d-none" role="status">
-                                        <span class="visually-hidden">Loading...</span>
-                                    </div>
                                 </div>
-                                <!-- Help text is automatically added by the component -->
+                                <small class="text-muted mt-1">Select a deck where you want to import the flashcards</small>
                             </div>
                             
                             <div class="mb-3">
@@ -206,6 +213,36 @@
         font-size: 1.2em;
         margin-right: 8px;
     }
+    
+    /* Search styling */
+    .deck-search-input {
+        padding-left: 0;
+    }
+    
+    .deck-search-input:focus {
+        box-shadow: none;
+    }
+    
+    .deck-search-select {
+        margin-top: 0;
+    }
+    
+    .select-container {
+        position: relative;
+    }
+    
+    /* Search feedback message */
+    .search-feedback {
+        display: none;
+        font-size: 0.875rem;
+        padding: 0.5rem;
+        color: var(--bs-secondary);
+        text-align: center;
+    }
+    
+    .no-results .search-feedback {
+        display: block;
+    }
 </style>
 
 <script>
@@ -226,57 +263,82 @@
         const importResults = document.getElementById('importResults');
         const saveFlashcardsBtn = document.getElementById('saveFlashcardsBtn');
         const resultsTab = document.getElementById('results-tab');
+        const deckSearchInput = document.getElementById('deckSearchInput');
         
         // Global variables
         let fileKey = null;
         let generatedFlashcards = [];
         
-        // Initialize deck selector with API data
-        function loadDecks() {
-            const selectContainer = importDeckSelect.closest('.select-container');
-            selectContainer.classList.add('select-loading');
-            
-            // Show the loading spinner by removing d-none
-            const loadingSpinner = selectContainer.querySelector('.loading-spinner');
-            loadingSpinner.classList.remove('d-none');
-            
-            fetch('/deck/api/list')
-                .then(response => response.json())
-                .then(data => {
-                    importDeckSelect.innerHTML = '<option value="" selected disabled>Choose a deck...</option>';
-                    
-                    // Make sure we have an array of decks
-                    const decks = Array.isArray(data) ? data : (data.decks || []);
-                    
-                    decks.forEach(deck => {
-                        const option = document.createElement('option');
-                        option.value = deck.id;
-                        option.textContent = deck.name;
-                        importDeckSelect.appendChild(option);
-                    });
-                })
-                .catch(error => {
-                    console.error('Error loading decks:', error);
-                    importDeckSelect.innerHTML = '<option value="" selected disabled>Error loading decks</option>';
-                })
-                .finally(() => {
-                    // Hide the spinner when done
-                    selectContainer.classList.remove('select-loading');
-                    loadingSpinner.classList.add('d-none');
-                });
-        }
-        
         // Initialize when modal is shown
         $('#importContentModal').on('shown.bs.modal', function () {
-            loadDecks();
-            
             // Reset drag area and file input
             resetFileInput();
+            
+            // Clear search input
+            if (deckSearchInput) {
+                deckSearchInput.value = '';
+                filterDeckOptions('');
+            }
             
             // Call attention to drag area with subtle pulse
             dragArea.classList.add('pulse-once');
             setTimeout(() => dragArea.classList.remove('pulse-once'), 1500);
         });
+        
+        // Add search functionality
+        if (deckSearchInput) {
+            // Add no results feedback if not already present
+            if (!importDeckSelect.nextElementSibling || !importDeckSelect.nextElementSibling.classList.contains('search-feedback')) {
+                const feedbackElement = document.createElement('div');
+                feedbackElement.className = 'search-feedback';
+                feedbackElement.textContent = 'No matching decks found';
+                importDeckSelect.parentNode.insertBefore(feedbackElement, importDeckSelect.nextSibling);
+            }
+            
+            deckSearchInput.addEventListener('input', function() {
+                const searchTerm = this.value.trim().toLowerCase();
+                filterDeckOptions(searchTerm);
+            });
+            
+            // Clear button to reset search
+            deckSearchInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    this.value = '';
+                    filterDeckOptions('');
+                }
+            });
+        }
+        
+        // Filter deck options based on search term
+        function filterDeckOptions(searchTerm) {
+            const options = importDeckSelect.querySelectorAll('option:not([disabled])');
+            let visibleCount = 0;
+            
+            options.forEach(option => {
+                const deckName = option.dataset.deckName || option.textContent.toLowerCase();
+                const isMatch = searchTerm === '' || deckName.includes(searchTerm);
+                
+                option.style.display = isMatch ? '' : 'none';
+                if (isMatch) visibleCount++;
+            });
+            
+            // Add or remove no-results class
+            if (visibleCount === 0 && searchTerm !== '') {
+                importDeckSelect.parentNode.classList.add('no-results');
+            } else {
+                importDeckSelect.parentNode.classList.remove('no-results');
+            }
+            
+            // Ensure first visible option is pre-selected if there is no current selection
+            if (!importDeckSelect.value || importDeckSelect.selectedOptions[0].style.display === 'none') {
+                const firstVisibleOption = Array.from(options).find(opt => opt.style.display !== 'none');
+                if (firstVisibleOption) {
+                    firstVisibleOption.selected = true;
+                    // Update import button state if needed
+                    importBtn.disabled = !importDeckSelect.value || !fileInput.files.length;
+                }
+            }
+        }
         
         // Drag and Drop events
         dragArea.addEventListener('dragover', function(e) {
@@ -566,7 +628,7 @@
                 },
                 body: JSON.stringify({
                     file_key: fileKey,
-                    deck_id: importDeckSelect.value  // Updated to use the remaining select
+                    deck_id: importDeckSelect.value
                 })
             })
             .then(response => {
