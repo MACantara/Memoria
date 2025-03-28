@@ -120,3 +120,41 @@
 .no-results .search-feedback {
     display: block;
 }
+
+/* Styles for import content modal */
+
+/* Flashcard card styles */
+.incorrect-answers-list {
+    max-height: 150px;
+    overflow-y: auto;
+    background-color: var(--bs-light);
+    border-radius: 0.25rem;
+    padding: 0.25rem;
+}
+
+/* For dark mode compatibility */
+[data-bs-theme="dark"] .incorrect-answers-list {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Scroll styling for incorrect answers */
+.incorrect-answers-list::-webkit-scrollbar {
+    width: 5px;
+}
+
+.incorrect-answers-list::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 10px;
+}
+
+.incorrect-answers-list::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+}
+
+/* Ensuring responsive height */
+@media (max-width: 768px) {
+    .incorrect-answers-list {
+        max-height: 100px;
+    }
+}

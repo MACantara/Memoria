@@ -395,6 +395,41 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Generate HTML for preview card
     function previewCardHTML(card, index) {
+        // Build the list of incorrect answers with better formatting
+        let incorrectAnswersHTML = '';
+        if (card.ia && card.ia.length > 0) {
+            incorrectAnswersHTML = `
+                <div class="mt-3">
+                    <div class="text-muted mb-1 small fw-medium">
+                        <i class="bi bi-x-circle me-1"></i> Incorrect Answers:
+                    </div>
+                    <ul class="list-group incorrect-answers-list">
+            `;
+            
+            // Add each incorrect answer as a separate list item
+            card.ia.forEach(answer => {
+                incorrectAnswersHTML += `
+                    <li class="list-group-item list-group-item-light border-0 py-1 px-2 mb-1 rounded">
+                        <div class="d-flex align-items-start">
+                            <span class="text-danger me-2">•</span>
+                            <span class="small">${answer}</span>
+                        </div>
+                    </li>
+                `;
+            });
+            
+            incorrectAnswersHTML += `
+                    </ul>
+                </div>
+            `;
+        } else {
+            incorrectAnswersHTML = `
+                <div class="mt-3 text-muted small">
+                    <i class="bi bi-info-circle me-1"></i> No incorrect answers provided
+                </div>
+            `;
+        }
+
         return `
             <div class="col-md-6">
                 <div class="card h-100" data-card-index="${index}">
@@ -407,15 +442,20 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                     <div class="card-body">
                         <h5 class="card-title text-primary">
-                            <i class="bi bi-question-circle"></i> ${card.q}
+                            <i class="bi bi-question-circle me-2"></i> ${card.q}
                         </h5>
                         <hr>
-                        <p class="card-text">
-                            <i class="bi bi-check-circle-fill text-success"></i> <strong>${card.ca}</strong>
-                        </p>
-                        <p class="card-text small text-muted">
-                            <i class="bi bi-x-circle"></i> ${card.ia.join(', ')}
-                        </p>
+                        <div class="card-text">
+                            <div class="correct-answer">
+                                <div class="mb-1 small fw-medium text-success">
+                                    <i class="bi bi-check-circle-fill me-1"></i> Correct Answer:
+                                </div>
+                                <div class="p-2 bg-success-subtle border-start border-success border-2 rounded">
+                                    ${card.ca}
+                                </div>
+                            </div>
+                            ${incorrectAnswersHTML}
+                        </div>
                     </div>
                 </div>
             </div>
