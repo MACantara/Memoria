@@ -289,18 +289,26 @@ def random_deck():
     deck_ids = [deck.flashcard_deck_id for deck in user_decks]
     due_counts = batch_count_due_cards(deck_ids, current_user.id)
     
-    # Separate decks with due cards from those without
+    # Get card counts for all decks
+    card_counts = {deck.flashcard_deck_id: deck.count_all_flashcards() for deck in user_decks}
+    
+    # 1. Separate decks with due cards
     decks_with_due = [deck for deck in user_decks if due_counts.get(deck.flashcard_deck_id, 0) > 0]
+    
+    # 2. Separate decks with any cards (even if not due)
+    decks_with_cards = [deck for deck in user_decks if card_counts.get(deck.flashcard_deck_id, 0) > 0]
+    
+    import random
     
     if decks_with_due:
         # Prioritize decks with due cards
-        import random
         selected_deck = random.choice(decks_with_due)
         return redirect(url_for('deck.deck_view.study_deck', deck_id=selected_deck.flashcard_deck_id, due_only='true'))
-    else:
-        # No decks with due cards, pick a random deck anyway
-        import random
-        selected_deck = random.choice(user_decks)
-        
-        # Redirect with a query param that indicates no due cards
+    elif decks_with_cards:
+        # No decks with due cards, but some decks have cards - pick one of those
+        selected_deck = random.choice(decks_with_cards)
         return redirect(url_for('deck.deck_view.study_deck', deck_id=selected_deck.flashcard_deck_id, no_due_cards='true'))
+    else:
+        # All decks are empty, just pick any deck and show appropriate message
+        selected_deck = random.choice(user_decks)
+        return redirect(url_for('deck.deck_view.study_deck', deck_id=selected_deck.flashcard_deck_id, empty_deck='true'))
