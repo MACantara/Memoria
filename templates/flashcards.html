@@ -53,12 +53,9 @@ Study {{ deck.name }} (All Cards)
     </div>
 </div>
 
-<!-- Flashcard counter badge -->
-<div class="text-center mt-2">
-    <span class="badge bg-primary rounded-pill px-3 py-2" id="flashcardCounter">
-        <i class="bi bi-card-text me-1"></i>
-        <span id="remainingCount">{{ flashcards_count }}</span>
-    </span>
+<!-- Deck name with truncation -->
+<div class="deck-title">
+    <p class="mb-0">{{ deck.name }}</p>
 </div>
 
 {% if request.args.get('no_due_cards') == 'true' %}
