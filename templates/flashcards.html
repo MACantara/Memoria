@@ -24,9 +24,12 @@ Study {{ deck.name }} (All Cards)
             <i class="bi bi-arrow-left"></i>
         </a>
 
-        <!-- Deck name with truncation -->
-        <div class="text-center deck-title">
-            <h2 class="h5 mb-0">{{ deck.name }}</h2>
+        <!-- Flashcard counter badge -->
+        <div class="text-center">
+            <span class="badge bg-primary rounded-pill px-3 py-2" id="flashcardCounter">
+                <i class="bi bi-card-text me-1"></i>
+                <span id="remainingCount">{{ flashcards_count }}</span>
+            </span>
         </div>
 
         <div class="btn-group ms-2">
@@ -50,15 +53,9 @@ Study {{ deck.name }} (All Cards)
     </div>
 </div>
 
-<!-- Flashcard counter and state badge -->
-<div class="d-flex justify-content-between align-items-center mb-2">
-    <div id="cardCounter" class="text-muted small">
-        <span id="scoreCount">0</span> / {{ flashcards_count }} completed
-        (<span id="remainingCount">{{ flashcards_count }}</span> remaining)
-    </div>
-    <div>
-        <span id="statusBadge" class="badge bg-secondary">New</span>
-    </div>
+<!-- Deck name with truncation -->
+<div class="deck-title">
+    <p class="mb-0 text-muted">{{ deck.name }}</p>
 </div>
 
 {% if request.args.get('no_due_cards') == 'true' %}
