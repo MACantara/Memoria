@@ -95,3 +95,41 @@
         align-items: stretch;
     }
 }
+
+/* Custom breadcrumb styling */
+.breadcrumb .breadcrumb-item {
+    display: flex;
+    align-items: center;
+    max-width: 100%;
+}
+
+.breadcrumb .breadcrumb-item a, 
+.breadcrumb .breadcrumb-item.active {
+    display: inline-block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 300px; /* Adjust this based on your layout needs */
+}
+
+/* Adjust the chevron visibility */
+.breadcrumb .breadcrumb-item:first-child i.bi-chevron-right {
+    display: none;
+}
+
+/* Make breadcrumb items expand on hover for better readability */
+.breadcrumb .breadcrumb-item a:hover {
+    max-width: none;
+    white-space: normal;
+    word-break: break-word;
+    z-index: 5;
+    position: relative;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .breadcrumb .breadcrumb-item a, 
+    .breadcrumb .breadcrumb-item.active {
+        max-width: 200px;
+    }
+}
