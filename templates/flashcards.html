@@ -24,9 +24,12 @@ Study {{ deck.name }} (All Cards)
             <i class="bi bi-arrow-left"></i>
         </a>
 
-        <!-- Deck name with truncation -->
-        <div class="text-center deck-title">
-            <h2 class="h5 mb-0">{{ deck.name }}</h2>
+        <!-- Flashcard counter badge -->
+        <div class="text-center">
+            <span class="badge bg-primary rounded-pill px-3 py-2" id="flashcardCounter">
+                <i class="bi bi-card-text me-1"></i>
+                <span id="remainingCount">{{ flashcards_count }}</span>
+            </span>
         </div>
 
         <div class="btn-group ms-2">
