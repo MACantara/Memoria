@@ -11,36 +11,41 @@
 <div>
     <!-- Breadcrumb navigation -->
     <nav aria-label="breadcrumb" class="mb-4">
-        <ol class="breadcrumb">
+        <ol class="breadcrumb d-flex flex-wrap align-items-center">
             <li class="breadcrumb-item">
-                <a href="{{ url_for('main.index') }}">
+                <a href="{{ url_for('main.index') }}" class="text-decoration-none">
                     <i class="bi bi-house-door"></i> Home
                 </a>
             </li>
             
             {% for parent in parent_decks %}
-            <li class="breadcrumb-item">
-                <a href="{{ url_for('deck.deck_view.get_deck_flashcards', deck_id=parent.flashcard_deck_id) }}">
+            <li class="breadcrumb-item d-flex align-items-center text-break">
+                <!-- <i class="bi bi-chevron-right mx-1 small text-muted"></i> -->
+                <a href="{{ url_for('deck.deck_view.get_deck_flashcards', deck_id=parent.flashcard_deck_id) }}" 
+                   class="text-decoration-none">
                     {{ parent.name }}
                 </a>
             </li>
             {% endfor %}
             
-            <li class="breadcrumb-item active" aria-current="page">{{ deck.name }}</li>
+            <li class="breadcrumb-item active fw-medium text-break d-flex align-items-center" aria-current="page">
+                <!-- <i class="bi bi-chevron-right mx-1 small text-muted"></i> -->
+                {{ deck.name }}
+            </li>
         </ol>
     </nav>
 
     <!-- Deck header with action buttons -->
-    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap">
-        <div>
-            <h1 class="h2 mb-1">{{ deck.name }}</h1>
+    <div class="d-flex justify-content-between align-items-start mb-4 flex-wrap">
+        <div class="pe-3" style="word-break: break-word; max-width: 100%;">
+            <h1 class="h2 mb-1 text-break">{{ deck.name }}</h1>
             {% if deck.description %}
-            <p class="text-muted">{{ deck.description }}</p>
+            <p class="text-muted text-break">{{ deck.description }}</p>
             {% endif %}
         </div>
         
         <!-- Action buttons -->
-        <div class="d-flex gap-2 mt-2 mt-md-0">
+        <div class="d-flex gap-2 mt-2 mt-md-0 flex-shrink-0">
             {% with 
                 deck=deck,
                 show_import=true,
