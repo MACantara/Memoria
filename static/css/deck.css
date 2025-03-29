@@ -109,7 +109,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    max-width: 200px; /* Adjust this based on your layout needs */
+    max-width: 300px; /* Adjust this based on your layout needs */
 }
 
 /* Adjust the chevron visibility */
@@ -130,6 +130,6 @@
 @media (max-width: 768px) {
     .breadcrumb .breadcrumb-item a, 
     .breadcrumb .breadcrumb-item.active {
-        max-width: 150px;
+        max-width: 200px;
     }
 }
