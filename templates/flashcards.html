@@ -55,7 +55,7 @@ Study {{ deck.name }} (All Cards)
 
 <!-- Deck name with truncation -->
 <div class="deck-title">
-    <p class="mb-0">{{ deck.name }}</p>
+    <p class="mb-0 text-muted">{{ deck.name }}</p>
 </div>
 
 {% if request.args.get('no_due_cards') == 'true' %}
