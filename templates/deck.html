@@ -10,7 +10,7 @@
 {% block content %}
 <div>
     <!-- Breadcrumb navigation -->
-    <nav aria-label="breadcrumb" class="mb-4">
+    <nav style="--bs-breadcrumb-divider: '>';" aria-label="breadcrumb" class="mb-4">
         <ol class="breadcrumb d-flex flex-wrap align-items-center">
             <li class="breadcrumb-item">
                 <a href="{{ url_for('main.index') }}" class="text-decoration-none">
@@ -20,7 +20,6 @@
             
             {% for parent in parent_decks %}
             <li class="breadcrumb-item d-flex align-items-center text-break">
-                <!-- <i class="bi bi-chevron-right mx-1 small text-muted"></i> -->
                 <a href="{{ url_for('deck.deck_view.get_deck_flashcards', deck_id=parent.flashcard_deck_id) }}" 
                    class="text-decoration-none">
                     {{ parent.name }}
@@ -29,7 +28,6 @@
             {% endfor %}
             
             <li class="breadcrumb-item active fw-medium text-break d-flex align-items-center" aria-current="page">
-                <!-- <i class="bi bi-chevron-right mx-1 small text-muted"></i> -->
                 {{ deck.name }}
             </li>
         </ol>
