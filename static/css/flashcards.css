@@ -243,10 +243,6 @@ body {
 
 /* Mobile optimizations */
 @media (max-width: 768px) {
-    .answer-option {
-        padding: 12px !important;  /* Larger touch target on mobile */
-    }
-    
     .feedback-container .btn {
         padding: 12px;  /* Larger touch target for next button */
         margin-top: 10px;
