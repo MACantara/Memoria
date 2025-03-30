@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+
+{% block title %}{{ user.username }}'s Profile{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/profile.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Go back button -->
+    <a href="{{ url_for('main.index') }}" class="btn btn-outline-primary mb-4">
+        <i class="bi bi-arrow-left"></i> Back to Decks
+    </a>
+
+    <div class="row">
+        <div class="col-md-4">
+            <!-- User profile sidebar -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body text-center">
+                    <div class="profile-avatar">
+                        <i class="bi bi-person"></i>
+                    </div>
+                    <h2 class="h3 mb-2">{{ user.username }}</h2>
+                    <p class="text-muted small">
+                        <i class="bi bi-calendar3"></i> Joined {{ user.created_at.strftime('%B %Y') }}
+                    </p>
+                    
+                    {% if current_user.is_authenticated and current_user.id == user.id %}
+                    <div class="mt-3">
+                        <a href="{{ url_for('auth.settings') }}" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-gear"></i> Edit Profile
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-8">
+            <!-- User statistics -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-transparent">
+                    <h3 class="h5 mb-0">Statistics</h3>
+                </div>
+                <div class="card-body">
+                    <div class="row g-4 text-center">
+                        <div class="col-md-4">
+                            <div class="card stat-card h-100">
+                                <div class="card-body">
+                                    <div class="text-primary mb-2">
+                                        <i class="bi bi-folder2 fs-3"></i>
+                                    </div>
+                                    <h4 class="h2 mb-0">{{ deck_count }}</h4>
+                                    <p class="text-muted mb-0">Decks</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card stat-card h-100">
+                                <div class="card-body">
+                                    <div class="text-info mb-2">
+                                        <i class="bi bi-card-text fs-3"></i>
+                                    </div>
+                                    <h4 class="h2 mb-0">{{ card_count }}</h4>
+                                    <p class="text-muted mb-0">Flashcards</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card stat-card h-100">
+                                <div class="card-body">
+                                    <div class="text-success mb-2">
+                                        <i class="bi bi-check-circle fs-3"></i>
+                                    </div>
+                                    <h4 class="h2 mb-0">{{ mastered_count }}</h4>
+                                    <p class="text-muted mb-0">Mastered</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Public decks section -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                    <h3 class="h5 mb-0">
+                        {% if current_user.is_authenticated and current_user.id == user.id %}
+                            Your Decks
+                        {% else %}
+                            Public Decks
+                        {% endif %}
+                    </h3>
+                    
+                    {% if current_user.is_authenticated and current_user.id == user.id %}
+                    <a href="{{ url_for('main.index') }}" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-grid"></i> View All
+                    </a>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if public_decks %}
+                        <div class="list-group">
+                            {% for deck in public_decks %}
+                                <a href="{{ url_for('deck.deck_view.get_deck_flashcards', deck_id=deck.flashcard_deck_id) }}" 
+                                   class="list-group-item list-group-item-action">
+                                    <div class="d-flex w-100 justify-content-between align-items-center">
+                                        <h5 class="mb-1">{{ deck.name }}</h5>
+                                        <span class="badge bg-primary rounded-pill">{{ deck.count_all_flashcards() }} cards</span>
+                                    </div>
+                                    {% if deck.description %}
+                                    <p class="mb-1 text-muted">{{ deck.description }}</p>
+                                    {% endif %}
+                                </a>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted text-center py-3">
+                            <i class="bi bi-info-circle me-2"></i> This user has no public decks yet.
+                        </p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
