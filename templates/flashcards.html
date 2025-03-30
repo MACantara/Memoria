@@ -32,15 +32,25 @@ Study {{ deck.name }} (All Cards)
             </span>
         </div>
 
-        <div class="btn-group ms-2">
-            <button id="editCurrentCardBtn" class="btn btn-sm btn-link text-muted" title="Edit Current Card (E)"
-                aria-label="Edit Current Card">
-                <i class="bi bi-pencil-square"></i>
+        <!-- Replace button group with dropdown -->
+        <div class="dropdown">
+            <button class="btn btn-sm btn-link text-muted" type="button" id="cardActionsDropdown" 
+                data-bs-toggle="dropdown" aria-expanded="false" title="Card Actions" aria-label="Card Actions">
+                <i class="bi bi-three-dots-vertical"></i>
             </button>
-            <button id="deleteCurrentCardBtn" class="btn btn-sm btn-link text-danger" title="Delete Current Card (D or Delete)"
-                aria-label="Delete Current Card" data-bs-toggle="modal" data-bs-target="#deleteCardModal">
-                <i class="bi bi-trash"></i>
-            </button>
+            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="cardActionsDropdown">
+                <li>
+                    <button id="editCurrentCardBtn" class="dropdown-item" title="Edit Current Card (E)">
+                        <i class="bi bi-pencil-square me-2"></i>Edit Card
+                    </button>
+                </li>
+                <li>
+                    <button id="deleteCurrentCardBtn" class="dropdown-item text-danger" title="Delete Current Card (D or Delete)"
+                        data-bs-toggle="modal" data-bs-target="#deleteCardModal">
+                        <i class="bi bi-trash me-2"></i>Delete Card
+                    </button>
+                </li>
+            </ul>
         </div>
     </div>
 
