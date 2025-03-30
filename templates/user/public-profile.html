@@ -7,17 +7,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/user/profile.css') }}">
 <style>
 /* Animation for the dots in the progress indicator */
-@keyframes dots {
-  0%, 20% { content: ''; }
-  40% { content: '.'; }
-  60% { content: '..'; }
-  80%, 100% { content: '...'; }
-}
 
-.dots:after {
-  content: '';
-  animation: dots 1.5s infinite;
-}
 </style>
 {% endblock %}
 
