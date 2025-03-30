@@ -11,8 +11,11 @@
     <header class="my-4">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
-                <a href="{{ url_for('main.index') }}" class="btn btn-outline-primary btn">
-                    <i class="bi bi-arrow-left"></i> Back to Decks
+                <a href="{{ url_for('main.index') }}" class="btn btn-outline-primary btn"
+                   data-bs-toggle="tooltip" 
+                   data-bs-placement="top" 
+                   title="Return to Dashboard">
+                    <i class="bi bi-arrow-left"></i>
                 </a>
             </div>
         </div>

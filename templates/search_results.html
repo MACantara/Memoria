@@ -9,8 +9,11 @@
 
 {% block content %}
 <div>
-    <a href="{{ url_for('main.index') }}" class="btn btn-outline-primary mb-4">
-        <i class="bi bi-arrow-left"></i> Back to Decks
+    <a href="{{ url_for('main.index') }}" class="btn btn-outline-primary mb-4"
+       data-bs-toggle="tooltip" 
+       data-bs-placement="top" 
+       title="Return to Dashboard">
+        <i class="bi bi-arrow-left"></i>
     </a>
 </div>
 

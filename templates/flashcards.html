@@ -18,9 +18,12 @@ Study {{ deck.name }} (All Cards)
 <!-- Compact navigation header -->
 <div class="flashcard-nav py-2 mb-2">
     <div class="d-flex justify-content-between align-items-center">
-        <!-- Back button (icon only) -->
+        <!-- Back button with tooltip -->
         <a href="{{ url_for('deck.deck_view.get_deck_flashcards', deck_id=deck.flashcard_deck_id) }}"
-            class="btn btn-sm btn-outline-primary">
+            class="btn btn-sm btn-outline-primary"
+            data-bs-toggle="tooltip" 
+            data-bs-placement="top" 
+            title="Back to Deck">
             <i class="bi bi-arrow-left"></i>
         </a>
 
