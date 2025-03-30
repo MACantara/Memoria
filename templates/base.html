@@ -40,13 +40,16 @@
         {% endif %}
     </header>
     
-    <main class="container py-2">
-        {% block content %}{% endblock %}
+    <main>
+        <div class="container py-3">
+            {% block content %}{% endblock %}
+        </div>
+        
+        {% if current_user.is_authenticated %}
+            {% include 'nav/mobile_bottom_nav.html' %}
+        {% endif %}
     </main>
     
-    <!-- Mobile-only spacer -->
-    <div class="d-block d-md-none" style="height: 20px;"></div>
-
     <!-- Global Modals Section for Authenticated Users -->
     {% if current_user.is_authenticated %}
         <!-- Mobile menus and navigation -->
@@ -54,7 +57,6 @@
         {% include 'menus/mobile_study_stats_menu.html' %}
         {% include 'menus/mobile_user_menu.html' %}
         {% include 'menus/mobile_theme_menu.html' %}
-        {% include 'nav/mobile_bottom_nav.html' %}
 
         <!-- Core deck selection modals - needed for global navigation -->
         {% if g.all_decks %}
