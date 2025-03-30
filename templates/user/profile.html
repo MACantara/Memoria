@@ -5,6 +5,20 @@
 {% block styles %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/user/profile.css') }}">
+<style>
+/* Animation for the dots in the progress indicator */
+@keyframes dots {
+  0%, 20% { content: ''; }
+  40% { content: '.'; }
+  60% { content: '..'; }
+  80%, 100% { content: '...'; }
+}
+
+.dots:after {
+  content: '';
+  animation: dots 1.5s infinite;
+}
+</style>
 {% endblock %}
 
 {% block content %}
@@ -162,11 +176,81 @@
         </div>
     </div>
 </div>
+
+<!-- Import Deck Modal with Enhanced Progress Indicators -->
+<div class="modal fade" id="importDeckModal" tabindex="-1" aria-labelledby="importDeckModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="importDeckModalLabel">Import Deck</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <!-- Initial confirmation screen -->
+        <div id="confirmImportScreen">
+          <p class="mb-3">Import "<span id="importDeckName" class="fw-bold"></span>" from <span id="importDeckUsername" class="fw-bold"></span>?</p>
+          <div class="alert alert-info">
+            <i class="bi bi-info-circle me-2"></i>
+            This will import the deck and all its sub-decks with their flashcards.
+          </div>
+        </div>
+        
+        <!-- Progress indicator (hidden by default) -->
+        <div id="importProgress" class="mt-3 d-none">
+          <div class="text-center mb-3">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Importing...</span>
+            </div>
+          </div>
+          <div class="progress">
+            <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                 role="progressbar" 
+                 style="width: 100%" 
+                 aria-valuenow="100" 
+                 aria-valuemin="0" 
+                 aria-valuemax="100"></div>
+          </div>
+          <p class="text-center mt-2" id="importStatusText">
+            <span class="import-stage">Importing deck structure</span>
+            <span class="dots"></span>
+          </p>
+        </div>
+        
+        <!-- Import result message (hidden by default) -->
+        <div id="importResultMessage" class="mt-3 d-none"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="cancelImportBtn">Cancel</button>
+        <button type="button" class="btn btn-success" id="confirmImportBtn">Import Deck</button>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Debug logging to verify execution
+    console.log("Profile page script initialized");
+    
+    // Check if modal element exists
+    const modalElement = document.getElementById('importDeckModal');
+    if (!modalElement) {
+        console.error("Import deck modal element not found!");
+        return;
+    }
+    
+    // Check if Bootstrap is available
+    if (typeof bootstrap === 'undefined') {
+        console.error("Bootstrap is not defined. Make sure Bootstrap JS is loaded.");
+        return;
+    }
+    
+    // Initialize Bootstrap modal
+    const importDeckModal = new bootstrap.Modal(modalElement);
+    console.log("Modal initialized:", importDeckModal);
+    
     // Toggle public/private status
     document.querySelectorAll('.toggle-public-btn').forEach(button => {
         button.addEventListener('click', function() {
@@ -175,18 +259,95 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
-    // Import deck buttons
-    document.querySelectorAll('.import-deck-btn').forEach(button => {
+    // Import deck buttons - add debug logging
+    const importButtons = document.querySelectorAll('.import-deck-btn');
+    console.log("Found import buttons:", importButtons.length);
+    
+    importButtons.forEach(button => {
         button.addEventListener('click', function() {
+            console.log("Import button clicked");
             const deckId = this.dataset.deckId;
             const deckName = this.dataset.deckName;
             const username = this.dataset.username;
             
-            if (confirm(`Import "${deckName}" from ${username}?`)) {
-                importDeck(deckId, this);
+            console.log(`Importing deck: ${deckName} (ID: ${deckId}) from ${username}`);
+            
+            // Update modal content and prepare for import
+            setupImportModal(deckId, deckName, username);
+            
+            // Show the modal
+            try {
+                importDeckModal.show();
+                console.log("Modal should be visible now");
+            } catch (error) {
+                console.error("Error showing modal:", error);
             }
         });
     });
+    
+    // Setup import modal with deck details
+    function setupImportModal(deckId, deckName, username) {
+        // Update text in the confirmation screen
+        document.getElementById('importDeckName').textContent = deckName;
+        document.getElementById('importDeckUsername').textContent = username;
+        
+        // Store deck ID for the import operation
+        document.getElementById('confirmImportBtn').dataset.deckId = deckId;
+        
+        // Reset modal state
+        document.getElementById('confirmImportScreen').classList.remove('d-none');
+        document.getElementById('importProgress').classList.add('d-none');
+        document.getElementById('importResultMessage').classList.add('d-none');
+        document.getElementById('confirmImportBtn').disabled = false;
+        document.getElementById('cancelImportBtn').textContent = 'Cancel';
+    }
+    
+    // Confirm import button handler
+    document.getElementById('confirmImportBtn').addEventListener('click', function() {
+        const deckId = this.dataset.deckId;
+        
+        // Hide confirmation screen
+        document.getElementById('confirmImportScreen').classList.add('d-none');
+        
+        // Show progress indicator
+        document.getElementById('importProgress').classList.remove('d-none');
+        document.querySelector('.import-stage').textContent = 'Preparing to import deck';
+        
+        // Disable buttons and update text
+        this.disabled = true;
+        document.getElementById('cancelImportBtn').textContent = 'Close';
+        
+        // Start the import process with visual feedback sequence
+        startImportSequence(deckId);
+    });
+    
+    // Simulate a sequence of steps for better visual feedback
+    function startImportSequence(deckId) {
+        const steps = [
+            { message: 'Importing deck structure', delay: 800 },
+            { message: 'Creating sub-decks', delay: 1200 },
+            { message: 'Copying flashcards', delay: 1500 },
+            { message: 'Finalizing import', delay: 1000 }
+        ];
+        
+        let currentStep = 0;
+        
+        // Show the first step immediately
+        document.querySelector('.import-stage').textContent = steps[currentStep].message;
+        
+        // Create a sequence of visual updates before actual API call
+        const stepInterval = setInterval(() => {
+            currentStep++;
+            
+            if (currentStep < steps.length) {
+                document.querySelector('.import-stage').textContent = steps[currentStep].message;
+            } else {
+                // When all visual steps are complete, make the actual API call
+                clearInterval(stepInterval);
+                importDeck(deckId);
+            }
+        }, steps[currentStep].delay);
+    }
     
     // Toggle public/private status via AJAX
     async function togglePublicStatus(deckId, button) {
@@ -229,11 +390,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Import deck via AJAX
-    async function importDeck(deckId, button) {
-        button.disabled = true;
-        button.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Importing...';
-        
+    async function importDeck(deckId) {
         try {
+            // Make the actual API call
             const response = await fetch(`/deck/api/import-deck/${deckId}`, {
                 method: 'POST',
                 headers: {
@@ -243,32 +402,82 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const data = await response.json();
             
+            // Hide progress indicator
+            document.getElementById('importProgress').classList.add('d-none');
+            
+            // Show result message
+            const resultMessage = document.getElementById('importResultMessage');
+            
             if (data.success) {
-                showMessage('success', data.message);
+                // Show success message in modal with card and sub-deck counts
+                resultMessage.className = 'alert alert-success';
+                resultMessage.innerHTML = `
+                    <div class="d-flex">
+                        <div class="me-3">
+                            <i class="bi bi-check-circle-fill text-success" style="font-size: 2rem;"></i>
+                        </div>
+                        <div>
+                            <h5 class="alert-heading">Import Successful!</h5>
+                            <p>${data.message}</p>
+                        </div>
+                    </div>
+                `;
                 
-                // Change button to View Imported Deck
-                button.innerHTML = '<i class="bi bi-check-circle me-1"></i> Imported!';
+                // Add view deck button
+                resultMessage.insertAdjacentHTML('beforeend', `
+                    <div class="mt-3 text-center">
+                        <a href="/deck/${data.deck_id}" class="btn btn-primary">
+                            <i class="bi bi-eye me-1"></i> View Imported Deck
+                        </a>
+                    </div>
+                `);
                 
-                // After a short delay, replace the button with an actual link
-                setTimeout(() => {
-                    // Create a new link element to replace the button
+                // Also update the import button outside the modal
+                const importBtn = document.querySelector(`.import-deck-btn[data-deck-id="${deckId}"]`);
+                if (importBtn) {
+                    // Replace button with link
                     const viewLink = document.createElement('a');
                     viewLink.href = `/deck/${data.deck_id}`;
                     viewLink.className = 'btn btn-sm btn-success';
                     viewLink.innerHTML = '<i class="bi bi-eye me-1"></i> View Imported Deck';
-                    
-                    // Replace the button with the link
-                    button.parentNode.replaceChild(viewLink, button);
-                }, 1500);
+                    importBtn.parentNode.replaceChild(viewLink, importBtn);
+                }
             } else {
-                showMessage('danger', data.error || 'Failed to import deck');
-                button.innerHTML = '<i class="bi bi-download me-1"></i> Import Deck';
-                button.disabled = false;
+                // Show error message in modal
+                resultMessage.className = 'alert alert-danger';
+                resultMessage.innerHTML = `
+                    <div class="d-flex">
+                        <div class="me-3">
+                            <i class="bi bi-exclamation-triangle-fill text-danger" style="font-size: 2rem;"></i>
+                        </div>
+                        <div>
+                            <h5 class="alert-heading">Import Failed</h5>
+                            <p>${data.error || 'An error occurred during import. Please try again.'}</p>
+                        </div>
+                    </div>
+                `;
             }
+            
+            resultMessage.classList.remove('d-none');
         } catch (error) {
-            showMessage('danger', 'Network error. Please try again.');
-            button.innerHTML = '<i class="bi bi-download me-1"></i> Import Deck';
-            button.disabled = false;
+            // Hide progress indicator
+            document.getElementById('importProgress').classList.add('d-none');
+            
+            // Show error message in modal
+            const resultMessage = document.getElementById('importResultMessage');
+            resultMessage.className = 'alert alert-danger';
+            resultMessage.innerHTML = `
+                <div class="d-flex">
+                    <div class="me-3">
+                        <i class="bi bi-exclamation-triangle-fill text-danger" style="font-size: 2rem;"></i>
+                    </div>
+                    <div>
+                        <h5 class="alert-heading">Network Error</h5>
+                        <p>Unable to connect to the server. Please check your internet connection and try again.</p>
+                    </div>
+                </div>
+            `;
+            resultMessage.classList.remove('d-none');
         }
     }
     
