@@ -1,5 +1,6 @@
 from flask import render_template, abort, redirect, url_for, flash, g
-from models import User, FlashcardDecks, Flashcards
+from models.user import User
+from models import FlashcardDecks, Flashcards
 from flask_login import current_user, login_required
 from routes.user import user_bp
 from sqlalchemy import func, and_
