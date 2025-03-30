@@ -12,6 +12,7 @@ class FlashcardDecks(db.Model):
     parent_deck_id = db.Column(db.Integer, db.ForeignKey('flashcard_decks.flashcard_deck_id'))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    is_public = db.Column(db.Boolean, default=False)
     
     # Define relationships
     flashcards = relationship("Flashcards", backref="deck", cascade="all, delete-orphan")
@@ -49,6 +50,11 @@ class FlashcardDecks(db.Model):
             count += sub_deck.count_all_sub_decks()
         return count
     
+    def toggle_public(self):
+        """Toggle the public status of this deck and return the new status"""
+        self.is_public = not self.is_public
+        return self.is_public
+    
     def to_dict(self):
         """Convert deck to dictionary for API responses"""
         return {
@@ -59,6 +65,7 @@ class FlashcardDecks(db.Model):
             'user_id': self.user_id,
             'card_count': len(self.flashcards) if self.flashcards else 0,
             'created_at': self.created_at.isoformat() if self.created_at else None,
+            'is_public': self.is_public,
         }
         
     def get_mastery_stats(self):

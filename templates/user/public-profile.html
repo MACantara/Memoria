@@ -1,0 +1,415 @@
+{% extends "base.html" %}
+
+{% block title %}{{ user.username }}'s Profile{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/user/profile.css') }}">
+<style>
+/* Animation for the dots in the progress indicator */
+
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Go back button -->
+    <a href="{{ url_for('main.index') }}" class="btn btn-outline-primary mb-4">
+        <i class="bi bi-arrow-left"></i> Back to Decks
+    </a>
+
+    <!-- Status message container for AJAX responses -->
+    <div id="statusMessages" class="mb-3"></div>
+
+    <div class="row">
+        <div class="col-md-4">
+            <!-- User profile sidebar -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body text-center">
+                    <div class="profile-avatar">
+                        <i class="bi bi-person"></i>
+                    </div>
+                    <h2 class="h3 mb-2">{{ user.username }}</h2>
+                    <p class="text-muted small">
+                        <i class="bi bi-calendar3"></i> Joined {{ user.created_at.strftime('%B %Y') }}
+                    </p>
+                    
+                    {% if current_user.is_authenticated and current_user.id == user.id %}
+                    <div class="mt-3">
+                        <a href="{{ url_for('auth.profile') }}" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-gear"></i> Edit Profile
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-8">
+            <!-- User statistics -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-transparent">
+                    <h3 class="h5 mb-0">Statistics</h3>
+                </div>
+                <div class="card-body">
+                    <div class="row g-4 text-center">
+                        <div class="col-md-4">
+                            <div class="card stat-card h-100">
+                                <div class="card-body">
+                                    <div class="text-primary mb-2">
+                                        <i class="bi bi-folder2 fs-3"></i>
+                                    </div>
+                                    <h4 class="h2 mb-0">{{ deck_count }}</h4>
+                                    <p class="text-muted mb-0">Decks</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card stat-card h-100">
+                                <div class="card-body">
+                                    <div class="text-info mb-2">
+                                        <i class="bi bi-card-text fs-3"></i>
+                                    </div>
+                                    <h4 class="h2 mb-0">{{ card_count }}</h4>
+                                    <p class="text-muted mb-0">Flashcards</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card stat-card h-100">
+                                <div class="card-body">
+                                    <div class="text-success mb-2">
+                                        <i class="bi bi-check-circle fs-3"></i>
+                                    </div>
+                                    <h4 class="h2 mb-0">{{ mastered_count }}</h4>
+                                    <p class="text-muted mb-0">Mastered</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Public decks section -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                    <h3 class="h5 mb-0">
+                        {% if is_own_profile %}
+                            Your Decks
+                        {% else %}
+                            Public Decks
+                        {% endif %}
+                    </h3>
+                    
+                    {% if is_own_profile %}
+                    <a href="{{ url_for('main.index') }}" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-grid"></i> View All
+                    </a>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if public_decks %}
+                        <div class="list-group">
+                            {% for deck in public_decks %}
+                                <div class="list-group-item">
+                                    <div class="d-flex w-100 justify-content-between align-items-center">
+                                        <div>
+                                            <h5 class="mb-1">{{ deck.name }}</h5>
+                                            {% if deck.description %}
+                                                <p class="mb-1 text-muted">{{ deck.description }}</p>
+                                            {% endif %}
+                                            <div class="d-flex align-items-center mt-2">
+                                                <span class="badge bg-primary rounded-pill me-2">{{ deck.count_all_flashcards() }} cards</span>
+                                                
+                                                {% if is_own_profile %}
+                                                    <!-- Toggle public/private button -->
+                                                    <button class="btn btn-sm {% if deck.is_public %}btn-success{% else %}btn-outline-secondary{% endif %} me-2 toggle-public-btn" 
+                                                            data-deck-id="{{ deck.flashcard_deck_id }}">
+                                                        <i class="bi {% if deck.is_public %}bi-unlock{% else %}bi-lock{% endif %} me-1"></i>
+                                                        {% if deck.is_public %}Public{% else %}Private{% endif %}
+                                                    </button>
+                                                {% endif %}
+                                                
+                                                <!-- View deck button -->
+                                                <a href="{{ url_for('deck.deck_view.get_deck_flashcards', deck_id=deck.flashcard_deck_id) }}" 
+                                                class="btn btn-sm btn-outline-primary me-2">
+                                                    <i class="bi bi-eye"></i> View
+                                                </a>
+                                                
+                                                {% if not is_own_profile and current_user.is_authenticated %}
+                                                    <!-- Import button for other users -->
+                                                    <button class="btn btn-sm btn-outline-success import-deck-btn"
+                                                            data-deck-id="{{ deck.flashcard_deck_id }}"
+                                                            data-deck-name="{{ deck.name }}"
+                                                            data-username="{{ user.username }}">
+                                                        <i class="bi bi-download me-1"></i> Import Deck
+                                                    </button>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted text-center py-3">
+                            <i class="bi bi-info-circle me-2"></i> 
+                            {% if is_own_profile %}
+                                You don't have any decks yet.
+                            {% else %}
+                                This user has no public decks yet.
+                            {% endif %}
+                        </p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Import Deck Modal -->
+{% include 'modals/flashcard-deck-import-modal.html' %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Debug logging to verify execution
+    console.log("Profile page script initialized");
+    
+    // Check if modal element exists
+    const modalElement = document.getElementById('importDeckModal');
+    if (!modalElement) {
+        console.error("Import deck modal element not found!");
+        return;
+    }
+    
+    // Check if Bootstrap is available
+    if (typeof bootstrap === 'undefined') {
+        console.error("Bootstrap is not defined. Make sure Bootstrap JS is loaded.");
+        return;
+    }
+    
+    // Initialize Bootstrap modal
+    const importDeckModal = new bootstrap.Modal(modalElement);
+    console.log("Modal initialized:", importDeckModal);
+    
+    // Toggle public/private status
+    document.querySelectorAll('.toggle-public-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const deckId = this.dataset.deckId;
+            togglePublicStatus(deckId, this);
+        });
+    });
+    
+    // Import deck buttons - now start import immediately
+    const importButtons = document.querySelectorAll('.import-deck-btn');
+    console.log("Found import buttons:", importButtons.length);
+    
+    importButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            console.log("Import button clicked");
+            const deckId = this.dataset.deckId;
+            const deckName = this.dataset.deckName;
+            const username = this.dataset.username;
+            
+            console.log(`Importing deck: ${deckName} (ID: ${deckId}) from ${username}`);
+            
+            // Show modal with import already in progress
+            document.getElementById('importDeckName').textContent = deckName;
+            document.getElementById('importDeckUsername').textContent = username;
+            
+            try {
+                importDeckModal.show();
+                console.log("Modal should be visible now");
+                
+                // Start import process immediately
+                startImportSequence(deckId);
+            } catch (error) {
+                console.error("Error showing modal:", error);
+            }
+        });
+    });
+    
+    // Simulate a sequence of steps for better visual feedback
+    function startImportSequence(deckId) {
+        const steps = [
+            { message: 'Importing deck structure', delay: 800 },
+            { message: 'Creating sub-decks', delay: 1200 },
+            { message: 'Copying flashcards', delay: 1500 },
+            { message: 'Finalizing import', delay: 1000 }
+        ];
+        
+        let currentStep = 0;
+        
+        // Show the first step immediately
+        document.querySelector('.import-stage').textContent = steps[currentStep].message;
+        
+        // Create a sequence of visual updates before actual API call
+        const stepInterval = setInterval(() => {
+            currentStep++;
+            
+            if (currentStep < steps.length) {
+                document.querySelector('.import-stage').textContent = steps[currentStep].message;
+            } else {
+                // When all visual steps are complete, make the actual API call
+                clearInterval(stepInterval);
+                importDeck(deckId);
+            }
+        }, steps[currentStep].delay);
+    }
+    
+    // Toggle public/private status via AJAX
+    async function togglePublicStatus(deckId, button) {
+        button.disabled = true;
+        
+        try {
+            const response = await fetch(`/deck/api/toggle-public/${deckId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Update button appearance
+                button.classList.toggle('btn-success');
+                button.classList.toggle('btn-outline-secondary');
+                
+                // Update button icon and text
+                const icon = button.querySelector('i');
+                icon.classList.toggle('bi-unlock');
+                icon.classList.toggle('bi-lock');
+                
+                button.innerHTML = button.innerHTML.replace(
+                    data.is_public ? 'Private' : 'Public', 
+                    data.is_public ? 'Public' : 'Private'
+                );
+                
+                showMessage('success', data.message);
+            } else {
+                showMessage('danger', data.error || 'Failed to update deck status');
+            }
+        } catch (error) {
+            showMessage('danger', 'Network error. Please try again.');
+        } finally {
+            button.disabled = false;
+        }
+    }
+    
+    // Import deck via AJAX
+    async function importDeck(deckId) {
+        try {
+            // Make the actual API call
+            const response = await fetch(`/deck/api/import-deck/${deckId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            const data = await response.json();
+            
+            // Hide progress indicator
+            document.getElementById('importProgress').classList.add('d-none');
+            
+            // Show result message
+            const resultMessage = document.getElementById('importResultMessage');
+            
+            if (data.success) {
+                // Show success message in modal with card and sub-deck counts
+                resultMessage.className = 'alert alert-success';
+                resultMessage.innerHTML = `
+                    <div class="d-flex">
+                        <div class="me-3">
+                            <i class="bi bi-check-circle-fill text-success" style="font-size: 2rem;"></i>
+                        </div>
+                        <div>
+                            <h5 class="alert-heading">Import Successful!</h5>
+                            <p>${data.message}</p>
+                        </div>
+                    </div>
+                `;
+                
+                // Add view deck button
+                resultMessage.insertAdjacentHTML('beforeend', `
+                    <div class="mt-3 text-center">
+                        <a href="/deck/${data.deck_id}" class="btn btn-primary">
+                            <i class="bi bi-eye me-1"></i> View Imported Deck
+                        </a>
+                    </div>
+                `);
+                
+                // Also update the import button outside the modal
+                const importBtn = document.querySelector(`.import-deck-btn[data-deck-id="${deckId}"]`);
+                if (importBtn) {
+                    // Replace button with link
+                    const viewLink = document.createElement('a');
+                    viewLink.href = `/deck/${data.deck_id}`;
+                    viewLink.className = 'btn btn-sm btn-success';
+                    viewLink.innerHTML = '<i class="bi bi-eye me-1"></i> View Imported Deck';
+                    importBtn.parentNode.replaceChild(viewLink, importBtn);
+                }
+            } else {
+                // Show error message in modal
+                resultMessage.className = 'alert alert-danger';
+                resultMessage.innerHTML = `
+                    <div class="d-flex">
+                        <div class="me-3">
+                            <i class="bi bi-exclamation-triangle-fill text-danger" style="font-size: 2rem;"></i>
+                        </div>
+                        <div>
+                            <h5 class="alert-heading">Import Failed</h5>
+                            <p>${data.error || 'An error occurred during import. Please try again.'}</p>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            resultMessage.classList.remove('d-none');
+        } catch (error) {
+            // Hide progress indicator
+            document.getElementById('importProgress').classList.add('d-none');
+            
+            // Show error message in modal
+            const resultMessage = document.getElementById('importResultMessage');
+            resultMessage.className = 'alert alert-danger';
+            resultMessage.innerHTML = `
+                <div class="d-flex">
+                    <div class="me-3">
+                        <i class="bi bi-exclamation-triangle-fill text-danger" style="font-size: 2rem;"></i>
+                    </div>
+                    <div>
+                        <h5 class="alert-heading">Network Error</h5>
+                        <p>Unable to connect to the server. Please check your internet connection and try again.</p>
+                    </div>
+                </div>
+            `;
+            resultMessage.classList.remove('d-none');
+        }
+    }
+    
+    // Show status message
+    function showMessage(type, message) {
+        const messageContainer = document.getElementById('statusMessages');
+        const alert = document.createElement('div');
+        alert.className = `alert alert-${type} alert-dismissible fade show`;
+        alert.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        
+        messageContainer.appendChild(alert);
+        
+        // Auto-dismiss after 5 seconds
+        setTimeout(() => {
+            const bsAlert = new bootstrap.Alert(alert);
+            bsAlert.close();
+        }, 5000);
+    }
+});
+</script>
+{% endblock %}

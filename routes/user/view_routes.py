@@ -1,4 +1,4 @@
-from flask import render_template, abort, redirect, url_for
+from flask import render_template, abort, redirect, url_for, flash, g
 from models import User, FlashcardDecks, Flashcards
 from flask_login import current_user, login_required
 from routes.user import user_bp
@@ -24,23 +24,32 @@ def profile(username):
         )
     ).count()
     
-    # Get public decks (for demonstration - you may need to add a public field to decks)
-    # For now, we'll just show all decks if the user is viewing their own profile
+    # Get public decks properly filtered
     if current_user.is_authenticated and current_user.id == user.id:
+        # If viewing own profile, show all decks
         public_decks = FlashcardDecks.query.filter_by(user_id=user.id).all()
+        is_own_profile = True
     else:
-        # In a real implementation, you'd filter by public decks
-        # For now, showing a limited set of decks as "public" for demo purposes
-        public_decks = FlashcardDecks.query.filter_by(user_id=user.id).limit(5).all()
+        # Otherwise, show only public decks
+        public_decks = FlashcardDecks.query.filter_by(
+            user_id=user.id, 
+            is_public=True
+        ).all()
+        is_own_profile = False
+    
+    # Add all decks to g for modals
+    if current_user.is_authenticated:
+        g.all_decks = FlashcardDecks.query.filter_by(user_id=current_user.id).all()
     
     # Render the profile template
     return render_template(
-        'user/profile.html', 
+        'user/public-profile.html', 
         user=user,
         deck_count=deck_count,
         card_count=card_count,
         mastered_count=mastered_count,
-        public_decks=public_decks
+        public_decks=public_decks,
+        is_own_profile=is_own_profile
     )
 
 @user_bp.route('/me')
