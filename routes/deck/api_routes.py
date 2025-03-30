@@ -146,3 +146,75 @@ def get_due_count(deck_id):
             "success": False,
             "error": str(e)
         }), 500
+
+@deck_api_bp.route('/toggle-public/<int:deck_id>', methods=['POST'])
+@login_required
+def toggle_public_status(deck_id):
+    """Toggle the public/private status of a deck"""
+    deck = FlashcardDecks.query.get_or_404(deck_id)
+    
+    # Ensure the current user owns this deck
+    if deck.user_id != current_user.id:
+        return jsonify({'success': False, 'error': 'You do not own this deck'}), 403
+    
+    try:
+        is_public = deck.toggle_public()
+        db.session.commit()
+        
+        return jsonify({
+            'success': True, 
+            'is_public': is_public,
+            'message': f'Deck is now {"public" if is_public else "private"}'
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@deck_api_bp.route('/import-deck/<int:deck_id>', methods=['POST'])
+@login_required
+def import_deck(deck_id):
+    """Import (create a copy of) a public deck from another user"""
+    original_deck = FlashcardDecks.query.get_or_404(deck_id)
+    
+    # Check if deck is public or belongs to the current user
+    if not original_deck.is_public and original_deck.user_id != current_user.id:
+        return jsonify({'success': False, 'error': 'This deck is not public'}), 403
+    
+    try:
+        # Create a new deck for the current user
+        new_deck = FlashcardDecks(
+            user_id=current_user.id,
+            name=f"{original_deck.name} (Imported)",
+            description=original_deck.description,
+            parent_deck_id=None,  # Import as a top-level deck
+            is_public=False  # Default to private
+        )
+        db.session.add(new_deck)
+        db.session.flush()  # Get the new deck ID
+        
+        # Copy all flashcards from the original deck
+        original_cards = Flashcards.query.filter_by(flashcard_deck_id=deck_id).all()
+        for card in original_cards:
+            new_card = Flashcards(
+                flashcard_deck_id=new_deck.flashcard_deck_id,
+                question=card.question,
+                correct_answer=card.correct_answer,
+                incorrect_answers=card.incorrect_answers,
+                state=0,  # Reset to new state
+                due_date=None,  # Reset due date
+                stability=None,  # Reset stability
+                difficulty=None,  # Reset difficulty
+                last_reviewed=None  # Reset last reviewed
+            )
+            db.session.add(new_card)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'deck_id': new_deck.flashcard_deck_id,
+            'message': f'Successfully imported "{original_deck.name}" from {User.query.get(original_deck.user_id).username}'
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
