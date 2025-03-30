@@ -249,14 +249,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Change button to View Imported Deck
                 button.innerHTML = '<i class="bi bi-check-circle me-1"></i> Imported!';
                 
-                // After a short delay, replace button with link to new deck
+                // After a short delay, replace the button with an actual link
                 setTimeout(() => {
-                    button.innerHTML = '<i class="bi bi-eye me-1"></i> View Imported Deck';
-                    button.classList.remove('btn-outline-success');
-                    button.classList.add('btn-success');
-                    button.addEventListener('click', function() {
-                        window.location.href = `/deck/${data.deck_id}`;
-                    });
+                    // Create a new link element to replace the button
+                    const viewLink = document.createElement('a');
+                    viewLink.href = `/deck/${data.deck_id}`;
+                    viewLink.className = 'btn btn-sm btn-success';
+                    viewLink.innerHTML = '<i class="bi bi-eye me-1"></i> View Imported Deck';
+                    
+                    // Replace the button with the link
+                    button.parentNode.replaceChild(viewLink, button);
                 }, 1500);
             } else {
                 showMessage('danger', data.error || 'Failed to import deck');
