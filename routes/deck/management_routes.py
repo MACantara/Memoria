@@ -173,6 +173,10 @@ def delete_deck(deck_id):
             Flashcards.flashcard_deck_id.in_(all_deck_ids)
         ).count()
 
+        # Process flashcard deletion in batches to avoid timeout
+        if flashcards_count > 0:
+            batch_delete_flashcards(all_deck_ids)
+
         # Delete the deck (cascade will handle children)
         db.session.delete(deck)
         db.session.commit()
@@ -186,6 +190,43 @@ def delete_deck(deck_id):
         db.session.rollback()
         print(f"Error deleting deck: {str(e)}")
         return jsonify({"success": False, "error": str(e)}), 500
+
+
+def batch_delete_flashcards(deck_ids, batch_size=500):
+    """
+    Delete flashcards in batches to avoid database timeouts
+    
+    Args:
+        deck_ids: List of deck IDs to delete flashcards from
+        batch_size: Number of flashcards to delete in each batch
+    """
+    total_deleted = 0
+    
+    while True:
+        # Get a batch of flashcard IDs to delete
+        flashcard_batch = db.session.query(Flashcards.flashcard_id).filter(
+            Flashcards.flashcard_deck_id.in_(deck_ids)
+        ).limit(batch_size).all()
+        
+        # If no more flashcards to delete, we're done
+        if not flashcard_batch:
+            break
+        
+        # Extract IDs from the query result
+        batch_ids = [card[0] for card in flashcard_batch]
+        batch_count = len(batch_ids)
+        
+        # Delete this batch
+        Flashcards.query.filter(Flashcards.flashcard_id.in_(batch_ids)).delete(
+            synchronize_session=False
+        )
+        
+        # Commit the batch deletion
+        db.session.commit()
+        
+        # Update total count and log progress
+        total_deleted += batch_count
+        print(f"Deleted batch of {batch_count} flashcards, total: {total_deleted}")
 
 @deck_management_bp.route("/create_empty", methods=["POST"])
 @login_required
