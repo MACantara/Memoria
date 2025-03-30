@@ -1,0 +1,18 @@
+.profile-avatar {
+    width: 128px;
+    height: 128px;
+    font-size: 64px;
+    background-color: var(--bs-secondary-bg);
+    color: var(--bs-secondary-color);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem auto;
+}
+.stat-card {
+    transition: transform 0.2s ease;
+}
+.stat-card:hover {
+    transform: translateY(-5px);
+}
