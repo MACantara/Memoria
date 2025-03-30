@@ -3,6 +3,7 @@ from models import db, FlashcardDecks, Flashcards
 from services.fsrs_scheduler import get_current_time
 from utils import count_due_flashcards
 from flask_login import login_required, current_user
+from sqlalchemy.exc import SQLAlchemyError
 
 deck_api_bp = Blueprint('deck_api', __name__)
 
@@ -149,72 +150,74 @@ def get_due_count(deck_id):
 
 @deck_api_bp.route('/toggle-public/<int:deck_id>', methods=['POST'])
 @login_required
-def toggle_public_status(deck_id):
-    """Toggle the public/private status of a deck"""
+def toggle_public_deck(deck_id):
+    """Toggle a deck's public/private status"""
     deck = FlashcardDecks.query.get_or_404(deck_id)
     
-    # Ensure the current user owns this deck
+    # Check if user owns the deck
     if deck.user_id != current_user.id:
-        return jsonify({'success': False, 'error': 'You do not own this deck'}), 403
+        return jsonify({"success": False, "error": "You don't have permission to modify this deck"}), 403
     
     try:
+        # Use the toggle_public method to change the status
         is_public = deck.toggle_public()
         db.session.commit()
         
         return jsonify({
-            'success': True, 
-            'is_public': is_public,
-            'message': f'Deck is now {"public" if is_public else "private"}'
+            "success": True, 
+            "is_public": is_public,
+            "message": f"Deck is now {'public' if is_public else 'private'}"
         })
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({"success": False, "error": str(e)}), 500
 
 @deck_api_bp.route('/import-deck/<int:deck_id>', methods=['POST'])
 @login_required
 def import_deck(deck_id):
-    """Import (create a copy of) a public deck from another user"""
-    original_deck = FlashcardDecks.query.get_or_404(deck_id)
+    """Import a deck from another user"""
+    # Get the source deck
+    source_deck = FlashcardDecks.query.get_or_404(deck_id)
     
-    # Check if deck is public or belongs to the current user
-    if not original_deck.is_public and original_deck.user_id != current_user.id:
-        return jsonify({'success': False, 'error': 'This deck is not public'}), 403
+    # Check if the deck is public or belongs to the current user
+    if not source_deck.is_public and source_deck.user_id != current_user.id:
+        return jsonify({"success": False, "error": "This deck is private and cannot be imported"}), 403
     
     try:
         # Create a new deck for the current user
         new_deck = FlashcardDecks(
-            user_id=current_user.id,
-            name=f"{original_deck.name} (Imported)",
-            description=original_deck.description,
-            parent_deck_id=None,  # Import as a top-level deck
-            is_public=False  # Default to private
+            name=f"{source_deck.name} (Imported)",
+            description=source_deck.description,
+            user_id=current_user.id
         )
         db.session.add(new_deck)
         db.session.flush()  # Get the new deck ID
         
-        # Copy all flashcards from the original deck
-        original_cards = Flashcards.query.filter_by(flashcard_deck_id=deck_id).all()
-        for card in original_cards:
+        # Copy all flashcards from the source deck
+        flashcards = Flashcards.query.filter_by(flashcard_deck_id=deck_id).all()
+        
+        for card in flashcards:
+            # Create a new flashcard based on the original
             new_card = Flashcards(
                 flashcard_deck_id=new_deck.flashcard_deck_id,
                 question=card.question,
                 correct_answer=card.correct_answer,
                 incorrect_answers=card.incorrect_answers,
-                state=0,  # Reset to new state
-                due_date=None,  # Reset due date
-                stability=None,  # Reset stability
-                difficulty=None,  # Reset difficulty
-                last_reviewed=None  # Reset last reviewed
+                state=0,  # Reset state to 'new'
+                due_date=None  # Reset due date
             )
             db.session.add(new_card)
         
         db.session.commit()
         
         return jsonify({
-            'success': True,
-            'deck_id': new_deck.flashcard_deck_id,
-            'message': f'Successfully imported "{original_deck.name}" from {User.query.get(original_deck.user_id).username}'
+            "success": True, 
+            "message": f"Successfully imported {len(flashcards)} flashcards to your new deck",
+            "deck_id": new_deck.flashcard_deck_id
         })
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        return jsonify({"success": False, "error": f"Database error: {str(e)}"}), 500
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({"success": False, "error": f"Error importing deck: {str(e)}"}), 500
