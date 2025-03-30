@@ -175,7 +175,7 @@ def toggle_public_deck(deck_id):
 @deck_api_bp.route('/import-deck/<int:deck_id>', methods=['POST'])
 @login_required
 def import_deck(deck_id):
-    """Import a deck from another user"""
+    """Import a deck from another user including all sub-decks and their flashcards"""
     # Get the source deck
     source_deck = FlashcardDecks.query.get_or_404(deck_id)
     
@@ -187,80 +187,18 @@ def import_deck(deck_id):
         # Debug info
         print(f"Attempting to import deck {deck_id} ('{source_deck.name}') for user {current_user.id}")
         
-        # Get all flashcards from the source deck and its sub-decks recursively
-        # Use recursive CTE to find all deck IDs in the hierarchy
-        cte = db.session.query(
-            FlashcardDecks.flashcard_deck_id.label('id')
-        ).filter(
-            FlashcardDecks.flashcard_deck_id == deck_id
-        ).cte(name='import_decks', recursive=True)
-
-        cte = cte.union_all(
-            db.session.query(
-                FlashcardDecks.flashcard_deck_id.label('id')
-            ).filter(
-                FlashcardDecks.parent_deck_id == cte.c.id
-            )
-        )
+        # Dictionary to store mapping between original and new deck IDs
+        deck_mapping = {}
         
-        # Get cards from all decks in the hierarchy
-        flashcards = Flashcards.query.filter(
-            Flashcards.flashcard_deck_id.in_(db.session.query(cte.c.id))
-        ).all()
+        # Start by importing the main deck
+        new_deck = import_deck_recursive(source_deck, None, deck_mapping)
         
-        # Check if we have flashcards to import
-        if not flashcards or len(flashcards) == 0:
-            print(f"Warning: No flashcards found in deck {deck_id} or its sub-decks to import")
-            # Create the deck anyway, even with no cards
-            new_deck = FlashcardDecks(
-                name=f"{source_deck.name} (Imported)",
-                description=source_deck.description,
-                user_id=current_user.id
-            )
-            db.session.add(new_deck)
-            db.session.commit()
-            
-            return jsonify({
-                "success": True, 
-                "message": "Deck structure imported successfully. This deck has no flashcards.",
-                "deck_id": new_deck.flashcard_deck_id
-            })
-        
-        # Create a new deck for the current user
-        new_deck = FlashcardDecks(
-            name=f"{source_deck.name} (Imported)",
-            description=source_deck.description,
-            user_id=current_user.id
-        )
-        db.session.add(new_deck)
-        db.session.flush()  # Get the new deck ID
-        
-        # Copy all flashcards from the source deck and sub-decks
-        print(f"Found {len(flashcards)} flashcards to import from deck hierarchy")
-        copied_count = 0
-        
-        for card in flashcards:
-            try:
-                # Create a new flashcard based on the original
-                new_card = Flashcards(
-                    flashcard_deck_id=new_deck.flashcard_deck_id,
-                    question=card.question,
-                    correct_answer=card.correct_answer,
-                    incorrect_answers=card.incorrect_answers,
-                    state=0,  # Reset state to 'new'
-                    due_date=None  # Reset due date
-                )
-                db.session.add(new_card)
-                copied_count += 1
-            except Exception as card_error:
-                print(f"Error copying card {card.flashcard_id}: {str(card_error)}")
-        
-        db.session.commit()
-        print(f"Successfully imported {copied_count} flashcards to deck {new_deck.flashcard_deck_id}")
+        # Count total imported flashcards across all decks
+        total_cards = count_total_imported_cards(new_deck.flashcard_deck_id)
         
         return jsonify({
             "success": True, 
-            "message": f"Successfully imported {copied_count} flashcards to your new deck",
+            "message": f"Successfully imported deck with {total_cards} flashcards",
             "deck_id": new_deck.flashcard_deck_id
         })
     except SQLAlchemyError as e:
@@ -271,3 +209,74 @@ def import_deck(deck_id):
         db.session.rollback()
         print(f"Error importing deck {deck_id}: {str(e)}")
         return jsonify({"success": False, "error": f"Error importing deck: {str(e)}"}), 500
+
+def import_deck_recursive(source_deck, parent_id, deck_mapping):
+    """Recursively import a deck and all its sub-decks"""
+    # Create a new deck for the current user
+    new_deck = FlashcardDecks(
+        name=f"{source_deck.name} (Imported)" if parent_id is None else source_deck.name,
+        description=source_deck.description,
+        parent_deck_id=parent_id,
+        user_id=current_user.id
+    )
+    db.session.add(new_deck)
+    db.session.flush()  # Get the new deck ID
+    
+    # Store mapping from original to new deck ID
+    deck_mapping[source_deck.flashcard_deck_id] = new_deck.flashcard_deck_id
+    
+    # Import flashcards for this deck
+    import_flashcards_for_deck(source_deck.flashcard_deck_id, new_deck.flashcard_deck_id)
+    
+    # Recursively import child decks
+    for child_deck in source_deck.child_decks:
+        import_deck_recursive(child_deck, new_deck.flashcard_deck_id, deck_mapping)
+    
+    return new_deck
+
+def import_flashcards_for_deck(source_deck_id, target_deck_id):
+    """Import all flashcards from source deck to target deck"""
+    flashcards = Flashcards.query.filter_by(flashcard_deck_id=source_deck_id).all()
+    
+    copied_count = 0
+    for card in flashcards:
+        try:
+            new_card = Flashcards(
+                flashcard_deck_id=target_deck_id,
+                question=card.question,
+                correct_answer=card.correct_answer,
+                incorrect_answers=card.incorrect_answers,
+                state=0,  # Reset state to 'new'
+                due_date=None  # Reset due date
+            )
+            db.session.add(new_card)
+            copied_count += 1
+        except Exception as card_error:
+            print(f"Error copying card {card.flashcard_id}: {str(card_error)}")
+    
+    print(f"Imported {copied_count} flashcards from deck {source_deck_id} to deck {target_deck_id}")
+    return copied_count
+
+def count_total_imported_cards(deck_id):
+    """Count total cards in a deck hierarchy"""
+    # Use recursive CTE to find all decks in the hierarchy
+    cte = db.session.query(
+        FlashcardDecks.flashcard_deck_id.label('id')
+    ).filter(
+        FlashcardDecks.flashcard_deck_id == deck_id
+    ).cte(name='count_decks', recursive=True)
+
+    cte = cte.union_all(
+        db.session.query(
+            FlashcardDecks.flashcard_deck_id.label('id')
+        ).filter(
+            FlashcardDecks.parent_deck_id == cte.c.id
+        )
+    )
+    
+    # Count cards from all decks in the hierarchy
+    count = Flashcards.query.filter(
+        Flashcards.flashcard_deck_id.in_(db.session.query(cte.c.id))
+    ).count()
+    
+    return count
