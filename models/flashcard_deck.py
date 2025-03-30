@@ -50,6 +50,11 @@ class FlashcardDecks(db.Model):
             count += sub_deck.count_all_sub_decks()
         return count
     
+    def toggle_public(self):
+        """Toggle the public status of this deck and return the new status"""
+        self.is_public = not self.is_public
+        return self.is_public
+    
     def to_dict(self):
         """Convert deck to dictionary for API responses"""
         return {
