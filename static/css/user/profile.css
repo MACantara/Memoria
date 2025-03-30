@@ -1,18 +1,73 @@
+/* Profile styling */
 .profile-avatar {
-    width: 128px;
-    height: 128px;
-    font-size: 64px;
-    background-color: var(--bs-secondary-bg);
-    color: var(--bs-secondary-color);
+    width: 100px;
+    height: 100px;
     border-radius: 50%;
+    background-color: var(--bs-gray-200);
     display: flex;
     align-items: center;
     justify-content: center;
-    margin: 0 auto 1rem auto;
+    margin: 0 auto 1rem;
 }
+
+.profile-avatar i {
+    font-size: 3rem;
+    color: var(--bs-gray);
+}
+
+/* Statistics cards */
 .stat-card {
-    transition: transform 0.2s ease;
+    transition: all 0.3s ease;
+    border: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
+
 .stat-card:hover {
     transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+/* Public deck list items */
+.list-group-item {
+    transition: all 0.2s ease;
+}
+
+.list-group-item:hover {
+    background-color: rgba(var(--bs-primary-rgb), 0.05);
+}
+
+.import-deck-btn, .toggle-public-btn {
+    transition: all 0.3s ease;
+}
+
+/* Import button animation */
+.import-deck-btn.importing {
+    position: relative;
+    overflow: hidden;
+}
+
+.import-deck-btn.importing::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 30%;
+    height: 100%;
+    background-color: rgba(255, 255, 255, 0.3);
+    animation: importing-animation 1s infinite;
+}
+
+@keyframes importing-animation {
+    0% { left: -30%; }
+    100% { left: 100%; }
+}
+
+/* Status message animations */
+#statusMessages .alert {
+    animation: slide-down 0.3s ease-out;
+}
+
+@keyframes slide-down {
+    0% { transform: translateY(-20px); opacity: 0; }
+    100% { transform: translateY(0); opacity: 1; }
 }
