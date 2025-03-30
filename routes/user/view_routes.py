@@ -44,7 +44,7 @@ def profile(username):
     
     # Render the profile template
     return render_template(
-        'user/profile.html', 
+        'user/public-profile.html', 
         user=user,
         deck_count=deck_count,
         card_count=card_count,
