@@ -502,3 +502,112 @@ body {
     80% { opacity: 1; transform: translate(-50%, -50%); }
     100% { opacity: 0; transform: translate(-50%, -70%); }
 }
+
+/* Milestone segment styling */
+#progressBarContainer {
+    position: relative;
+    background-color: rgba(0, 0, 0, 0.05);
+    height: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+[data-bs-theme="dark"] #progressBarContainer {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.milestone-marker {
+    position: absolute;
+    top: -3px;
+    width: 4px;
+    height: 14px;
+    background-color: var(--bs-warning);
+    z-index: 2;
+    transition: left 0.5s ease, background-color 0.3s ease;
+}
+
+#progressMilestones {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 6px;
+}
+
+.segment-info {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+    color: var(--bs-primary);
+    font-size: 0.85rem;
+}
+
+.current-segment-label {
+    opacity: 0.7;
+    font-size: 0.75rem;
+}
+
+.segment-goal {
+    font-size: 0.75rem;
+    opacity: 0.7;
+    transition: color 0.3s ease;
+}
+
+.segment-goal.completed-all {
+    color: var(--bs-success);
+    font-weight: bold;
+    opacity: 1;
+}
+
+.segment-indicator {
+    position: absolute;
+    height: 100%;
+    background-color: rgba(var(--bs-primary-rgb), 0.15);
+    z-index: 1;
+    transition: left 0.5s ease, width 0.5s ease;
+}
+
+/* Level-up animation for progress bar */
+@keyframes level-up-pulse {
+    0% { box-shadow: 0 0 0 0 rgba(var(--bs-success-rgb), 0.7); }
+    50% { box-shadow: 0 0 0 10px rgba(var(--bs-success-rgb), 0); }
+    100% { box-shadow: 0 0 0 0 rgba(var(--bs-success-rgb), 0); }
+}
+
+.level-up-pulse {
+    animation: level-up-pulse 1s ease-out;
+}
+
+/* Enhanced milestone celebration toast */
+.milestone-toast {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(25, 135, 84, 0.9);
+    color: white;
+    padding: 20px 30px;
+    border-radius: 10px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+    z-index: 1060;
+    text-align: center;
+    animation: milestone-toast-in 2.5s ease forwards;
+    pointer-events: none;
+}
+
+.milestone-icon {
+    animation: trophy-bounce 0.5s ease;
+}
+
+@keyframes trophy-bounce {
+    0% { transform: scale(0.5); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+@keyframes milestone-toast-in {
+    0% { opacity: 0; transform: translate(-50%, -30%); }
+    10% { opacity: 1; transform: translate(-50%, -50%); }
+    80% { opacity: 1; transform: translate(-50%, -50%); }
+    100% { opacity: 0; transform: translate(-50%, -70%); }
+}

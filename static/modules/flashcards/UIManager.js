@@ -27,7 +27,8 @@ export class UIManager {
         this.progressBarContainer = document.getElementById('progressBarContainer');
         this.progressMilestones = document.getElementById('progressMilestones');
         this.milestoneSegments = [];
-        this.milestoneReached = false;
+        this.currentSegment = 0;
+        this.cardsPerSegment = 25; // Smaller, more manageable chunks
         this.celebrationSound = new Audio('/static/sounds/achievement.mp3');
         this.celebrationSound.load();
     }
@@ -868,7 +869,7 @@ export class UIManager {
     }
 
     /**
-     * Initialize segmented milestone progress bar
+     * Initialize segmented milestone progress system
      * @param {number} totalCards - Total number of cards to study
      */
     initializeMilestones(totalCards) {
@@ -878,35 +879,115 @@ export class UIManager {
         this.progressBarContainer.querySelectorAll('.milestone-marker').forEach(el => el.remove());
         this.progressMilestones.innerHTML = '';
         
-        // Only add milestones if we have enough cards
-        if (totalCards < 5) return;
+        // Use fixed-size segments (e.g., 25 cards per segment)
+        this.totalSegments = Math.ceil(totalCards / this.cardsPerSegment);
+        this.currentSegment = 0;
         
-        // Calculate number of segments (1 segment per 5 cards, max 5 segments)
-        const segmentCount = Math.min(Math.floor(totalCards / 5), 5);
+        // Create container for segment info
+        const segmentInfoContainer = document.createElement('div');
+        segmentInfoContainer.id = 'segmentInfoContainer';
+        segmentInfoContainer.className = 'segment-info';
         
-        // Create milestone markers
-        for (let i = 1; i <= segmentCount; i++) {
-            const percentage = (i * (100 / segmentCount));
+        // Add segment progress text
+        const segmentProgress = document.createElement('div');
+        segmentProgress.id = 'segmentProgress';
+        segmentProgress.className = 'segment-progress';
+        
+        const currentSegmentLabel = document.createElement('div');
+        currentSegmentLabel.id = 'currentSegmentLabel';
+        currentSegmentLabel.className = 'current-segment-label';
+        
+        const segmentGoal = document.createElement('div');
+        segmentGoal.id = 'segmentGoal';
+        segmentGoal.className = 'segment-goal';
+        
+        // Add elements to page
+        segmentInfoContainer.appendChild(segmentProgress);
+        this.progressMilestones.appendChild(segmentInfoContainer);
+        this.progressMilestones.appendChild(currentSegmentLabel);
+        this.progressMilestones.appendChild(segmentGoal);
+        
+        // Initialize the first segment
+        this.updateSegmentDisplay(0, totalCards);
+        
+        // Create milestone marker for current segment
+        this.createSegmentMarker();
+        
+        console.log(`Initialized ${this.totalSegments} segments of ${this.cardsPerSegment} cards each`);
+    }
+    
+    /**
+     * Create marker for the current segment
+     */
+    createSegmentMarker() {
+        // Remove existing markers
+        this.progressBarContainer.querySelectorAll('.milestone-marker').forEach(el => el.remove());
+        
+        // Calculate end position of current segment
+        const segmentEnd = Math.min((this.currentSegment + 1) * this.cardsPerSegment, this.totalCards);
+        const percentage = (segmentEnd / this.totalCards) * 100;
+        
+        // Create marker for segment goal
+        const marker = document.createElement('div');
+        marker.className = 'milestone-marker';
+        marker.style.left = `${percentage}%`;
+        this.progressBarContainer.appendChild(marker);
+    }
+    
+    /**
+     * Update the current segment display
+     * @param {number} score - Current score
+     * @param {number} totalCards - Total cards in the deck
+     */
+    updateSegmentDisplay(score, totalCards) {
+        this.totalCards = totalCards;
+        
+        // Calculate which segment we're in
+        const completedSegments = Math.floor(score / this.cardsPerSegment);
+        
+        // Only update display if we've moved to a new segment
+        if (completedSegments !== this.currentSegment) {
+            // If we completed a segment, show celebration
+            if (completedSegments > this.currentSegment) {
+                this.celebrateSegmentCompletion(this.currentSegment + 1, this.totalSegments);
+            }
             
-            // Create marker on progress bar
-            const marker = document.createElement('div');
-            marker.className = 'milestone-marker';
-            marker.style.left = `${percentage}%`;
-            marker.dataset.milestone = i;
-            this.progressBarContainer.appendChild(marker);
+            // Update current segment
+            this.currentSegment = completedSegments;
             
-            // Create label under progress bar
-            const label = document.createElement('div');
-            label.className = 'milestone-label';
-            label.textContent = `${Math.round((i * totalCards) / segmentCount)} cards`;
-            this.progressMilestones.appendChild(label);
-            
-            this.milestoneSegments.push({
-                percentage,
-                marker,
-                label,
-                reached: false
-            });
+            // Update the marker position
+            this.createSegmentMarker();
+        }
+        
+        // Calculate progress within the current segment
+        const segmentStart = this.currentSegment * this.cardsPerSegment;
+        const segmentEnd = Math.min((this.currentSegment + 1) * this.cardsPerSegment, totalCards);
+        const cardsInSegment = segmentEnd - segmentStart;
+        const progressInSegment = score - segmentStart;
+        
+        // Update segment info display
+        const segmentProgress = document.getElementById('segmentProgress');
+        const currentSegmentLabel = document.getElementById('currentSegmentLabel');
+        const segmentGoal = document.getElementById('segmentGoal');
+        
+        if (segmentProgress) {
+            segmentProgress.textContent = `${progressInSegment}/${cardsInSegment}`;
+        }
+        
+        if (currentSegmentLabel) {
+            currentSegmentLabel.textContent = `Segment ${this.currentSegment + 1} of ${this.totalSegments}`;
+        }
+        
+        if (segmentGoal) {
+            const remaining = segmentEnd - score;
+            if (remaining > 0) {
+                segmentGoal.textContent = `${remaining} cards to next milestone`;
+            } else if (score === totalCards) {
+                segmentGoal.textContent = 'All cards completed!';
+                segmentGoal.classList.add('completed-all');
+            } else {
+                segmentGoal.textContent = 'Segment complete!';
+            }
         }
     }
 
@@ -916,54 +997,75 @@ export class UIManager {
      * @param {number} total - Total cards in session
      */
     updateMilestones(score, total) {
-        if (this.milestoneSegments.length === 0) return;
+        if (!this.progressBarContainer) return;
         
+        // Update segment display
+        this.updateSegmentDisplay(score, total);
+        
+        // Calculate overall progress percentage
         const progressPercentage = (score / total) * 100;
         
-        // Update milestone markers
-        this.milestoneSegments.forEach((segment, index) => {
-            if (progressPercentage >= segment.percentage && !segment.reached) {
-                // Mark this milestone as reached
-                segment.reached = true;
-                segment.marker.classList.add('completed');
-                segment.label.classList.add('active');
-                
-                // Show celebration for this milestone
-                this.showMilestoneCelebration(index + 1, this.milestoneSegments.length);
-            }
-        });
+        // Calculate segment-specific progress for visual indication
+        const segmentStart = this.currentSegment * this.cardsPerSegment;
+        const segmentEnd = Math.min((this.currentSegment + 1) * this.cardsPerSegment, total);
+        const progressInSegment = score - segmentStart;
+        const segmentSize = segmentEnd - segmentStart;
+        
+        // Calculate visual percentage within segment (for highlighting progress)
+        let visualPercentage;
+        if (segmentSize > 0) {
+            visualPercentage = (progressInSegment / segmentSize) * 100;
+        } else {
+            visualPercentage = 100; // Prevent division by zero
+        }
+        
+        // Add a segment progress indicator
+        const segmentIndicator = document.getElementById('segmentIndicator');
+        if (!segmentIndicator && this.progressBarContainer) {
+            const indicator = document.createElement('div');
+            indicator.id = 'segmentIndicator';
+            indicator.className = 'segment-indicator';
+            this.progressBarContainer.appendChild(indicator);
+        }
+        
+        // Update segment indicator
+        if (segmentIndicator) {
+            const segmentStartPercent = (segmentStart / total) * 100;
+            segmentIndicator.style.left = `${segmentStartPercent}%`;
+            segmentIndicator.style.width = `${(segmentSize / total) * 100}%`;
+        }
     }
 
     /**
-     * Show celebration toast when milestone is reached
-     * @param {number} milestone - Current milestone number
-     * @param {number} total - Total number of milestones
+     * Show celebration when segment is completed
+     * @param {number} segment - Segment number that was completed
+     * @param {number} total - Total number of segments
      */
-    showMilestoneCelebration(milestone, total) {
+    celebrateSegmentCompletion(segment, total) {
         try {
             // Play achievement sound
             this.celebrationSound.currentTime = 0;
             this.celebrationSound.play().catch(e => console.warn('Could not play celebration sound', e));
         } catch (e) {
-            console.warn('Error playing milestone sound', e);
+            console.warn('Error playing segment completion sound', e);
         }
         
-        // Create and show toast notification
+        // Create celebration toast
         const toast = document.createElement('div');
         toast.className = 'milestone-toast';
         
-        // Choose message based on milestone position
+        // Choose celebration message based on progress
         let message;
-        if (milestone === total) {
-            message = 'Almost there! Final stretch!';
-        } else if (milestone / total >= 0.75) {
-            message = `Great progress! ${milestone}/${total} milestones complete!`;
-        } else if (milestone / total >= 0.5) {
+        if (segment === total) {
+            message = 'Final segment completed!';
+        } else if (segment / total > 0.75) {
+            message = `Great progress! Segment ${segment} completed!`;
+        } else if (segment / total > 0.5) {
             message = 'Halfway there! Keep going!';
-        } else if (milestone / total >= 0.25) {
-            message = 'Nice work! Keep up the good pace!';
+        } else if (segment / total > 0.25) {
+            message = 'Making good progress!';
         } else {
-            message = 'First milestone reached! 🎉';
+            message = 'First segment completed!';
         }
         
         toast.innerHTML = `
@@ -972,6 +1074,15 @@ export class UIManager {
         `;
         
         document.body.appendChild(toast);
+        
+        // Add "level-up" animation to the progress bar
+        const progressBar = document.getElementById('progressBar');
+        if (progressBar) {
+            progressBar.classList.add('level-up-pulse');
+            setTimeout(() => {
+                progressBar.classList.remove('level-up-pulse');
+            }, 1000);
+        }
         
         // Remove toast after animation completes
         setTimeout(() => {
