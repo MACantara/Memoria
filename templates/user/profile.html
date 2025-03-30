@@ -14,6 +14,9 @@
         <i class="bi bi-arrow-left"></i> Back to Decks
     </a>
 
+    <!-- Status message container for AJAX responses -->
+    <div id="statusMessages" class="mb-3"></div>
+
     <div class="row">
         <div class="col-md-4">
             <!-- User profile sidebar -->
@@ -87,14 +90,14 @@
             <div class="card shadow-sm">
                 <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
                     <h3 class="h5 mb-0">
-                        {% if current_user.is_authenticated and current_user.id == user.id %}
+                        {% if is_own_profile %}
                             Your Decks
                         {% else %}
                             Public Decks
                         {% endif %}
                     </h3>
                     
-                    {% if current_user.is_authenticated and current_user.id == user.id %}
+                    {% if is_own_profile %}
                     <a href="{{ url_for('main.index') }}" class="btn btn-sm btn-outline-primary">
                         <i class="bi bi-grid"></i> View All
                     </a>
@@ -104,21 +107,54 @@
                     {% if public_decks %}
                         <div class="list-group">
                             {% for deck in public_decks %}
-                                <a href="{{ url_for('deck.deck_view.get_deck_flashcards', deck_id=deck.flashcard_deck_id) }}" 
-                                   class="list-group-item list-group-item-action">
+                                <div class="list-group-item">
                                     <div class="d-flex w-100 justify-content-between align-items-center">
-                                        <h5 class="mb-1">{{ deck.name }}</h5>
-                                        <span class="badge bg-primary rounded-pill">{{ deck.count_all_flashcards() }} cards</span>
+                                        <div>
+                                            <h5 class="mb-1">{{ deck.name }}</h5>
+                                            {% if deck.description %}
+                                                <p class="mb-1 text-muted">{{ deck.description }}</p>
+                                            {% endif %}
+                                            <div class="d-flex align-items-center mt-2">
+                                                <span class="badge bg-primary rounded-pill me-2">{{ deck.count_all_flashcards() }} cards</span>
+                                                
+                                                {% if is_own_profile %}
+                                                    <!-- Toggle public/private button -->
+                                                    <button class="btn btn-sm {% if deck.is_public %}btn-success{% else %}btn-outline-secondary{% endif %} me-2 toggle-public-btn" 
+                                                            data-deck-id="{{ deck.flashcard_deck_id }}">
+                                                        <i class="bi {% if deck.is_public %}bi-unlock{% else %}bi-lock{% endif %} me-1"></i>
+                                                        {% if deck.is_public %}Public{% else %}Private{% endif %}
+                                                    </button>
+                                                {% endif %}
+                                                
+                                                <!-- View deck button -->
+                                                <a href="{{ url_for('deck.deck_view.get_deck_flashcards', deck_id=deck.flashcard_deck_id) }}" 
+                                                class="btn btn-sm btn-outline-primary me-2">
+                                                    <i class="bi bi-eye"></i> View
+                                                </a>
+                                                
+                                                {% if not is_own_profile and current_user.is_authenticated %}
+                                                    <!-- Import button for other users -->
+                                                    <button class="btn btn-sm btn-outline-success import-deck-btn"
+                                                            data-deck-id="{{ deck.flashcard_deck_id }}"
+                                                            data-deck-name="{{ deck.name }}"
+                                                            data-username="{{ user.username }}">
+                                                        <i class="bi bi-download me-1"></i> Import Deck
+                                                    </button>
+                                                {% endif %}
+                                            </div>
+                                        </div>
                                     </div>
-                                    {% if deck.description %}
-                                    <p class="mb-1 text-muted">{{ deck.description }}</p>
-                                    {% endif %}
-                                </a>
+                                </div>
                             {% endfor %}
                         </div>
                     {% else %}
                         <p class="text-muted text-center py-3">
-                            <i class="bi bi-info-circle me-2"></i> This user has no public decks yet.
+                            <i class="bi bi-info-circle me-2"></i> 
+                            {% if is_own_profile %}
+                                You don't have any decks yet.
+                            {% else %}
+                                This user has no public decks yet.
+                            {% endif %}
                         </p>
                     {% endif %}
                 </div>
@@ -126,4 +162,132 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Toggle public/private status
+    document.querySelectorAll('.toggle-public-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const deckId = this.dataset.deckId;
+            togglePublicStatus(deckId, this);
+        });
+    });
+    
+    // Import deck buttons
+    document.querySelectorAll('.import-deck-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const deckId = this.dataset.deckId;
+            const deckName = this.dataset.deckName;
+            const username = this.dataset.username;
+            
+            if (confirm(`Import "${deckName}" from ${username}?`)) {
+                importDeck(deckId, this);
+            }
+        });
+    });
+    
+    // Toggle public/private status via AJAX
+    async function togglePublicStatus(deckId, button) {
+        button.disabled = true;
+        
+        try {
+            const response = await fetch(`/deck/api/toggle-public/${deckId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Update button appearance
+                button.classList.toggle('btn-success');
+                button.classList.toggle('btn-outline-secondary');
+                
+                // Update button icon and text
+                const icon = button.querySelector('i');
+                icon.classList.toggle('bi-unlock');
+                icon.classList.toggle('bi-lock');
+                
+                button.innerHTML = button.innerHTML.replace(
+                    data.is_public ? 'Private' : 'Public', 
+                    data.is_public ? 'Public' : 'Private'
+                );
+                
+                showMessage('success', data.message);
+            } else {
+                showMessage('danger', data.error || 'Failed to update deck status');
+            }
+        } catch (error) {
+            showMessage('danger', 'Network error. Please try again.');
+        } finally {
+            button.disabled = false;
+        }
+    }
+    
+    // Import deck via AJAX
+    async function importDeck(deckId, button) {
+        button.disabled = true;
+        button.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Importing...';
+        
+        try {
+            const response = await fetch(`/deck/api/import-deck/${deckId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showMessage('success', data.message);
+                
+                // Change button to View Imported Deck
+                button.innerHTML = '<i class="bi bi-check-circle me-1"></i> Imported!';
+                
+                // After a short delay, replace button with link to new deck
+                setTimeout(() => {
+                    button.innerHTML = '<i class="bi bi-eye me-1"></i> View Imported Deck';
+                    button.classList.remove('btn-outline-success');
+                    button.classList.add('btn-success');
+                    button.addEventListener('click', function() {
+                        window.location.href = `/deck/${data.deck_id}`;
+                    });
+                }, 1500);
+            } else {
+                showMessage('danger', data.error || 'Failed to import deck');
+                button.innerHTML = '<i class="bi bi-download me-1"></i> Import Deck';
+                button.disabled = false;
+            }
+        } catch (error) {
+            showMessage('danger', 'Network error. Please try again.');
+            button.innerHTML = '<i class="bi bi-download me-1"></i> Import Deck';
+            button.disabled = false;
+        }
+    }
+    
+    // Show status message
+    function showMessage(type, message) {
+        const messageContainer = document.getElementById('statusMessages');
+        const alert = document.createElement('div');
+        alert.className = `alert alert-${type} alert-dismissible fade show`;
+        alert.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        
+        messageContainer.appendChild(alert);
+        
+        // Auto-dismiss after 5 seconds
+        setTimeout(() => {
+            const bsAlert = new bootstrap.Alert(alert);
+            bsAlert.close();
+        }, 5000);
+    }
+});
+</script>
 {% endblock %}
