@@ -22,6 +22,15 @@ export class UIManager {
         // Add explanation sound
         this.insightSound = new Audio('/static/sounds/insight.mp3');
         this.insightSound.load();
+
+        // Initialize milestone progress bar elements
+        this.progressBarContainer = document.getElementById('progressBarContainer');
+        this.progressMilestones = document.getElementById('progressMilestones');
+        this.milestoneSegments = [];
+        this.currentSegment = 0;
+        this.cardsPerSegment = 25; // Smaller, more manageable chunks
+        this.celebrationSound = new Audio('/static/sounds/achievement.mp3');
+        this.celebrationSound.load();
     }
 
     renderCard(card) {
@@ -284,12 +293,8 @@ export class UIManager {
     }
 
     updateScore(score, total) {
-        // Update only the progress bar, not the text
-        if (this.progressBar) {
-            const percent = total > 0 ? (score / total) * 100 : 0;
-            this.progressBar.style.width = `${percent}%`;
-            this.progressBar.setAttribute('aria-valuenow', percent);
-        }
+        // Update milestone progress - this now handles progress bar updates
+        this.updateMilestones(score, total);
     }
 
     showBriefFeedback(isCorrect) {
@@ -854,5 +859,256 @@ export class UIManager {
             // Silently fail if sound playback fails
             console.warn("Sound playback failed:", error);
         }
+    }
+
+    /**
+     * Initialize segmented milestone progress system
+     * @param {number} totalCards - Total number of cards to study
+     */
+    initializeMilestones(totalCards) {
+        if (!this.progressBarContainer || !this.progressMilestones) return;
+        
+        // Clear existing milestones
+        this.progressBarContainer.querySelectorAll('.milestone-marker').forEach(el => el.remove());
+        this.progressMilestones.innerHTML = '';
+        
+        // Use fixed-size segments (e.g., 25 cards per segment)
+        this.totalSegments = Math.ceil(totalCards / this.cardsPerSegment);
+        this.currentSegment = 0;
+        this.totalCards = totalCards;
+        
+        // Create container for segment info
+        const segmentInfoContainer = document.createElement('div');
+        segmentInfoContainer.id = 'segmentInfoContainer';
+        segmentInfoContainer.className = 'segment-info';
+        
+        // Add segment progress text
+        const segmentProgress = document.createElement('div');
+        segmentProgress.id = 'segmentProgress';
+        segmentProgress.className = 'segment-progress';
+        
+        const currentSegmentLabel = document.createElement('div');
+        currentSegmentLabel.id = 'currentSegmentLabel';
+        currentSegmentLabel.className = 'current-segment-label';
+        
+        const segmentGoal = document.createElement('div');
+        segmentGoal.id = 'segmentGoal';
+        segmentGoal.className = 'segment-goal';
+        
+        // Add elements to page with clearer text indicating segment focus
+        segmentInfoContainer.appendChild(segmentProgress);
+        this.progressMilestones.appendChild(segmentInfoContainer);
+        this.progressMilestones.appendChild(currentSegmentLabel);
+        this.progressMilestones.appendChild(segmentGoal);
+        
+        // Initialize the first segment
+        this.updateSegmentDisplay(0, totalCards);
+        
+        // Create milestone marker for current segment
+        this.createSegmentMarker();
+        
+        console.log(`Initialized ${this.totalSegments} segments of ${this.cardsPerSegment} cards each`);
+    }
+    
+    /**
+     * Update the progress bar to show progress within current segment only
+     * @param {number} segmentProgress - Progress within current segment
+     * @param {number} segmentSize - Total cards in current segment
+     */
+    updateProgressBar(segmentProgress, segmentSize) {
+        if (this.progressBar) {
+            // Calculate percentage within segment
+            const segmentPercent = segmentSize > 0 ? (segmentProgress / segmentSize) * 100 : 0;
+            
+            // Update progress bar width to show current segment progress only
+            this.progressBar.style.width = `${segmentPercent}%`;
+            this.progressBar.setAttribute('aria-valuenow', segmentPercent);
+            
+            // Add a data attribute to indicate we're showing segment progress
+            this.progressBar.dataset.segment = `${this.currentSegment + 1}/${this.totalSegments}`;
+        }
+    }
+    
+    /**
+     * Update the current segment display
+     * @param {number} score - Current score
+     * @param {number} totalCards - Total cards in the deck
+     */
+    updateSegmentDisplay(score, totalCards) {
+        this.totalCards = totalCards;
+        
+        // Calculate which segment we're in
+        const completedSegments = Math.floor(score / this.cardsPerSegment);
+        
+        // Only update display if we've moved to a new segment
+        if (completedSegments !== this.currentSegment) {
+            // If we completed a segment, show celebration
+            if (completedSegments > this.currentSegment) {
+                this.celebrateSegmentCompletion(this.currentSegment + 1, this.totalSegments);
+            }
+            
+            // Update current segment
+            this.currentSegment = completedSegments;
+            
+            // Update the marker position
+            this.createSegmentMarker();
+            
+            // Explicitly reset progress bar to 0% for the new segment with animation
+            if (this.progressBar) {
+                // Add transition class for smooth reset
+                this.progressBar.classList.add('resetting-segment');
+                this.progressBar.style.width = '0%';
+                this.progressBar.setAttribute('aria-valuenow', 0);
+                
+                // Remove transition class after animation completes
+                setTimeout(() => {
+                    this.progressBar.classList.remove('resetting-segment');
+                }, 300);
+            }
+        }
+        
+        // Calculate progress within the current segment
+        const segmentStart = this.currentSegment * this.cardsPerSegment;
+        const segmentEnd = Math.min((this.currentSegment + 1) * this.cardsPerSegment, totalCards);
+        const cardsInSegment = segmentEnd - segmentStart;
+        const progressInSegment = score - segmentStart;
+        
+        // Update segment info display with more informative text
+        const segmentProgress = document.getElementById('segmentProgress');
+        const currentSegmentLabel = document.getElementById('currentSegmentLabel');
+        const segmentGoal = document.getElementById('segmentGoal');
+        
+        if (segmentProgress) {
+            segmentProgress.textContent = `${progressInSegment}/${cardsInSegment}`;
+            // Add tooltip for clarity
+            segmentProgress.title = `Progress in current segment (${progressInSegment} of ${cardsInSegment} cards)`;
+        }
+        
+        if (currentSegmentLabel) {
+            currentSegmentLabel.textContent = `Segment ${this.currentSegment + 1} of ${this.totalSegments}`;
+            // Add overall progress as tooltip
+            currentSegmentLabel.title = `Overall progress: ${score}/${totalCards} cards (${Math.round((score/totalCards)*100)}%)`;
+        }
+        
+        if (segmentGoal) {
+            const remaining = segmentEnd - score;
+            if (remaining > 0) {
+                segmentGoal.textContent = `${remaining} cards to complete segment`;
+            } else if (score === totalCards) {
+                segmentGoal.textContent = 'All segments completed!';
+                segmentGoal.classList.add('completed-all');
+            } else {
+                segmentGoal.textContent = 'Ready for next segment!';
+            }
+        }
+        
+        // Update the progress bar to show progress within current segment only
+        this.updateProgressBar(progressInSegment, cardsInSegment);
+    }
+
+    /**
+     * Update milestone progress based on current score
+     * @param {number} score - Current score/completed cards
+     * @param {number} total - Total cards in session
+     */
+    updateMilestones(score, total) {
+        if (!this.progressBarContainer) return;
+        
+        // Update segment display - this now handles progress bar updates too
+        this.updateSegmentDisplay(score, total);
+        
+        // Ensure segment indicator covers the full progress bar width
+        const segmentIndicator = document.getElementById('segmentIndicator');
+        if (!segmentIndicator && this.progressBarContainer) {
+            const indicator = document.createElement('div');
+            indicator.id = 'segmentIndicator';
+            indicator.className = 'segment-indicator';
+            this.progressBarContainer.appendChild(indicator);
+        }
+        
+        // Update segment indicator to fill entire progress bar
+        // since we're now showing only the current segment
+        if (segmentIndicator) {
+            segmentIndicator.style.left = '0%';
+            segmentIndicator.style.width = '100%';
+        }
+    }
+    
+    /**
+     * Create marker for the current segment
+     */
+    createSegmentMarker() {
+        // Remove existing markers
+        this.progressBarContainer.querySelectorAll('.milestone-marker').forEach(el => el.remove());
+        
+        // Only add a milestone marker at 100%
+        const marker = document.createElement('div');
+        marker.className = 'milestone-marker';
+        marker.style.left = '100%';
+        this.progressBarContainer.appendChild(marker);
+    }
+
+    /**
+     * Show celebration when segment is completed
+     * @param {number} segment - Segment number that was completed
+     * @param {number} total - Total number of segments
+     */
+    celebrateSegmentCompletion(segment, total) {
+        try {
+            // Play achievement sound
+            this.celebrationSound.currentTime = 0;
+            this.celebrationSound.play().catch(e => console.warn('Could not play celebration sound', e));
+        } catch (e) {
+            console.warn('Error playing segment completion sound', e);
+        }
+        
+        // Create celebration toast
+        const toast = document.createElement('div');
+        toast.className = 'milestone-toast';
+        
+        // Choose celebration message based on progress
+        let message;
+        if (segment === total) {
+            message = 'Final segment completed!';
+        } else if (segment / total > 0.75) {
+            message = `Great progress! Segment ${segment} completed!`;
+        } else if (segment / total > 0.5) {
+            message = 'Halfway there! Keep going!';
+        } else if (segment / total > 0.25) {
+            message = 'Making good progress!';
+        } else {
+            message = 'First segment completed!';
+        }
+        
+        // Add segment count and overall progress to message
+        const segmentCountMsg = `<div class="segment-count mt-1">Segment ${segment}/${total} completed</div>`;
+        const overallProgressMsg = `<div class="overall-progress mt-1">${segment * this.cardsPerSegment} of ${this.totalCards} cards total</div>`;
+        
+        toast.innerHTML = `
+            <div class="milestone-icon mb-2"><i class="bi bi-trophy fs-3"></i></div>
+            <div class="milestone-message">${message}</div>
+            ${segmentCountMsg}
+            ${overallProgressMsg}
+        `;
+        
+        document.body.appendChild(toast);
+        
+        // Add "level-up" animation to the progress bar
+        const progressBar = document.getElementById('progressBar');
+        if (progressBar) {
+            progressBar.classList.add('level-up-pulse');
+            setTimeout(() => {
+                progressBar.classList.remove('level-up-pulse');
+                
+                // Reset progress bar to 0% when moving to a new segment
+                progressBar.style.width = '0%';
+                progressBar.setAttribute('aria-valuenow', 0);
+            }, 1000);
+        }
+        
+        // Remove toast after animation completes
+        setTimeout(() => {
+            toast.remove();
+        }, 3500);
     }
 }
