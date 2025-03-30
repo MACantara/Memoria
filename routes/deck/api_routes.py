@@ -184,6 +184,48 @@ def import_deck(deck_id):
         return jsonify({"success": False, "error": "This deck is private and cannot be imported"}), 403
     
     try:
+        # Debug info
+        print(f"Attempting to import deck {deck_id} ('{source_deck.name}') for user {current_user.id}")
+        
+        # Get all flashcards from the source deck and its sub-decks recursively
+        # Use recursive CTE to find all deck IDs in the hierarchy
+        cte = db.session.query(
+            FlashcardDecks.flashcard_deck_id.label('id')
+        ).filter(
+            FlashcardDecks.flashcard_deck_id == deck_id
+        ).cte(name='import_decks', recursive=True)
+
+        cte = cte.union_all(
+            db.session.query(
+                FlashcardDecks.flashcard_deck_id.label('id')
+            ).filter(
+                FlashcardDecks.parent_deck_id == cte.c.id
+            )
+        )
+        
+        # Get cards from all decks in the hierarchy
+        flashcards = Flashcards.query.filter(
+            Flashcards.flashcard_deck_id.in_(db.session.query(cte.c.id))
+        ).all()
+        
+        # Check if we have flashcards to import
+        if not flashcards or len(flashcards) == 0:
+            print(f"Warning: No flashcards found in deck {deck_id} or its sub-decks to import")
+            # Create the deck anyway, even with no cards
+            new_deck = FlashcardDecks(
+                name=f"{source_deck.name} (Imported)",
+                description=source_deck.description,
+                user_id=current_user.id
+            )
+            db.session.add(new_deck)
+            db.session.commit()
+            
+            return jsonify({
+                "success": True, 
+                "message": "Deck structure imported successfully. This deck has no flashcards.",
+                "deck_id": new_deck.flashcard_deck_id
+            })
+        
         # Create a new deck for the current user
         new_deck = FlashcardDecks(
             name=f"{source_deck.name} (Imported)",
@@ -193,31 +235,39 @@ def import_deck(deck_id):
         db.session.add(new_deck)
         db.session.flush()  # Get the new deck ID
         
-        # Copy all flashcards from the source deck
-        flashcards = Flashcards.query.filter_by(flashcard_deck_id=deck_id).all()
+        # Copy all flashcards from the source deck and sub-decks
+        print(f"Found {len(flashcards)} flashcards to import from deck hierarchy")
+        copied_count = 0
         
         for card in flashcards:
-            # Create a new flashcard based on the original
-            new_card = Flashcards(
-                flashcard_deck_id=new_deck.flashcard_deck_id,
-                question=card.question,
-                correct_answer=card.correct_answer,
-                incorrect_answers=card.incorrect_answers,
-                state=0,  # Reset state to 'new'
-                due_date=None  # Reset due date
-            )
-            db.session.add(new_card)
+            try:
+                # Create a new flashcard based on the original
+                new_card = Flashcards(
+                    flashcard_deck_id=new_deck.flashcard_deck_id,
+                    question=card.question,
+                    correct_answer=card.correct_answer,
+                    incorrect_answers=card.incorrect_answers,
+                    state=0,  # Reset state to 'new'
+                    due_date=None  # Reset due date
+                )
+                db.session.add(new_card)
+                copied_count += 1
+            except Exception as card_error:
+                print(f"Error copying card {card.flashcard_id}: {str(card_error)}")
         
         db.session.commit()
+        print(f"Successfully imported {copied_count} flashcards to deck {new_deck.flashcard_deck_id}")
         
         return jsonify({
             "success": True, 
-            "message": f"Successfully imported {len(flashcards)} flashcards to your new deck",
+            "message": f"Successfully imported {copied_count} flashcards to your new deck",
             "deck_id": new_deck.flashcard_deck_id
         })
     except SQLAlchemyError as e:
         db.session.rollback()
+        print(f"Database error while importing deck {deck_id}: {str(e)}")
         return jsonify({"success": False, "error": f"Database error: {str(e)}"}), 500
     except Exception as e:
         db.session.rollback()
+        print(f"Error importing deck {deck_id}: {str(e)}")
         return jsonify({"success": False, "error": f"Error importing deck: {str(e)}"}), 500
