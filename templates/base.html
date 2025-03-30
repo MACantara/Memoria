@@ -40,10 +40,11 @@
         {% endif %}
     </header>
     
-    <main class="container py-2">
-        {% block content %}{% endblock %}
+    <main>
+        <div class="container py-3">
+            {% block content %}{% endblock %}
+        </div>
         
-        <!-- Include the mobile nav here instead of outside the main container -->
         {% if current_user.is_authenticated %}
             {% include 'nav/mobile_bottom_nav.html' %}
         {% endif %}
