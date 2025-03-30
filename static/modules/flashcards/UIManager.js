@@ -22,6 +22,14 @@ export class UIManager {
         // Add explanation sound
         this.insightSound = new Audio('/static/sounds/insight.mp3');
         this.insightSound.load();
+
+        // Initialize milestone progress bar elements
+        this.progressBarContainer = document.getElementById('progressBarContainer');
+        this.progressMilestones = document.getElementById('progressMilestones');
+        this.milestoneSegments = [];
+        this.milestoneReached = false;
+        this.celebrationSound = new Audio('/static/sounds/achievement.mp3');
+        this.celebrationSound.load();
     }
 
     renderCard(card) {
@@ -290,6 +298,9 @@ export class UIManager {
             this.progressBar.style.width = `${percent}%`;
             this.progressBar.setAttribute('aria-valuenow', percent);
         }
+        
+        // Update milestone progress
+        this.updateMilestones(score, total);
     }
 
     showBriefFeedback(isCorrect) {
@@ -854,5 +865,117 @@ export class UIManager {
             // Silently fail if sound playback fails
             console.warn("Sound playback failed:", error);
         }
+    }
+
+    /**
+     * Initialize segmented milestone progress bar
+     * @param {number} totalCards - Total number of cards to study
+     */
+    initializeMilestones(totalCards) {
+        if (!this.progressBarContainer || !this.progressMilestones) return;
+        
+        // Clear existing milestones
+        this.progressBarContainer.querySelectorAll('.milestone-marker').forEach(el => el.remove());
+        this.progressMilestones.innerHTML = '';
+        
+        // Only add milestones if we have enough cards
+        if (totalCards < 5) return;
+        
+        // Calculate number of segments (1 segment per 5 cards, max 5 segments)
+        const segmentCount = Math.min(Math.floor(totalCards / 5), 5);
+        
+        // Create milestone markers
+        for (let i = 1; i <= segmentCount; i++) {
+            const percentage = (i * (100 / segmentCount));
+            
+            // Create marker on progress bar
+            const marker = document.createElement('div');
+            marker.className = 'milestone-marker';
+            marker.style.left = `${percentage}%`;
+            marker.dataset.milestone = i;
+            this.progressBarContainer.appendChild(marker);
+            
+            // Create label under progress bar
+            const label = document.createElement('div');
+            label.className = 'milestone-label';
+            label.textContent = `${Math.round((i * totalCards) / segmentCount)} cards`;
+            this.progressMilestones.appendChild(label);
+            
+            this.milestoneSegments.push({
+                percentage,
+                marker,
+                label,
+                reached: false
+            });
+        }
+    }
+
+    /**
+     * Update milestone progress based on current score
+     * @param {number} score - Current score/completed cards
+     * @param {number} total - Total cards in session
+     */
+    updateMilestones(score, total) {
+        if (this.milestoneSegments.length === 0) return;
+        
+        const progressPercentage = (score / total) * 100;
+        
+        // Update milestone markers
+        this.milestoneSegments.forEach((segment, index) => {
+            if (progressPercentage >= segment.percentage && !segment.reached) {
+                // Mark this milestone as reached
+                segment.reached = true;
+                segment.marker.classList.add('completed');
+                segment.label.classList.add('active');
+                
+                // Show celebration for this milestone
+                this.showMilestoneCelebration(index + 1, this.milestoneSegments.length);
+            }
+        });
+    }
+
+    /**
+     * Show celebration toast when milestone is reached
+     * @param {number} milestone - Current milestone number
+     * @param {number} total - Total number of milestones
+     */
+    showMilestoneCelebration(milestone, total) {
+        try {
+            // Play achievement sound
+            this.celebrationSound.currentTime = 0;
+            this.celebrationSound.play().catch(e => console.warn('Could not play celebration sound', e));
+        } catch (e) {
+            console.warn('Error playing milestone sound', e);
+        }
+        
+        // Create and show toast notification
+        const toast = document.createElement('div');
+        toast.className = 'milestone-toast';
+        
+        // Choose message based on milestone position
+        let message;
+        if (milestone === total) {
+            message = 'Almost there! Final stretch!';
+        } else if (milestone / total >= 0.75) {
+            message = `Great progress! ${milestone}/${total} milestones complete!`;
+        } else if (milestone / total >= 0.5) {
+            message = 'Halfway there! Keep going!';
+        } else if (milestone / total >= 0.25) {
+            message = 'Nice work! Keep up the good pace!';
+        } else {
+            message = 'First milestone reached! 🎉';
+        }
+        
+        toast.innerHTML = `
+            <div class="milestone-icon mb-2"><i class="bi bi-trophy fs-3"></i></div>
+            <div class="milestone-message">${message}</div>
+        `;
+        
+        document.body.appendChild(toast);
+        
+        // Remove toast after animation completes
+        setTimeout(() => {
+            toast.remove();
+        }, 3000);
     }
 }

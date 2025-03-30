@@ -68,6 +68,9 @@ export class FlashcardManager {
             // Load all flashcards at once
             await this.loadAllFlashcards();
             
+            // Initialize milestone segments
+            this.ui.initializeMilestones(this.totalDueCards);
+            
             // Show the first card if we loaded any
             if (this.flashcards.length > 0) {
                 this.currentCardIndex = 0;

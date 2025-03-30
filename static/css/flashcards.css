@@ -444,3 +444,61 @@ body {
     margin-right: 12px;
     flex-shrink: 0;
 }
+
+/* Milestone progress styling */
+#progressBarContainer {
+    position: relative;
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+[data-bs-theme="dark"] #progressBarContainer {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.milestone-marker {
+    position: absolute;
+    top: -4px;
+    width: 4px;
+    height: 16px;
+    background-color: var(--bs-primary);
+    z-index: 1;
+    transition: background-color 0.3s ease;
+}
+
+.milestone-marker.completed {
+    background-color: var(--bs-success);
+}
+
+.milestone-label {
+    font-size: 0.7rem;
+    opacity: 0.7;
+    transition: all 0.2s ease;
+}
+
+.milestone-label.active {
+    font-weight: bold;
+    opacity: 1;
+    color: var(--bs-success);
+}
+
+.milestone-toast {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(25, 135, 84, 0.85);
+    color: white;
+    padding: 15px 25px;
+    border-radius: 6px;
+    z-index: 1060;
+    text-align: center;
+    animation: milestone-toast-in 0.5s ease forwards;
+    pointer-events: none;
+}
+
+@keyframes milestone-toast-in {
+    0% { opacity: 0; transform: translate(-50%, -30%); }
+    20% { opacity: 1; transform: translate(-50%, -50%); }
+    80% { opacity: 1; transform: translate(-50%, -50%); }
+    100% { opacity: 0; transform: translate(-50%, -70%); }
+}
