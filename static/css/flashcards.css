@@ -699,8 +699,7 @@ body {
 /* Make toast buttons more touch-friendly on mobile */
 @media (max-width: 768px) {
     .toast {
-        min-width: 280px;
-        max-width: 90%;
+        max-width: 250px;
     }
     
     .toast-body .btn {
