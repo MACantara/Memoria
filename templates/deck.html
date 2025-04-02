@@ -52,7 +52,8 @@
                 show_create_subdeck=true,
                 show_study=true,
                 show_stats=true,
-                due_count=due_count
+                due_count=due_count,
+                defer_due_count=defer_due_count|default(false)
             %}
             {% include 'components/deck_action_buttons.html' %}
             {% endwith %}
@@ -88,7 +89,29 @@
     // Initialize flashcard operations
     document.addEventListener('DOMContentLoaded', function() {
         initializeFlashcardOperations();
+        
+        // Performance: Load due count after page load if needed
+        {% if defer_due_count %}
+        setTimeout(() => {
+            loadDueCount({{ deck.flashcard_deck_id }});
+        }, 100); // Small delay to prioritize UI rendering
+        {% endif %}
     });
+    
+    // Function to load due count after page load
+    function loadDueCount(deckId) {
+        fetch(`/deck/api/due-count/${deckId}`)
+        .then(response => response.json())
+        .then(data => {
+            // Update due count in the UI
+            const dueCountEl = document.getElementById('due-count-badge');
+            if (dueCountEl && data.due_count > 0) {
+                dueCountEl.textContent = data.due_count;
+                dueCountEl.classList.remove('d-none');
+            }
+        })
+        .catch(error => console.error('Error loading due count:', error));
+    }
     
     console.log("Deck view script loaded");
 </script>

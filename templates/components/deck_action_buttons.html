@@ -167,3 +167,16 @@
         {% endif %}
     {% endif %}
 </div>
+
+{% if show_study %}
+<a href="{{ url_for('deck.deck_view.study_deck', deck_id=deck.flashcard_deck_id) }}" 
+   class="btn btn-primary" 
+   title="Study flashcards in this deck">
+    <i class="bi bi-book me-1"></i> Study
+    {% if not defer_due_count|default(false) and due_count > 0 %}
+    <span class="badge bg-light text-dark">{{ due_count }}</span>
+    {% else %}
+    <span id="due-count-badge" class="badge bg-light text-dark d-none">0</span>
+    {% endif %}
+</a>
+{% endif %}

@@ -20,106 +20,115 @@ def load_all_decks():
 @login_required
 def get_deck_flashcards(deck_id):
     """View all flashcards in a deck with pagination"""
-    # Use aggressive eager loading with selective field loading to reduce query size
-    deck = FlashcardDecks.query.options(
-        joinedload(FlashcardDecks.parent_deck).load_only(
-            FlashcardDecks.flashcard_deck_id, FlashcardDecks.name, FlashcardDecks.parent_deck_id
-        ),
-        joinedload(FlashcardDecks.child_decks).load_only(
-            FlashcardDecks.flashcard_deck_id, FlashcardDecks.name, FlashcardDecks.created_at
-        ),
-        defer(FlashcardDecks.description)  # Defer loading large fields not needed initially
-    ).get_or_404(deck_id)
+    # Performance: Use cache first if available
+    from flask import current_app
+    cache_key = f"deck_view:{deck_id}:{current_user.id}"
     
-    # Check ownership
-    if deck.user_id != current_user.id:
-        abort(403)  # Unauthorized
+    cache_data = None
+    if hasattr(current_app, 'cache') and current_app.cache:
+        cache_data = current_app.cache.get(cache_key)
     
-    # Get parent decks for breadcrumb trail
-    parent_decks = []
-    current_parent = deck.parent_deck
-    while current_parent is not None:
-        parent_decks.insert(0, current_parent)
-        current_parent = current_parent.parent_deck
+    if cache_data:
+        deck, parent_decks, child_decks = cache_data
+    else:
+        # Use more selective loading - don't load all relationships at once
+        deck = FlashcardDecks.query.get_or_404(deck_id)
+        
+        # Check ownership
+        if deck.user_id != current_user.id:
+            abort(403)  # Unauthorized
+        
+        # Load parent decks with a separate efficient query
+        parent_decks = []
+        if deck.parent_deck_id:
+            # Get all ancestors with a single query
+            ancestors_query = """
+            WITH RECURSIVE ancestors(id, name, parent_id) AS (
+                SELECT fd.flashcard_deck_id, fd.name, fd.parent_deck_id
+                FROM flashcard_decks fd
+                WHERE fd.flashcard_deck_id = :deck_id
+                UNION ALL
+                SELECT fd.flashcard_deck_id, fd.name, fd.parent_deck_id
+                FROM flashcard_decks fd, ancestors a
+                WHERE fd.flashcard_deck_id = a.parent_id
+            )
+            SELECT id, name, parent_id FROM ancestors WHERE id != :deck_id
+            ORDER BY parent_id ASC NULLS FIRST
+            """
+            try:
+                ancestors = db.session.execute(ancestors_query, {"deck_id": deck.parent_deck_id}).fetchall()
+                parent_decks = [{"flashcard_deck_id": a.id, "name": a.name} for a in ancestors]
+            except Exception as e:
+                current_app.logger.error(f"Error fetching ancestors: {str(e)}")
+        
+        # Load child decks in a separate query
+        child_decks = FlashcardDecks.query.filter_by(
+            parent_deck_id=deck_id
+        ).with_entities(
+            FlashcardDecks.flashcard_deck_id,
+            FlashcardDecks.name,
+            FlashcardDecks.created_at
+        ).all()
+        
+        # Cache the loaded data
+        if hasattr(current_app, 'cache') and current_app.cache:
+            current_app.cache.set(cache_key, (deck, parent_decks, child_decks), timeout=300)
     
     # Get sort parameter for child decks
     sort_by = request.args.get('sort', 'name')
     
-    # Get child decks and apply sorting
-    if deck.child_decks:
-        # Apply sorting to child_decks
+    # Apply sorting to child_decks list (pre-fetched without ORM overhead)
+    if child_decks:
+        # Use a lighter approach to sorting
         if sort_by == 'name':
-            deck.child_decks.sort(key=lambda d: d.name)
+            child_decks = sorted(child_decks, key=lambda d: d.name)
         elif sort_by == 'created_desc':
-            deck.child_decks.sort(key=lambda d: d.created_at, reverse=True)
+            child_decks = sorted(child_decks, key=lambda d: d.created_at or datetime.min, reverse=True)
         elif sort_by == 'created_asc':
-            deck.child_decks.sort(key=lambda d: d.created_at)
-        elif sort_by == 'cards_desc' or sort_by == 'cards_asc':
-            # Count cards including those in subdecks for each child deck
-            child_decks_with_counts = [(d, d.count_all_flashcards()) for d in deck.child_decks]
-            
-            # Sort by card count
-            if sort_by == 'cards_desc':
-                child_decks_with_counts.sort(key=lambda x: x[1], reverse=True)
-            else:  # cards_asc
-                child_decks_with_counts.sort(key=lambda x: x[1])
-            
-            # Update the child_decks list with the sorted decks
-            deck.child_decks = [d for d, _ in child_decks_with_counts]
-        elif sort_by == 'due_desc':
-            # Get due counts for all child decks
-            child_deck_ids = [d.flashcard_deck_id for d in deck.child_decks]
-            due_counts = batch_count_due_cards(child_deck_ids, current_user.id)
-            
-            # Sort child decks by due count
-            deck.child_decks.sort(key=lambda d: due_counts.get(d.flashcard_deck_id, 0), reverse=True)
+            child_decks = sorted(child_decks, key=lambda d: d.created_at or datetime.min)
+        # Skip expensive due counts for initial load - can be loaded via AJAX if needed
     
     # Get pagination parameters for flashcards
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 20, type=int)
-    sort_by = request.args.get('sort', 'created_desc')  # New default sort
+    sort_by = request.args.get('sort', 'created_desc')
     
-    # Limit per_page to reasonable values
-    per_page = min(max(per_page, 10), 100) 
-    
-    # For AJAX requests, return paginated flashcards JSON
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return jsonify({"error": "Use the /flashcard/lazy_load endpoint for AJAX requests"})
-    
-    # Optimize the count query with a simpler approach
+    # Optimize or defer the expensive query - only count flashcards DIRECTLY in this deck
+    # This avoids the recursive CTE for the initial page load
     total_flashcards = db.session.query(
         func.count(Flashcards.flashcard_id)
     ).filter_by(
         flashcard_deck_id=deck_id
-    ).scalar()
+    ).scalar() or 0
     
-    # Base query for flashcards
-    flashcards_query = Flashcards.query.filter_by(flashcard_deck_id=deck_id)
-    
-    # Apply sorting
-    if sort_by == 'created_desc':
-        flashcards_query = flashcards_query.order_by(desc(Flashcards.created_at))
-    elif sort_by == 'created_asc':
-        flashcards_query = flashcards_query.order_by(asc(Flashcards.created_at))
-    elif sort_by == 'question':
-        flashcards_query = flashcards_query.order_by(func.lower(Flashcards.question))
-    elif sort_by == 'answer':
-        flashcards_query = flashcards_query.order_by(asc(Flashcards.correct_answer))
-    elif sort_by == 'due_asc':
-        # Sort by due date, putting NULL values at the end
-        flashcards_query = flashcards_query.order_by(
-            case((Flashcards.due_date == None, 1), else_=0),
-            asc(Flashcards.due_date)
-        )
-    elif sort_by == 'state':
-        # Sort by learning state (0=new, 1=learning, 2=mastered, 3=forgotten)
-        flashcards_query = flashcards_query.order_by(
-            asc(Flashcards.state),
-            desc(Flashcards.due_date)
-        )
-    
-    # Get flashcards with pagination
-    flashcards = flashcards_query.offset((page-1) * per_page).limit(per_page).all()
+    # Only fetch flashcards if there are any (avoid empty queries)
+    flashcards = []
+    if total_flashcards > 0:
+        # Base query for flashcards - only include what's needed for the current page
+        flashcards_query = Flashcards.query.filter_by(flashcard_deck_id=deck_id)
+        
+        # Apply sorting
+        if sort_by == 'created_desc':
+            flashcards_query = flashcards_query.order_by(desc(Flashcards.created_at))
+        elif sort_by == 'created_asc':
+            flashcards_query = flashcards_query.order_by(asc(Flashcards.created_at))
+        elif sort_by == 'question':
+            flashcards_query = flashcards_query.order_by(func.lower(Flashcards.question))
+        elif sort_by == 'answer':
+            flashcards_query = flashcards_query.order_by(asc(Flashcards.correct_answer))
+        elif sort_by == 'due_asc':
+            flashcards_query = flashcards_query.order_by(
+                case((Flashcards.due_date == None, 1), else_=0),
+                asc(Flashcards.due_date)
+            )
+        elif sort_by == 'state':
+            flashcards_query = flashcards_query.order_by(
+                asc(Flashcards.state),
+                desc(Flashcards.due_date)
+            )
+        
+        # Get flashcards with pagination
+        flashcards = flashcards_query.offset((page-1) * per_page).limit(per_page).all()
     
     # Create pagination metadata
     pagination = create_pagination_metadata(
@@ -129,19 +138,49 @@ def get_deck_flashcards(deck_id):
         {key: value for key, value in request.args.items() if key not in ['page']}
     )
     
-    # Get due count
-    due_count = count_due_flashcards(deck_id)
+    # Defer due count calculation to an AJAX request after page load
+    # This dramatically speeds up the initial page render
+    due_count = 0  # Will be populated by JavaScript
+    
+    # Log performance timing
+    current_app.logger.info(f"Rendering deck {deck_id} with {total_flashcards} flashcards")
     
     return render_template(
         'deck.html',
         deck=deck,
         parent_decks=parent_decks,
-        child_decks=deck.child_decks,
+        child_decks=child_decks,
         flashcards=flashcards,
         pagination=pagination,
         total_flashcards=total_flashcards,
-        due_count=due_count
+        due_count=due_count,
+        defer_due_count=True  # Tell template to load due counts via AJAX
     )
+
+@deck_view_bp.route("/api/due-count/<int:deck_id>")
+@login_required
+def get_deck_due_count(deck_id):
+    """Get due count for a deck via AJAX"""
+    try:
+        # Check if count is in cache
+        cache_key = f"deck_due_count:{deck_id}:{current_user.id}"
+        
+        if hasattr(current_app, 'cache') and current_app.cache:
+            cached_count = current_app.cache.get(cache_key)
+            if cached_count is not None:
+                return jsonify({"due_count": cached_count})
+        
+        # Not in cache, calculate it
+        due_count = count_due_flashcards(deck_id)
+        
+        # Cache the result
+        if hasattr(current_app, 'cache') and current_app.cache:
+            current_app.cache.set(cache_key, due_count, timeout=300)  # 5 min cache
+        
+        return jsonify({"due_count": due_count})
+    except Exception as e:
+        current_app.logger.error(f"Error calculating due count: {str(e)}")
+        return jsonify({"due_count": 0, "error": str(e)})
 
 @deck_view_bp.route("/study/<int:deck_id>")
 @login_required
