@@ -87,10 +87,17 @@ export class EventManager {
                 }
             }
         } else {
-            // In feedback mode, any key continues to next question BUT ONLY if:
-            // 1. The key press is not 'e' or 'E' (which is for editing)
-            // 2. The Explain button is not focused (don't want to trigger it with keyboard)
-            if (e.key !== 'e' && e.key !== 'E') { 
+            // In feedback mode, handle shortcut keys specifically
+            if (e.key === 'x' || e.key === 'X') {
+                // Add 'X' shortcut for showing explanation
+                const explainButton = document.getElementById('explainFlashcardBtn');
+                if (explainButton && !explainButton.disabled) {
+                    explainButton.click();
+                    e.preventDefault();
+                    return;
+                }
+            } else if (e.key !== 'e' && e.key !== 'E') { 
+                // For all other keys (except 'e' for edit), continue to next question
                 // Make sure we're not focused on the Explain button
                 const explainButton = document.getElementById('explainFlashcardBtn');
                 if (document.activeElement !== explainButton) {

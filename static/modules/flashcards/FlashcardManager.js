@@ -690,4 +690,21 @@ export class FlashcardManager {
             }
         }
     }
+
+    /**
+     * Show explanation for the current flashcard using the modal
+     */
+    showExplanation() {
+        if (!this.currentCard) return;
+        
+        const flashcardId = this.currentCard.id;
+        try {
+            // Ensure the current card is accessible to the UI manager
+            this.ui.showExplanationModal(flashcardId);
+        } catch (e) {
+            console.error('Error showing explanation:', e);
+            // Fallback to simple alert with correct answer
+            alert(`An error occurred showing the explanation.\n\nCorrect answer: ${this.currentCard.correct_answer}`);
+        }
+    }
 }
