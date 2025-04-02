@@ -573,43 +573,116 @@ body {
 /* Toast styling */
 .toast-container {
     z-index: 1060;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: auto;
+    padding: 0;
 }
 
 .toast {
     min-width: 300px;
     backdrop-filter: blur(10px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    border-radius: 8px;
+    box-shadow: 0 5px 25px rgba(0, 0, 0, 0.25);
+    border-radius: 10px;
     overflow: hidden;
     opacity: 0;
-    transform: translateY(20px);
-    transition: opacity 0.3s ease, transform 0.3s ease;
+    border: none;
+    text-align: center;
+    color: white;
+}
+
+/* Remove header border and simplify toast design */
+.toast .toast-header {
+    background: transparent;
+    border-bottom: none;
+    color: white;
+    text-align: center;
+    justify-content: center;
+    padding-bottom: 0;
+}
+
+.toast .toast-body {
+    padding: 0.75rem 1.5rem 1.5rem;
+}
+
+/* Success toast styling */
+.toast.border-success {
+    background-color: rgba(25, 135, 84, 0.9);
+    border: none;
+}
+
+/* Danger toast styling */
+.toast.border-danger {
+    background-color: rgba(220, 53, 69, 0.9);
+    border: none;
+}
+
+/* Toast animations to match milestone toast */
+@keyframes toast-in-out {
+    0% { 
+        opacity: 0;
+        transform: translateY(20px); 
+    }
+    15% { 
+        opacity: 1;
+        transform: translateY(0); 
+    }
+    85% { 
+        opacity: 1;
+        transform: translateY(0); 
+    }
+    100% { 
+        opacity: 0;
+        transform: translateY(-20px); 
+    }
 }
 
 .toast.show {
+    animation: toast-in-out 3s forwards ease;
     opacity: 1;
     transform: translateY(0);
+    transition: none;
 }
 
-.toast-header {
-    border-bottom: none;
-    padding: 0.75rem 1rem;
+/* Toast icon styling */
+.toast-icon i {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+    display: block;
 }
 
-.toast-body {
-    padding: 0.75rem 1rem;
-}
-
-.toast .toast-icon i {
+/* Toast title styling */
+#feedbackToastTitle {
     font-size: 1.25rem;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
 }
 
-.toast.border-success {
-    border-left-width: 4px !important;
+/* Toast buttons styling */
+.toast-body .btn {
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    color: white;
+    transition: all 0.2s ease;
+    margin-top: 1rem;
 }
 
-.toast.border-danger {
-    border-left-width: 4px !important;
+.toast-body .btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.toast-body .btn-primary {
+    background-color: rgba(255, 255, 255, 0.25);
+}
+
+.toast-body .btn-outline-secondary {
+    background-color: transparent;
+}
+
+.toast .btn-close {
+    color: white;
+    filter: invert(1) grayscale(100%) brightness(200%);
 }
 
 /* Make toast buttons more touch-friendly on mobile */

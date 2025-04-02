@@ -873,12 +873,14 @@ export class UIManager {
             return;
         }
         
-        // Style toast based on correctness
-        toast.className = `toast ${isCorrect ? 'border-success' : 'border-danger'} border-start border-4`;
-        toastHeader.className = `toast-header ${isCorrect ? 'bg-success' : 'bg-danger'} bg-opacity-10`;
+        // Style toast based on correctness - simplified to match milestone toast
+        toast.className = `toast ${isCorrect ? 'border-success' : 'border-danger'}`;
+        toastHeader.className = 'toast-header';
+        
+        // Set the icon and title
         toastIcon.innerHTML = isCorrect 
-            ? '<i class="bi bi-check-circle-fill text-success"></i>' 
-            : '<i class="bi bi-x-circle-fill text-danger"></i>';
+            ? '<i class="bi bi-check-circle-fill"></i>' 
+            : '<i class="bi bi-x-circle-fill"></i>';
         toastTitle.textContent = isCorrect ? 'Correct!' : 'Incorrect';
         
         // Add content to toast body
@@ -890,11 +892,11 @@ export class UIManager {
             // For incorrect answers, add an "Explain" button
             toastBody.innerHTML = `
                 <p class="mb-0">Try to remember this card for next time.</p>
-                <div class="mt-2 d-flex justify-content-between">
-                    <button id="toastExplainBtn" class="btn btn-sm btn-outline-secondary">
+                <div class="mt-3 d-flex justify-content-center gap-2">
+                    <button id="toastExplainBtn" class="btn btn-outline-secondary">
                         <i class="bi bi-lightbulb me-1"></i> Explain
                     </button>
-                    <button id="toastNextBtn" class="btn btn-sm btn-primary">
+                    <button id="toastNextBtn" class="btn btn-primary">
                         <i class="bi bi-arrow-right me-1"></i> Next
                     </button>
                 </div>
