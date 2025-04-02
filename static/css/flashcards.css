@@ -706,3 +706,52 @@ body {
         padding: 0.5rem 0.75rem;
     }
 }
+
+/* Batch loading toast styles */
+.batch-loading-toast {
+    min-width: 250px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    border: none;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.batch-loading-toast .toast-header {
+    border-bottom: none;
+    padding: 0.6rem 0.75rem;
+}
+
+.batch-loading-toast .toast-body {
+    padding: 0.75rem;
+}
+
+/* Toast animations */
+@keyframes fade-in-up {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fade-out-down {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+}
+
+.fade-in-up {
+    animation: fade-in-up 0.3s ease forwards;
+}
+
+.fade-out-down {
+    animation: fade-out-down 0.3s ease forwards;
+}

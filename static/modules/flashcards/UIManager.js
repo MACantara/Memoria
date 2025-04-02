@@ -246,7 +246,91 @@ export class UIManager {
         return array;
     }
     
+    /**
+     * Show or hide a batch loading indicator as a toast
+     * @param {boolean} isLoading - Whether to show the loading indicator
+     */
+    showBatchLoading(isLoading) {
+        // Check if we have the batch loading toast already
+        let batchToast = document.getElementById('batchLoadingToast');
+        
+        if (!batchToast) {
+            // Create the toast container and content if it doesn't exist
+            const toastContainer = document.createElement('div');
+            toastContainer.className = 'position-fixed bottom-0 end-0 p-3';
+            toastContainer.style.zIndex = '1050';
+            
+            toastContainer.innerHTML = `
+                <div id="batchLoadingToast" class="toast batch-loading-toast" role="alert" aria-live="polite" aria-atomic="true">
+                    <div class="toast-header bg-primary text-white">
+                        <div class="spinner-border spinner-border-sm me-2" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <strong class="me-auto">Loading Cards</strong>
+                    </div>
+                    <div class="toast-body">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-grow-1">Loading more flashcards...</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(toastContainer);
+            batchToast = document.getElementById('batchLoadingToast');
+            
+            // Initialize bootstrap toast
+            if (typeof bootstrap !== 'undefined') {
+                this.batchLoadingToastInstance = new bootstrap.Toast(batchToast, {
+                    autohide: false  // We'll manually hide it when loading is complete
+                });
+            }
+        }
+        
+        // Show or hide the toast
+        if (isLoading) {
+            if (this.batchLoadingToastInstance) {
+                this.batchLoadingToastInstance.show();
+            } else if (typeof bootstrap !== 'undefined') {
+                // Reinitialize if needed
+                this.batchLoadingToastInstance = new bootstrap.Toast(batchToast, {
+                    autohide: false
+                });
+                this.batchLoadingToastInstance.show();
+            }
+            
+            // Add a little style animation
+            batchToast.classList.add('fade-in-up');
+        } else {
+            if (this.batchLoadingToastInstance) {
+                // Add a fade-out animation before hiding
+                batchToast.classList.remove('fade-in-up');
+                batchToast.classList.add('fade-out-down');
+                
+                // Hide after a short delay to allow animation to complete
+                setTimeout(() => {
+                    this.batchLoadingToastInstance.hide();
+                    // Reset classes after hiding
+                    setTimeout(() => {
+                        batchToast.classList.remove('fade-out-down');
+                    }, 300);
+                }, 500);
+            }
+        }
+    }
+
+    // Update the existing showLoading method to use the toast for batches
     showLoading(isLoading) {
+        // Use the batch loading toast for all except the first load
+        const firstBatchLoaded = window.flashcardManager && 
+                               window.flashcardManager.currentPage > 1;
+        
+        if (firstBatchLoaded) {
+            this.showBatchLoading(isLoading);
+            return;
+        }
+        
+        // Original code for initial loading
         const loadingContainer = document.getElementById('loadingContainer');
         if (!loadingContainer) return;
         
