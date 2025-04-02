@@ -124,7 +124,11 @@ Study {{ deck.name }} (All Cards)
     <!-- Single card template that will be dynamically populated -->
     <div id="currentFlashcard" class="card flashcard mb-4" style="display: none;">
         <div class="card-body">
-            <div id="questionContainer" class="card-title h4"></div>
+            <!-- Add flashcard state badge -->
+            <div class="position-relative mb-2">
+                <span id="statusBadge" class="badge bg-secondary position-absolute start-0 top-0">New</span>
+            </div>
+            <div id="questionContainer" class="card-title h4 mt-4"></div>
             <form id="answerForm" class="answer-form mt-4">
                 <!-- Answer options will be dynamically inserted here -->
             </form>
