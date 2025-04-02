@@ -133,11 +133,12 @@ export class FlashcardManager {
                 url.searchParams.append('due_only', 'true');
             }
             
+
             // Add session ID for consistent batching
             if (this.sessionId) {
                 url.searchParams.append('session_id', this.sessionId);
             }
-            
+          
             const response = await fetch(url, {
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest'
@@ -157,7 +158,7 @@ export class FlashcardManager {
                 this.sessionId = data.session_id;
                 console.log(`Initialized session ID: ${this.sessionId}`);
             }
-            
+
             // Add the new batch of cards to our existing cards
             this.flashcards = [...this.flashcards, ...data.flashcards];
             
@@ -170,6 +171,7 @@ export class FlashcardManager {
                 
                 // Update milestone display with new total
                 this.ui.initializeMilestones(this.totalDueCards);
+
             }
             
             // Check if this is the last batch

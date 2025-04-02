@@ -270,7 +270,6 @@ def study_deck(deck_id):
         due_only=due_only
     )
 
-# Update the get_due_cards function to maintain consistent ordering
 def get_due_cards(deck_id, due_only=False):
     """Get cards due for review with prioritized ordering"""
     from models import db  # Import here to avoid circular imports
