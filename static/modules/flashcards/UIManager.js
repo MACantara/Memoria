@@ -514,7 +514,7 @@ export class UIManager {
                             </div>
                             <div class="explanation-text">
                                 <h6 class="text-muted mb-1">Why This Is Correct:</h6>
-                                <div class="p-3 bg-light rounded">
+                                <div class="p-3 rounded">
                                     ${data.explanation}
                                 </div>
                             </div>
