@@ -844,7 +844,7 @@ export class UIManager {
         if (toastElement && typeof bootstrap !== 'undefined') {
             this.feedbackToast = new bootstrap.Toast(toastElement, {
                 autohide: true,
-                delay: 3000
+                delay: 1000
             });
         }
     }
