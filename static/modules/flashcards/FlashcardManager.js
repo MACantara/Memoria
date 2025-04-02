@@ -21,6 +21,7 @@ export class FlashcardManager {
         this.currentPage = 1; // Track current page for pagination
         this.isLastBatch = false; // Flag to indicate if we've loaded the last batch
         this.isLoadingBatch = false; // Flag to prevent concurrent batch loading
+        this.sessionId = null; // Track session ID for consistent batches
         
         // Initialize event system
         this.eventListeners = {};
@@ -132,6 +133,11 @@ export class FlashcardManager {
                 url.searchParams.append('due_only', 'true');
             }
             
+            // Add session ID for consistent batching
+            if (this.sessionId) {
+                url.searchParams.append('session_id', this.sessionId);
+            }
+            
             const response = await fetch(url, {
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest'
@@ -145,6 +151,12 @@ export class FlashcardManager {
             }
             
             const data = await response.json();
+            
+            // Store the session ID for future requests
+            if (data.session_id && !this.sessionId) {
+                this.sessionId = data.session_id;
+                console.log(`Initialized session ID: ${this.sessionId}`);
+            }
             
             // Add the new batch of cards to our existing cards
             this.flashcards = [...this.flashcards, ...data.flashcards];

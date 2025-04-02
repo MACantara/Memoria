@@ -5,6 +5,7 @@ from utils import count_due_flashcards, create_pagination_metadata, batch_count_
 from flask_login import login_required, current_user
 from sqlalchemy.orm import joinedload, contains_eager, defer, load_only
 from sqlalchemy import func, desc, asc, case
+from datetime import datetime
 
 deck_view_bp = Blueprint('deck_view', __name__)
 
@@ -157,15 +158,41 @@ def study_deck(deck_id):
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 25, type=int)
         
-        # Use the balanced cards implementation
-        flashcards = get_due_cards(deck_id, due_only)
+        # Track which cards have already been sent to avoid duplicates
+        session_id = request.args.get('session_id', '')
+        already_sent_ids = []
         
-        # Paginate the flashcards
+        if session_id:
+            # Get already sent IDs from session storage
+            sent_key = f'sent_cards_{session_id}'
+            already_sent_str = request.cookies.get(sent_key, '')
+            if already_sent_str:
+                try:
+                    already_sent_ids = [int(id_str) for id_str in already_sent_str.split(',') if id_str]
+                except ValueError:
+                    # Reset if there's any parsing error
+                    already_sent_ids = []
+        
+        # Get all cards (already prioritized)
+        all_flashcards = get_due_cards(deck_id, due_only)
+        
+        # Remove any cards that have already been sent
+        if already_sent_ids:
+            all_flashcards = [card for card in all_flashcards if card.flashcard_id not in already_sent_ids]
+        
+        # Calculate total cards for client (excluding already sent)
+        total_cards = len(all_flashcards)
+        
+        # Apply pagination to the filtered list
         start = (page - 1) * per_page
         end = start + per_page
-        paginated_flashcards = flashcards[start:end]
+        paginated_flashcards = all_flashcards[start:end]
         
-        # Transform to JSON response format
+        # Add current batch IDs to the sent list
+        current_batch_ids = [card.flashcard_id for card in paginated_flashcards]
+        updated_sent_ids = already_sent_ids + current_batch_ids
+        
+        # Format cards for JSON response
         flashcard_data = []
         for card in paginated_flashcards:
             deck_info = None
@@ -188,13 +215,22 @@ def study_deck(deck_id):
                 'subdeck': deck_info
             })
         
-        # Return paginated cards
-        return jsonify({
+        # Create response
+        response = jsonify({
             'flashcards': flashcard_data,
-            'total': len(flashcards),
+            'total': total_cards,
             'page': page,
-            'per_page': per_page
+            'per_page': per_page,
+            'session_id': session_id or f"session_{int(datetime.now().timestamp())}"
         })
+        
+        # Store sent IDs in cookie for next request
+        if current_batch_ids:
+            sent_key = f'sent_cards_{session_id or response.json["session_id"]}'
+            sent_value = ','.join(str(id) for id in updated_sent_ids)
+            response.set_cookie(sent_key, sent_value, max_age=3600)  # 1 hour expiry
+        
+        return response
     
     # Normal page load - calculate the count of cards for rendering the template
     # Create recursive CTE to find all decks including this one and its sub-decks
@@ -234,7 +270,7 @@ def study_deck(deck_id):
         due_only=due_only
     )
 
-# Update the get_due_cards function to prioritize forgotten and learning cards
+# Update the get_due_cards function to maintain consistent ordering
 def get_due_cards(deck_id, due_only=False):
     """Get cards due for review with prioritized ordering"""
     from models import db  # Import here to avoid circular imports
