@@ -35,8 +35,6 @@ def convert_rating(is_correct):
 
 def process_review(flashcard, is_correct):
     """Process a review for a flashcard"""
-    # Note: No need to import db here since it's now imported at the module level
-    
     try:
         # Get current card state
         fsrs_card = flashcard.get_fsrs_card()
@@ -53,26 +51,29 @@ def process_review(flashcard, is_correct):
         if int(fsrs_card.state) == 3 and fsrs_card.step is None:
             print(f"Card {flashcard.flashcard_id} is in forgotten state with step=None, initializing to 0")
             fsrs_card.step = 0  # For relearning cards, always start at step 0
-            
+        
         # For learning cards (state 1), step is also required
         elif int(fsrs_card.state) == 1 and fsrs_card.step is None:
             print(f"Card {flashcard.flashcard_id} is in learning state with step=None, initializing to 0")
             fsrs_card.step = 0
-            
+        
         # General initialization for any other cards with None step
         elif fsrs_card.step is None:
             print(f"Card {flashcard.flashcard_id} has step=None (state={fsrs_card.state}), initializing to 0")
             fsrs_card.step = 0
-            
+        
         if fsrs_card.difficulty is None:
             print(f"Card {flashcard.flashcard_id} has difficulty=None, initializing to 0.3 (default)")
             fsrs_card.difficulty = 0.3  # Default difficulty in FSRS
-            
+        
         # CRITICAL FIX: stability cannot be zero since FSRS raises it to negative powers
         # Initialize with small positive value to avoid division by zero errors
         if fsrs_card.stability is None or fsrs_card.stability <= 0.0:
             print(f"Card {flashcard.flashcard_id} has stability={fsrs_card.stability}, initializing to 0.1")
             fsrs_card.stability = 0.1  # Small positive value to avoid math errors
+        
+        # Remember if this was a new card before processing
+        was_new_card = (flashcard.state == NEW_STATE)
         
         # If this is a first review of a card in our custom "New" state,
         # change to state 1 (Learning) to work with FSRS algorithm
@@ -84,7 +85,7 @@ def process_review(flashcard, is_correct):
         if fsrs_card.step is None:
             print(f"CRITICAL ERROR: Card {flashcard.flashcard_id} still has step=None after initialization!")
             fsrs_card.step = 0  # Force it again as a safeguard
-            
+        
         # Determine rating based on correctness
         rating = Rating.Good if is_correct else Rating.Again
         
@@ -100,6 +101,15 @@ def process_review(flashcard, is_correct):
         flashcard.due_date = next_card.due
         flashcard.state = int(next_card.state)
         flashcard.stability = next_card.stability
+        
+        # Fix for new cards: If the card was new and answered incorrectly,
+        # ensure it goes to Learning (state 1) instead of Forgotten (state 3)
+        if flashcard.state == 3 and was_new_card and not is_correct:
+            print(f"Fixing state: Card {flashcard.flashcard_id} was new and answered incorrectly, setting to Learning (1) instead of Forgotten (3)")
+            flashcard.state = 1
+            # Update the fsrs_state to be consistent with the state override
+            flashcard.fsrs_state['state'] = 1
+            
         flashcard.difficulty = next_card.difficulty
         flashcard.retrievability = next_card.get_retrievability() or 0.0
         
