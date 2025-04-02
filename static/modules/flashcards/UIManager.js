@@ -42,6 +42,36 @@ export class UIManager {
                     focus: true
                 });
                 
+                // Add explicit event handlers for the close buttons
+                const closeXBtn = document.getElementById('explanationCloseX');
+                const closeBtn = document.getElementById('explanationCloseBtn');
+                
+                if (closeXBtn) {
+                    closeXBtn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        try {
+                            this.explanationModal.hide();
+                        } catch (err) {
+                            console.error('Error hiding modal via X button:', err);
+                            // Fallback close method
+                            bootstrap.Modal.getInstance(explanationModalElement)?.hide();
+                        }
+                    });
+                }
+                
+                if (closeBtn) {
+                    closeBtn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        try {
+                            this.explanationModal.hide();
+                        } catch (err) {
+                            console.error('Error hiding modal via close button:', err);
+                            // Fallback close method
+                            bootstrap.Modal.getInstance(explanationModalElement)?.hide();
+                        }
+                    });
+                }
+                
                 // Ensure modal properly closes with keyboard/backdrop
                 explanationModalElement.addEventListener('hidden.bs.modal', () => {
                     console.log('Explanation modal hidden');
@@ -473,6 +503,25 @@ export class UIManager {
                         keyboard: true,
                         focus: true
                     });
+                    
+                    // Re-attach event handlers to close buttons
+                    const closeXBtn = document.getElementById('explanationCloseX');
+                    const closeBtn = document.getElementById('explanationCloseBtn');
+                    
+                    const hideModal = (e) => {
+                        e.preventDefault();
+                        try {
+                            this.explanationModal.hide();
+                        } catch (err) {
+                            console.error('Error hiding modal:', err);
+                            // Fallback close method
+                            bootstrap.Modal.getInstance(modalElement)?.hide();
+                        }
+                    };
+                    
+                    if (closeXBtn) closeXBtn.addEventListener('click', hideModal);
+                    if (closeBtn) closeBtn.addEventListener('click', hideModal);
+                    
                 } catch (e) {
                     console.error('Cannot initialize explanation modal:', e);
                     return;
