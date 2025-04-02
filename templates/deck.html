@@ -103,12 +103,24 @@
         fetch(`/deck/api/due-count/${deckId}`)
         .then(response => response.json())
         .then(data => {
-            // Update due count in the UI
-            const dueCountEl = document.getElementById('due-count-badge');
-            if (dueCountEl && data.due_count > 0) {
-                dueCountEl.textContent = data.due_count;
-                dueCountEl.classList.remove('d-none');
-            }
+            // Update due count in the UI (both in button and menu)
+            const dueCountBadges = [
+                document.getElementById('due-count-badge'),
+                document.getElementById('due-count-badge-menu')
+            ];
+            
+            dueCountBadges.forEach(badge => {
+                if (badge && data.due_count > 0) {
+                    badge.textContent = data.due_count;
+                    badge.classList.remove('d-none');
+                    
+                    // Also enable the "Due Today" menu item if it was disabled
+                    const dueMenuItem = document.querySelector('.due-today-item');
+                    if (dueMenuItem) {
+                        dueMenuItem.classList.remove('disabled');
+                    }
+                }
+            });
         })
         .catch(error => console.error('Error loading due count:', error));
     }
