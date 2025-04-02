@@ -889,47 +889,9 @@ export class UIManager {
                 <p class="mb-0">Great job! Moving to next card...</p>
             `;
         } else {
-            // For incorrect answers, add an "Explain" button
             toastBody.innerHTML = `
                 <p class="mb-0">Try to remember this card for next time.</p>
-                <div class="mt-3 d-flex justify-content-center gap-2">
-                    <button id="toastExplainBtn" class="btn btn-outline-secondary">
-                        <i class="bi bi-lightbulb me-1"></i> Explain
-                    </button>
-                    <button id="toastNextBtn" class="btn btn-primary">
-                        <i class="bi bi-arrow-right me-1"></i> Next
-                    </button>
-                </div>
             `;
-            
-            // Add event listeners to buttons after they're added to the DOM
-            setTimeout(() => {
-                const explainBtn = document.getElementById('toastExplainBtn');
-                const nextBtn = document.getElementById('toastNextBtn');
-                
-                if (explainBtn) {
-                    explainBtn.addEventListener('click', () => {
-                        const flashcardId = this.getCurrentFlashcardId();
-                        if (flashcardId) {
-                            this.showExplanationModal(flashcardId);
-                            // Hide the toast when showing explanation
-                            if (this.feedbackToast) {
-                                this.feedbackToast.hide();
-                            }
-                        }
-                    });
-                }
-                
-                if (nextBtn && typeof nextCardCallback === 'function') {
-                    nextBtn.addEventListener('click', () => {
-                        nextCardCallback();
-                        // Hide the toast when moving to next card
-                        if (this.feedbackToast) {
-                            this.feedbackToast.hide();
-                        }
-                    });
-                }
-            }, 0);
         }
         
         // Show the toast
@@ -943,49 +905,36 @@ export class UIManager {
             }
         }
         
-        // For correct answers, show minimal inline feedback and auto-advance
-        if (isCorrect) {
-            // Still need minimal inline feedback for keyboard navigation
-            const minimalFeedback = document.createElement('div');
-            minimalFeedback.className = 'text-center mt-3';
-            minimalFeedback.innerHTML = `
-                <button class="btn btn-success btn-sm" disabled>
-                    <i class="bi bi-check-circle me-1"></i> Correct
-                </button>
-            `;
-            this.answerForm.appendChild(minimalFeedback);
-        } else {
-            // For incorrect answers, show minimal buttons for keyboard navigation
-            const minimalButtons = document.createElement('div');
-            minimalButtons.className = 'd-flex justify-content-center gap-2 mt-3';
-            minimalButtons.innerHTML = `
-                <button id="explainFlashcardBtn" class="btn btn-outline-secondary">
-                    <i class="bi bi-lightbulb me-2"></i> Explain
-                </button>
-                <button id="nextQuestionBtn" class="btn btn-primary">
-                    <i class="bi bi-arrow-right me-2"></i> Next
-                </button>
-            `;
-            this.answerForm.appendChild(minimalButtons);
-            
-            // Add event listeners to new buttons
-            const explainBtn = document.getElementById('explainFlashcardBtn');
-            const nextBtn = document.getElementById('nextQuestionBtn');
-            
-            if (explainBtn) {
-                explainBtn.addEventListener('click', () => {
-                    const flashcardId = this.getCurrentFlashcardId();
-                    if (flashcardId) {
-                        this.showExplanationModal(flashcardId);
-                    }
-                });
-            }
-            
-            if (nextBtn && typeof nextCardCallback === 'function') {
-                nextBtn.addEventListener('click', nextCardCallback);
-                // Focus the next button for keyboard navigation
-                setTimeout(() => nextBtn.focus(), 100);
-            }
+        // Keep inline buttons for keyboard navigation
+        const minimalButtons = document.createElement('div');
+        minimalButtons.className = 'd-flex justify-content-center gap-2 mt-3';
+        minimalButtons.innerHTML = `
+            <button id="explainFlashcardBtn" class="btn btn-outline-secondary">
+                <i class="bi bi-lightbulb me-2"></i> Explain
+            </button>
+            <button id="nextQuestionBtn" class="btn btn-primary">
+                <i class="bi bi-arrow-right me-2"></i> Next
+            </button>
+        `;
+        this.answerForm.appendChild(minimalButtons);
+        
+        // Add event listeners to new buttons
+        const explainBtn = document.getElementById('explainFlashcardBtn');
+        const nextBtn = document.getElementById('nextQuestionBtn');
+        
+        if (explainBtn) {
+            explainBtn.addEventListener('click', () => {
+                const flashcardId = this.getCurrentFlashcardId();
+                if (flashcardId) {
+                    this.showExplanationModal(flashcardId);
+                }
+            });
+        }
+        
+        if (nextBtn && typeof nextCardCallback === 'function') {
+            nextBtn.addEventListener('click', nextCardCallback);
+            // Focus the next button for keyboard navigation
+            setTimeout(() => nextBtn.focus(), 100);
         }
     }
 

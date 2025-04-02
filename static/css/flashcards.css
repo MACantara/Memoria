@@ -600,11 +600,22 @@ body {
     color: white;
     text-align: center;
     justify-content: center;
-    padding-bottom: 0;
+    padding: 1rem 1rem 0.5rem;
+    display: flex;
+    flex-direction: column;
 }
 
+/* Toast icon styling - update to center icon */
+.toast-icon i {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+    display: block;
+    margin: 0 auto;
+}
+
+/* Make toast more compact */
 .toast .toast-body {
-    padding: 0.75rem 1.5rem 1.5rem;
+    padding: 0 1.5rem 1.5rem;
 }
 
 /* Success toast styling */
