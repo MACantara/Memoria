@@ -17,6 +17,11 @@ export class FlashcardManager {
         this.isLoading = false;
         this.currentCard = null;  // Store the current card data
         
+        this.batchSize = 25; // Default batch size
+        this.currentPage = 1; // Track current page for pagination
+        this.isLastBatch = false; // Flag to indicate if we've loaded the last batch
+        this.isLoadingBatch = false; // Flag to prevent concurrent batch loading
+        
         // Initialize event system
         this.eventListeners = {};
         
@@ -65,8 +70,8 @@ export class FlashcardManager {
         console.log(`Initializing flashcard manager. Total expected cards: ${this.totalDueCards}`);
         
         if (this.totalDueCards > 0) {
-            // Load all flashcards at once
-            await this.loadAllFlashcards();
+            // Load first batch of flashcards instead of all at once
+            await this.loadFlashcardBatch();
             
             // Initialize milestone segments
             this.ui.initializeMilestones(this.totalDueCards);
@@ -91,9 +96,6 @@ export class FlashcardManager {
                 
                 this.ui.renderCard(this.currentCard);
                 this.updateCardCounter();
-                
-                // Update the total count with the actual cards loaded
-                this.totalDueCards = this.flashcards.length;
             } else {
                 // No cards were loaded, show a message
                 this.ui.showNoCardsMessage();
@@ -107,21 +109,28 @@ export class FlashcardManager {
         this.events.setupEventListeners();
     }
 
-    async loadAllFlashcards() {
+    async loadFlashcardBatch() {
         try {
-            if (this.isLoading) return;
+            if (this.isLoadingBatch || this.isLastBatch) return;
             
-            this.isLoading = true;
+            this.isLoadingBatch = true;
+            console.log(`Loading batch ${this.currentPage} (size: ${this.batchSize})`);
             
-            // Build the URL for loading all cards at once
+            // Show loading indicator for subsequent batches (not the first one)
+            if (this.currentPage > 1) {
+                this.ui.showLoading(true);
+            }
+            
+            // Build the URL with pagination parameters
             const url = new URL(`/deck/study/${this.deckId}`, window.location.origin);
             
-            // Add query parameter for due only
+            // Add query parameters
+            url.searchParams.append('page', this.currentPage);
+            url.searchParams.append('per_page', this.batchSize);
+            
             if (this.studyMode) {
                 url.searchParams.append('due_only', 'true');
             }
-            
-            console.log(`Loading all flashcards from: ${url}`);
             
             const response = await fetch(url, {
                 headers: {
@@ -137,25 +146,52 @@ export class FlashcardManager {
             
             const data = await response.json();
             
-            // Store all flashcards
-            this.flashcards = data.flashcards;
-            console.log(`Successfully loaded ${this.flashcards.length} flashcards`);
+            // Add the new batch of cards to our existing cards
+            this.flashcards = [...this.flashcards, ...data.flashcards];
             
-            // Update the total now that we know the actual count
-            if (this.flashcards.length !== this.totalDueCards) {
-                console.log(`Updating total from ${this.totalDueCards} to ${this.flashcards.length}`);
-                this.totalDueCards = this.flashcards.length;
+            console.log(`Loaded batch ${this.currentPage}: ${data.flashcards.length} cards (total now: ${this.flashcards.length})`);
+            
+            // Update total count with server's value
+            if (this.totalDueCards !== data.total) {
+                console.log(`Updating total from ${this.totalDueCards} to ${data.total}`);
+                this.totalDueCards = data.total;
+                
+                // Update milestone display with new total
+                this.ui.initializeMilestones(this.totalDueCards);
             }
             
-            // Dispatch event to indicate first load completion
-            this.dispatchEvent('firstBatchLoaded');
+            // Check if this is the last batch
+            if (data.flashcards.length < this.batchSize || this.flashcards.length >= data.total) {
+                console.log('Reached last batch of cards');
+                this.isLastBatch = true;
+            }
+            
+            // Increment page for next batch
+            this.currentPage++;
+            
+            // Dispatch event after first batch is loaded
+            if (this.currentPage === 2) {
+                this.dispatchEvent('firstBatchLoaded');
+            }
+            
+            // Hide loading indicator for subsequent batches
+            if (this.currentPage > 2) {
+                this.ui.showLoading(false);
+            }
+            
+            return data.flashcards;
             
         } catch (error) {
             console.error("Error loading flashcards:", error);
             this.ui.showLoadingError(error.message);
+            return [];
         } finally {
-            this.isLoading = false;
+            this.isLoadingBatch = false;
         }
+    }
+
+    async loadAllFlashcards() {
+        return this.loadFlashcardBatch();
     }
 
     updateCardCounter() {
@@ -219,6 +255,17 @@ export class FlashcardManager {
             this.ui.renderCard(this.currentCard);
             this.updateCardCounter();
             return;
+        }
+        
+        // If we haven't loaded all cards yet, load the next batch
+        if (!this.isLastBatch && this.completedCards.size < this.totalDueCards) {
+            console.log("No cards found in current batch, loading next batch...");
+            const newCards = await this.loadFlashcardBatch();
+            
+            // If we loaded new cards, try again to find the next card
+            if (newCards && newCards.length > 0) {
+                return this.moveToNextCard();
+            }
         }
         
         // If we reach here, all cards have been completed

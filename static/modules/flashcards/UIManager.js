@@ -246,7 +246,53 @@ export class UIManager {
         return array;
     }
     
+    /**
+     * Show or hide a batch loading indicator
+     * @param {boolean} isLoading - Whether to show the loading indicator
+     */
+    showBatchLoading(isLoading) {
+        // Create or get the batch loading indicator
+        let batchLoadingIndicator = document.getElementById('batchLoadingIndicator');
+        
+        if (!batchLoadingIndicator) {
+            // Create the indicator if it doesn't exist
+            batchLoadingIndicator = document.createElement('div');
+            batchLoadingIndicator.id = 'batchLoadingIndicator';
+            batchLoadingIndicator.className = 'text-center py-3 my-3 d-none';
+            batchLoadingIndicator.innerHTML = `
+                <div class="spinner-border spinner-border-sm text-primary me-2" role="status">
+                    <span class="visually-hidden">Loading more cards...</span>
+                </div>
+                <span>Loading more cards...</span>
+            `;
+            
+            // Insert after the current flashcard
+            const currentFlashcard = document.getElementById('currentFlashcard');
+            if (currentFlashcard && currentFlashcard.parentNode) {
+                currentFlashcard.parentNode.insertBefore(batchLoadingIndicator, currentFlashcard.nextSibling);
+            }
+        }
+        
+        // Show or hide the loading indicator
+        if (isLoading) {
+            batchLoadingIndicator.classList.remove('d-none');
+        } else {
+            batchLoadingIndicator.classList.add('d-none');
+        }
+    }
+
+    // Update the existing showLoading method to use showBatchLoading for batches
     showLoading(isLoading) {
+        // Use the batch loading indicator for all except the first load
+        const firstBatchLoaded = window.flashcardManager && 
+                                 window.flashcardManager.currentPage > 1;
+        
+        if (firstBatchLoaded) {
+            this.showBatchLoading(isLoading);
+            return;
+        }
+        
+        // Original code for initial loading
         const loadingContainer = document.getElementById('loadingContainer');
         if (!loadingContainer) return;
         
