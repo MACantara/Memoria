@@ -105,6 +105,12 @@ export class FlashcardManager {
         
         // Setup event listeners
         this.events.setupEventListeners();
+
+        // Initialize explanation modal if it exists
+        const explanationModalElement = document.getElementById('explanationModal');
+        if (explanationModalElement && typeof bootstrap !== 'undefined') {
+            this.explanationModal = new bootstrap.Modal(explanationModalElement);
+        }
     }
 
     async loadAllFlashcards() {
@@ -689,5 +695,15 @@ export class FlashcardManager {
                 }
             }
         }
+    }
+
+    /**
+     * Show explanation for the current flashcard using the modal
+     */
+    showExplanation() {
+        if (!this.currentCard) return;
+        
+        const flashcardId = this.currentCard.id;
+        this.ui.showExplanationModal(flashcardId);
     }
 }

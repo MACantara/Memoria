@@ -31,6 +31,17 @@ export class UIManager {
         this.cardsPerSegment = 25; // Smaller, more manageable chunks
         this.celebrationSound = new Audio('/static/sounds/achievement.mp3');
         this.celebrationSound.load();
+
+        // Initialize modal for explanations
+        this.explanationModal = null;
+        
+        // Try to initialize the explanation modal if the element exists
+        const explanationModalElement = document.getElementById('explanationModal');
+        if (explanationModalElement && typeof bootstrap !== 'undefined') {
+            this.explanationModal = new bootstrap.Modal(explanationModalElement);
+        } else {
+            console.warn('Explanation modal element not found or bootstrap not loaded');
+        }
     }
 
     renderCard(card) {
@@ -400,7 +411,8 @@ export class UIManager {
                 // Get the flashcard ID from the URL or data attribute
                 const flashcardId = this.getCurrentFlashcardId();
                 if (flashcardId) {
-                    this.showExplanation(flashcardId, explainButton);
+                    // Use modal instead of inline explanation
+                    this.showExplanationModal(flashcardId);
                 }
             });
             buttonContainer.appendChild(explainButton);
@@ -429,12 +441,6 @@ export class UIManager {
         keyboardHint.innerHTML = '<i class="bi bi-keyboard me-1"></i><span>Press any key to go to next question</span>';
         feedbackContainer.appendChild(keyboardHint);
         
-        // Add container for explanation that will be populated later
-        const explanationContainer = document.createElement('div');
-        explanationContainer.id = 'explanationContainer';
-        explanationContainer.className = 'd-none mt-3';
-        feedbackContainer.appendChild(explanationContainer);
-        
         // Add container to the form
         this.answerForm.appendChild(feedbackContainer);
         
@@ -443,49 +449,33 @@ export class UIManager {
     }
     
     /**
-     * Get the current flashcard ID from the DOM
-     * @returns {string|null} The flashcard ID or null if not found
-     */
-    getCurrentFlashcardId() {
-        // Try to get it from the current card in the UI
-        const currentCard = document.getElementById('currentFlashcard');
-        if (currentCard && currentCard.dataset.flashcardId) {
-            return currentCard.dataset.flashcardId;
-        }
-        
-        // Try to get from FlashcardManager instance
-        if (window.flashcardManager && window.flashcardManager.currentCard) {
-            return window.flashcardManager.currentCard.id;
-        }
-        
-        return null;
-    }
-    
-    /**
-     * Show an explanation for the current flashcard
+     * Show explanation in a modal instead of inline
      * @param {string} flashcardId - The ID of the current flashcard
-     * @param {HTMLElement} explainButton - The explain button element
      */
-    showExplanation(flashcardId, explainButton) {
-        const explanationContainer = document.getElementById('explanationContainer');
-        if (!explanationContainer) return;
-        
-        // Show loading state
-        explanationContainer.classList.remove('d-none');
-        explanationContainer.innerHTML = `
-            <div class="explanation-loading text-center py-3">
-                <div class="spinner-border spinner-border-sm text-secondary me-2" role="status">
-                    <span class="visually-hidden">Generating explanation...</span>
-                </div>
-                <span>Generating explanation...</span>
-            </div>
-        `;
-        
-        // Disable the explain button
-        if (explainButton) {
-            explainButton.disabled = true;
-            explainButton.innerHTML = '<i class="bi bi-hourglass-split me-2"></i><span>Generating...</span>';
+    showExplanationModal(flashcardId) {
+        // Check if modal exists
+        if (!this.explanationModal) {
+            const modalElement = document.getElementById('explanationModal');
+            if (modalElement && typeof bootstrap !== 'undefined') {
+                this.explanationModal = new bootstrap.Modal(modalElement);
+            } else {
+                console.error('Cannot show explanation: modal element not found or bootstrap not loaded');
+                return;
+            }
         }
+        
+        // Show loading state in the modal
+        const loadingElement = document.getElementById('explanationLoading');
+        const contentElement = document.getElementById('explanationContent');
+        
+        if (loadingElement && contentElement) {
+            loadingElement.classList.remove('d-none');
+            contentElement.classList.add('d-none');
+            contentElement.innerHTML = '';
+        }
+        
+        // Show the modal
+        this.explanationModal.show();
         
         // Fetch the explanation from the server
         fetch(`/flashcard/explain/${flashcardId}`, {
@@ -509,27 +499,45 @@ export class UIManager {
             }
             
             // Check if explanation data exists
-            if (data.explanation) {
-                // Update feedback with explanation in a nicely formatted card (matching question-manager.js style)
-                explanationContainer.innerHTML = `
-                    <div class="card border-0 mt-3">
-                        <div>
-                            <h6 class="card-subtitle mb-2 text-muted">Explanation</h6>
-                            <p class="card-text mb-0">${data.explanation}</p>
+            if (contentElement) {
+                contentElement.classList.remove('d-none');
+                
+                if (data.explanation) {
+                    // Format the explanation with proper styling
+                    contentElement.innerHTML = `
+                        <div class="explanation-content">
+                            <div class="correct-answer mb-3">
+                                <h6 class="text-muted mb-1">Correct Answer:</h6>
+                                <div class="p-2 bg-success bg-opacity-10 border border-success rounded">
+                                    ${data.correct_answer || 'Not provided'}
+                                </div>
+                            </div>
+                            <div class="explanation-text">
+                                <h6 class="text-muted mb-1">Why This Is Correct:</h6>
+                                <div class="p-3 bg-light rounded">
+                                    ${data.explanation}
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                `;
-            } else {
-                // Handle case where no explanation was returned (matching question-manager.js style)
-                explanationContainer.innerHTML = `
-                    <div class="alert alert-light mt-2">
-                        <i class="bi bi-info-circle me-2"></i>
-                        The correct answer was provided above.
-                    </div>
-                `;
+                    `;
+                } else {
+                    // Handle case where no explanation was returned
+                    contentElement.innerHTML = `
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i>
+                            No detailed explanation is available for this question.
+                        </div>
+                    `;
+                }
             }
             
-            // Update the explain button
+            // Hide the loading indicator
+            if (loadingElement) {
+                loadingElement.classList.add('d-none');
+            }
+            
+            // Update the explain button on the main screen
+            const explainButton = document.getElementById('explainFlashcardBtn');
             if (explainButton) {
                 explainButton.disabled = true;
                 explainButton.innerHTML = '<i class="bi bi-lightbulb-fill text-warning me-2"></i><span>Explained</span>';
@@ -537,20 +545,38 @@ export class UIManager {
         })
         .catch(error => {
             console.error('Error getting explanation:', error);
-            // If there was an error, update the UI (matching question-manager.js style)
-            explanationContainer.innerHTML = `
-                <div class="alert alert-light mt-2">
-                    <i class="bi bi-exclamation-triangle me-2"></i>
-                    Failed to load explanation. The correct answer is highlighted.
-                </div>
-            `;
             
-            // Reset the explain button
-            if (explainButton) {
-                explainButton.disabled = false;
-                explainButton.innerHTML = '<i class="bi bi-lightbulb me-2"></i><span>Try Again</span>';
+            // Show error message in the modal
+            if (contentElement) {
+                contentElement.classList.remove('d-none');
+                contentElement.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <strong>Error:</strong> Failed to load explanation. Please try again later.
+                    </div>
+                `;
+            }
+            
+            // Hide the loading indicator
+            if (loadingElement) {
+                loadingElement.classList.add('d-none');
             }
         });
+    }
+
+    getCurrentFlashcardId() {
+        // Try to get it from the current card in the UI
+        const currentCard = document.getElementById('currentFlashcard');
+        if (currentCard && currentCard.dataset.flashcardId) {
+            return currentCard.dataset.flashcardId;
+        }
+        
+        // Try to get from FlashcardManager instance
+        if (window.flashcardManager && window.flashcardManager.currentCard) {
+            return window.flashcardManager.currentCard.id;
+        }
+        
+        return null;
     }
 
     showCompletionScreen(deckId, score, totalDue, isDueOnly, remainingDueCards) {
