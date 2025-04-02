@@ -569,3 +569,57 @@ body {
     80% { opacity: 1; transform: translate(-50%, -50%); }
     100% { opacity: 0; transform: translate(-50%, -70%); }
 }
+
+/* Toast styling */
+.toast-container {
+    z-index: 1060;
+}
+
+.toast {
+    min-width: 300px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-radius: 8px;
+    overflow: hidden;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.toast.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.toast-header {
+    border-bottom: none;
+    padding: 0.75rem 1rem;
+}
+
+.toast-body {
+    padding: 0.75rem 1rem;
+}
+
+.toast .toast-icon i {
+    font-size: 1.25rem;
+}
+
+.toast.border-success {
+    border-left-width: 4px !important;
+}
+
+.toast.border-danger {
+    border-left-width: 4px !important;
+}
+
+/* Make toast buttons more touch-friendly on mobile */
+@media (max-width: 768px) {
+    .toast {
+        min-width: 280px;
+        max-width: 90%;
+    }
+    
+    .toast-body .btn {
+        padding: 0.5rem 0.75rem;
+    }
+}

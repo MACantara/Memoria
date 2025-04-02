@@ -193,6 +193,20 @@ Study {{ deck.name }} (All Cards)
 <!-- Add Explanation Modal -->
 {% include "modals/flashcard-explanation-modal.html" %}
 
+<!-- Toast container for feedback notifications -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div id="feedbackToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="toast-header" id="feedbackToastHeader">
+            <span class="toast-icon me-2" id="feedbackToastIcon"></span>
+            <strong class="me-auto" id="feedbackToastTitle">Feedback</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+        <div class="toast-body" id="feedbackToastBody">
+            <!-- Content will be populated dynamically -->
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
