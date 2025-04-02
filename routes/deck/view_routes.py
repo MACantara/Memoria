@@ -1,6 +1,6 @@
 from flask import Blueprint, request, render_template, jsonify, g, abort, current_app, redirect, url_for
 from models import db, FlashcardDecks, Flashcards
-from services.fsrs_scheduler import get_current_time
+from services.fsrs_scheduler import get_current_time, get_due_cards
 from utils import count_due_flashcards, create_pagination_metadata, batch_count_due_cards
 from flask_login import login_required, current_user
 from sqlalchemy.orm import joinedload, contains_eager, defer, load_only
@@ -148,20 +148,26 @@ def study_deck(deck_id):
     if deck.user_id != current_user.id:
         abort(403)  # Unauthorized
         
-    # Check if studying due cards only
+    # Get due_only parameter from URL at the beginning of the function
     due_only = request.args.get('due_only') == 'true'
     
-    # AJAX request for loading flashcards - modified to load all at once
+    # Check if it's an AJAX request for flashcard data
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        # Get all cards without pagination
-        if due_only:
-            flashcards = get_due_cards(deck_id, due_only=True)
-        else:
-            flashcards = get_due_cards(deck_id, due_only=False)
+        # Get pagination parameters
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 25, type=int)
         
-        # Serialize flashcards to JSON
+        # Use the balanced cards implementation
+        flashcards = get_due_cards(deck_id, due_only)
+        
+        # Paginate the flashcards
+        start = (page - 1) * per_page
+        end = start + per_page
+        paginated_flashcards = flashcards[start:end]
+        
+        # Transform to JSON response format
         flashcard_data = []
-        for card in flashcards:
+        for card in paginated_flashcards:
             deck_info = None
             if card.flashcard_deck_id != deck_id:  # This is from a subdeck
                 subdeck = FlashcardDecks.query.get(card.flashcard_deck_id)
@@ -176,15 +182,18 @@ def study_deck(deck_id):
                 'question': card.question,
                 'correct_answer': card.correct_answer,
                 'incorrect_answers': card.incorrect_answers,
-                'state': card.state or 0,
+                'state': 0 if card.state is None else int(card.state),
                 'retrievability': card.retrievability or 0,
+                'due_date': card.due_date.isoformat() if card.due_date else None,
                 'subdeck': deck_info
             })
         
-        # Return all cards at once
+        # Return paginated cards
         return jsonify({
             'flashcards': flashcard_data,
-            'total': len(flashcard_data)
+            'total': len(flashcards),
+            'page': page,
+            'per_page': per_page
         })
     
     # Normal page load - calculate the count of cards for rendering the template
