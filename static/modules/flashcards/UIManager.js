@@ -19,7 +19,6 @@ export class UIManager {
         this.successSound.load();
         this.errorSound.load();
 
-
         // Initialize milestone progress bar elements
         this.progressBarContainer = document.getElementById('progressBarContainer');
         this.progressMilestones = document.getElementById('progressMilestones');
@@ -82,6 +81,10 @@ export class UIManager {
         } else {
             console.warn('Explanation modal element not found or bootstrap not loaded');
         }
+
+        // Initialize toast for feedback
+        this.feedbackToast = null;
+        this.initializeFeedbackToast();
     }
 
     renderCard(card) {
@@ -349,143 +352,11 @@ export class UIManager {
     }
 
     showBriefFeedback(isCorrect) {
-        if (!this.answerForm) return;
-        
-        // Play appropriate sound based on correctness
-        this.playFeedbackSound(isCorrect);
-        
-        // Apply visual feedback to the selected answer
-        this.applyVisualAnswerFeedback(isCorrect);
-        
-        // Create a feedback container with enhanced visual design
-        const feedbackContainer = document.createElement('div');
-        feedbackContainer.classList.add('feedback-container', 'mt-4', 'animate__animated', 'animate__fadeIn');
-        
-        // Feedback message with enhanced styling
-        const feedback = document.createElement('div');
-        feedback.classList.add(
-            'alert', 
-            isCorrect ? 'alert-success' : 'alert-danger',
-            'd-flex',
-            'align-items-center',
-            'mb-0'
-        );
-        
-        // Create icon container with larger icon
-        const iconContainer = document.createElement('div');
-        iconContainer.className = 'me-3 fs-3';
-        iconContainer.innerHTML = isCorrect 
-            ? '<i class="bi bi-check-circle-fill text-success"></i>' 
-            : '<i class="bi bi-x-circle-fill text-danger"></i>';
-        
-        // Create message container
-        const messageContainer = document.createElement('div');
-        messageContainer.innerHTML = `
-            <h5 class="mb-0">${isCorrect ? 'Correct!' : 'Incorrect'}</h5>
-            <div class="small">${isCorrect ? 'Moving to next card...' : 'Try to remember this card for next time.'}</div>
-        `;
-        
-        feedback.appendChild(iconContainer);
-        feedback.appendChild(messageContainer);
-        feedbackContainer.appendChild(feedback);
-        
-        // Add container to the form
-        this.answerForm.appendChild(feedbackContainer);
+        this.showToastFeedback(isCorrect);
     }
 
     showAnswerFeedback(isCorrect, nextCardCallback) {
-        if (!this.answerForm) return;
-        
-        // Play appropriate sound based on correctness
-        this.playFeedbackSound(isCorrect);
-        
-        // Apply visual feedback to the selected answer
-        this.applyVisualAnswerFeedback(isCorrect);
-        
-        // Create a feedback container with enhanced visual design
-        const feedbackContainer = document.createElement('div');
-        feedbackContainer.classList.add('feedback-container', 'mt-4', 'animate__animated', 'animate__fadeIn');
-        
-        // Feedback message with enhanced styling
-        const feedback = document.createElement('div');
-        feedback.classList.add(
-            'alert', 
-            isCorrect ? 'alert-success' : 'alert-danger',
-            'd-flex',
-            'align-items-center'
-        );
-        
-        // Create icon container with larger icon
-        const iconContainer = document.createElement('div');
-        iconContainer.className = 'me-3 fs-3';
-        iconContainer.innerHTML = isCorrect 
-            ? '<i class="bi bi-check-circle-fill text-success"></i>' 
-            : '<i class="bi bi-x-circle-fill text-danger"></i>';
-        
-        // Create message container
-        const messageContainer = document.createElement('div');
-        messageContainer.innerHTML = `
-            <h5 class="mb-0">${isCorrect ? 'Correct!' : 'Incorrect'}</h5>
-            <div class="small">${isCorrect ? 'Great job!' : 'Try to remember this card for next time.'}</div>
-        `;
-        
-        feedback.appendChild(iconContainer);
-        feedback.appendChild(messageContainer);
-        feedbackContainer.appendChild(feedback);
-        
-        // Create button container for multiple buttons
-        const buttonContainer = document.createElement('div');
-        buttonContainer.className = 'd-flex gap-2 mt-2 flex-wrap';
-        
-        // For incorrect answers, add the explain button
-        if (!isCorrect) {
-            // Add explain button with specific ID
-            const explainButton = document.createElement('button');
-            explainButton.type = 'button';
-            explainButton.id = 'explainFlashcardBtn'; // Add specific ID
-            explainButton.className = 'btn btn-outline-secondary flex-grow-1 d-flex justify-content-center align-items-center py-2';
-            explainButton.innerHTML = '<i class="bi bi-lightbulb me-2"></i><span>Explain</span>';
-            explainButton.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                // Get the flashcard ID from the URL or data attribute
-                const flashcardId = this.getCurrentFlashcardId();
-                if (flashcardId) {
-                    // Use modal instead of inline explanation
-                    this.showExplanationModal(flashcardId);
-                }
-            });
-            buttonContainer.appendChild(explainButton);
-        }
-        
-        // Add next button with improved styling and specific ID
-        const nextButton = document.createElement('button');
-        nextButton.type = 'button';
-        nextButton.id = 'nextQuestionBtn'; // Keep this ID as it's already used elsewhere
-        nextButton.className = 'btn btn-primary flex-grow-1 d-flex justify-content-center align-items-center py-2';
-        nextButton.innerHTML = '<span>Next Question</span><i class="bi bi-arrow-right ms-2"></i>';
-        nextButton.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            if (typeof nextCardCallback === 'function') {
-                nextCardCallback();
-            }
-        });
-        buttonContainer.appendChild(nextButton);
-        
-        feedbackContainer.appendChild(buttonContainer);
-        
-        // Add keyboard hint with improved styling - UPDATED to be more specific
-        const keyboardHint = document.createElement('div');
-        keyboardHint.className = 'text-center text-muted small mt-2 py-1 d-flex justify-content-center align-items-center';
-        keyboardHint.innerHTML = '<i class="bi bi-keyboard me-1"></i><span>Press any key to go to next question</span>';
-        feedbackContainer.appendChild(keyboardHint);
-        
-        // Add container to the form
-        this.answerForm.appendChild(feedbackContainer);
-        
-        // Focus next button to make keyboard navigation work
-        setTimeout(() => nextButton.focus(), 100);
+        this.showToastFeedback(isCorrect, nextCardCallback);
     }
 
     /**
@@ -962,6 +833,108 @@ export class UIManager {
         } catch (error) {
             // Silently fail if sound playback fails
             console.warn("Sound playback failed:", error);
+        }
+    }
+
+    /**
+     * Initialize the feedback toast
+     */
+    initializeFeedbackToast() {
+        const toastElement = document.getElementById('feedbackToast');
+        if (toastElement && typeof bootstrap !== 'undefined') {
+            this.feedbackToast = new bootstrap.Toast(toastElement, {
+                autohide: true,
+                delay: 1000
+            });
+        }
+    }
+
+    /**
+     * Show a toast notification for feedback
+     * @param {boolean} isCorrect - Whether the answer was correct
+     * @param {Function} nextCardCallback - Callback for next card button (for incorrect answers)
+     */
+    showToastFeedback(isCorrect, nextCardCallback = null) {
+        // Apply visual feedback to the selected answer (keep this)
+        this.applyVisualAnswerFeedback(isCorrect);
+        
+        // Play appropriate sound based on correctness
+        this.playFeedbackSound(isCorrect);
+        
+        // Get toast elements
+        const toast = document.getElementById('feedbackToast');
+        const toastHeader = document.getElementById('feedbackToastHeader');
+        const toastIcon = document.getElementById('feedbackToastIcon');
+        const toastTitle = document.getElementById('feedbackToastTitle');
+        const toastBody = document.getElementById('feedbackToastBody');
+        
+        if (!toast || !toastHeader || !toastIcon || !toastTitle || !toastBody) {
+            console.warn('Toast elements not found');
+            return;
+        }
+        
+        // Style toast based on correctness - simplified to match milestone toast
+        toast.className = `toast ${isCorrect ? 'border-success' : 'border-danger'}`;
+        toastHeader.className = 'toast-header';
+        
+        // Set the icon and title
+        toastIcon.innerHTML = isCorrect 
+            ? '<i class="bi bi-check-circle-fill"></i>' 
+            : '<i class="bi bi-x-circle-fill"></i>';
+        toastTitle.textContent = isCorrect ? 'Correct!' : 'Incorrect';
+        
+        // Add content to toast body
+        if (isCorrect) {
+            toastBody.innerHTML = `
+                <p class="mb-0">Great job! Moving to next card...</p>
+            `;
+        } else {
+            toastBody.innerHTML = `
+                <p class="mb-0">Try to remember this card for next time.</p>
+            `;
+        }
+        
+        // Show the toast
+        if (this.feedbackToast) {
+            this.feedbackToast.show();
+        } else {
+            // Fallback: try to initialize again
+            this.initializeFeedbackToast();
+            if (this.feedbackToast) {
+                this.feedbackToast.show();
+            }
+        }
+        
+        // Keep inline buttons for keyboard navigation
+        const minimalButtons = document.createElement('div');
+        minimalButtons.className = 'd-flex justify-content-center gap-2 mt-3';
+        minimalButtons.innerHTML = `
+            <button id="explainFlashcardBtn" class="btn btn-outline-secondary">
+                <i class="bi bi-lightbulb me-2"></i> Explain
+            </button>
+            <button id="nextQuestionBtn" class="btn btn-primary">
+                <i class="bi bi-arrow-right me-2"></i> Next
+            </button>
+        `;
+        this.answerForm.appendChild(minimalButtons);
+        
+        // Add event listeners to new buttons
+        const explainBtn = document.getElementById('explainFlashcardBtn');
+        const nextBtn = document.getElementById('nextQuestionBtn');
+        
+        if (explainBtn) {
+            explainBtn.addEventListener('click', () => {
+                const flashcardId = this.getCurrentFlashcardId();
+                if (flashcardId) {
+                    this.showExplanationModal(flashcardId);
+                }
+            });
+        }
+        
+        if (nextBtn && typeof nextCardCallback === 'function') {
+            nextBtn.addEventListener('click', nextCardCallback);
+            // Focus the next button for keyboard navigation
+            setTimeout(() => nextBtn.focus(), 100);
         }
     }
 
