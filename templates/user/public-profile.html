@@ -4,10 +4,36 @@
 
 {% block styles %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/dark-mode.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/user/profile.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/user/public-profile.css') }}">
 <style>
 /* Animation for the dots in the progress indicator */
+@keyframes dotAnimation {
+    0%, 80%, 100% { transform: scale(0); }
+    40% { transform: scale(1.0); }
+}
 
+.dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    margin-right: 3px;
+    border-radius: 50%;
+    background-color: #007bff;
+    animation: dotAnimation 1.4s infinite ease-in-out both;
+}
+
+.dot:nth-child(1) { animation-delay: -0.32s; }
+.dot:nth-child(2) { animation-delay: -0.16s; }
+.dot:nth-child(3) { animation-delay: 0; }
+
+.nav-tabs .nav-link.active {
+    border-bottom: 2px solid #007bff;
+    font-weight: 500;
+}
+
+.deck-tab-content {
+    padding-top: 1.5rem;
+}
 </style>
 {% endblock %}
 
@@ -108,58 +134,142 @@
                     {% endif %}
                 </div>
                 <div class="card-body">
-                    {% if public_decks %}
-                        <div class="list-group">
-                            {% for deck in public_decks %}
-                                <div class="list-group-item">
-                                    <div class="d-flex w-100 justify-content-between align-items-center">
-                                        <div>
-                                            <h5 class="mb-1">{{ deck.name }}</h5>
-                                            {% if deck.description %}
-                                                <p class="mb-1 text-muted">{{ deck.description }}</p>
-                                            {% endif %}
-                                            <div class="d-flex align-items-center mt-2">
-                                                <span class="badge bg-primary rounded-pill me-2">{{ deck.count_all_flashcards() }} cards</span>
-                                                
-                                                {% if is_own_profile %}
-                                                    <!-- Toggle public/private button -->
-                                                    <button class="btn btn-sm {% if deck.is_public %}btn-success{% else %}btn-outline-secondary{% endif %} me-2 toggle-public-btn" 
-                                                            data-deck-id="{{ deck.flashcard_deck_id }}">
-                                                        <i class="bi {% if deck.is_public %}bi-unlock{% else %}bi-lock{% endif %} me-1"></i>
-                                                        {% if deck.is_public %}Public{% else %}Private{% endif %}
-                                                    </button>
+                    {% if is_own_profile %}
+                        <!-- Tabs for own profile - showing both public and private decks -->
+                        <ul class="nav nav-tabs" id="deckTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="public-tab" data-bs-toggle="tab" data-bs-target="#public-decks" 
+                                        type="button" role="tab" aria-controls="public-decks" aria-selected="true">
+                                    <i class="bi bi-unlock me-1"></i> Public Decks
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="private-tab" data-bs-toggle="tab" data-bs-target="#private-decks" 
+                                        type="button" role="tab" aria-controls="private-decks" aria-selected="false">
+                                    <i class="bi bi-lock me-1"></i> Private Decks
+                                </button>
+                            </li>
+                        </ul>
+                        <div class="tab-content deck-tab-content" id="deckTabContent">
+                            <!-- Public decks tab -->
+                            <div class="tab-pane fade show active" id="public-decks" role="tabpanel" aria-labelledby="public-tab">
+                                {% if public_decks|selectattr('is_public', 'eq', true)|list %}
+                                    <div class="list-group">
+                                        {% for deck in public_decks if deck.is_public %}
+                                            <div class="list-group-item">
+                                                <div class="d-flex w-100 justify-content-between align-items-center">
+                                                    <div>
+                                                        <h5 class="mb-1">{{ deck.name }}</h5>
+                                                        {% if deck.description %}
+                                                            <p class="mb-1 text-muted">{{ deck.description }}</p>
+                                                        {% endif %}
+                                                        <div class="d-flex align-items-center mt-2">
+                                                            <span class="badge bg-primary rounded-pill me-2">{{ deck.count_all_flashcards() }} cards</span>
+                                                            
+                                                            <!-- Toggle public/private button -->
+                                                            <button class="btn btn-sm btn-success me-2 toggle-public-btn" 
+                                                                    data-deck-id="{{ deck.flashcard_deck_id }}">
+                                                                <i class="bi bi-unlock me-1"></i> Public
+                                                            </button>
+                                                            
+                                                            <!-- View deck button -->
+                                                            <a href="{{ url_for('deck.deck_view.get_deck_flashcards', deck_id=deck.flashcard_deck_id) }}" 
+                                                            class="btn btn-sm btn-outline-primary me-2">
+                                                                <i class="bi bi-eye"></i> View
+                                                            </a>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    <p class="text-muted text-center py-3">
+                                        <i class="bi bi-info-circle me-2"></i> You don't have any public decks yet.
+                                    </p>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Private decks tab -->
+                            <div class="tab-pane fade" id="private-decks" role="tabpanel" aria-labelledby="private-tab">
+                                {% if public_decks|selectattr('is_public', 'eq', false)|list %}
+                                    <div class="list-group">
+                                        {% for deck in public_decks if not deck.is_public %}
+                                            <div class="list-group-item">
+                                                <div class="d-flex w-100 justify-content-between align-items-center">
+                                                    <div>
+                                                        <h5 class="mb-1">{{ deck.name }}</h5>
+                                                        {% if deck.description %}
+                                                            <p class="mb-1 text-muted">{{ deck.description }}</p>
+                                                        {% endif %}
+                                                        <div class="d-flex align-items-center mt-2">
+                                                            <span class="badge bg-primary rounded-pill me-2">{{ deck.count_all_flashcards() }} cards</span>
+                                                            
+                                                            <!-- Toggle public/private button -->
+                                                            <button class="btn btn-sm btn-outline-secondary me-2 toggle-public-btn" 
+                                                                    data-deck-id="{{ deck.flashcard_deck_id }}">
+                                                                <i class="bi bi-lock me-1"></i> Private
+                                                            </button>
+                                                            
+                                                            <!-- View deck button -->
+                                                            <a href="{{ url_for('deck.deck_view.get_deck_flashcards', deck_id=deck.flashcard_deck_id) }}" 
+                                                            class="btn btn-sm btn-outline-primary me-2">
+                                                                <i class="bi bi-eye"></i> View
+                                                            </a>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    <p class="text-muted text-center py-3">
+                                        <i class="bi bi-info-circle me-2"></i> You don't have any private decks yet.
+                                    </p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% else %}
+                        <!-- Display only public decks for other users' profiles -->
+                        {% if public_decks %}
+                            <div class="list-group">
+                                {% for deck in public_decks %}
+                                    <div class="list-group-item">
+                                        <div class="d-flex w-100 justify-content-between align-items-center">
+                                            <div>
+                                                <h5 class="mb-1">{{ deck.name }}</h5>
+                                                {% if deck.description %}
+                                                    <p class="mb-1 text-muted">{{ deck.description }}</p>
                                                 {% endif %}
-                                                
-                                                <!-- View deck button -->
-                                                <a href="{{ url_for('deck.deck_view.get_deck_flashcards', deck_id=deck.flashcard_deck_id) }}" 
-                                                class="btn btn-sm btn-outline-primary me-2">
-                                                    <i class="bi bi-eye"></i> View
-                                                </a>
-                                                
-                                                {% if not is_own_profile and current_user.is_authenticated %}
-                                                    <!-- Import button for other users -->
-                                                    <button class="btn btn-sm btn-outline-success import-deck-btn"
-                                                            data-deck-id="{{ deck.flashcard_deck_id }}"
-                                                            data-deck-name="{{ deck.name }}"
-                                                            data-username="{{ user.username }}">
-                                                        <i class="bi bi-download me-1"></i> Import Deck
-                                                    </button>
-                                                {% endif %}
+                                                <div class="d-flex align-items-center mt-2">
+                                                    <span class="badge bg-primary rounded-pill me-2">{{ deck.count_all_flashcards() }} cards</span>
+                                                    
+                                                    <!-- View deck button -->
+                                                    <a href="{{ url_for('deck.deck_view.get_deck_flashcards', deck_id=deck.flashcard_deck_id) }}" 
+                                                    class="btn btn-sm btn-outline-primary me-2">
+                                                        <i class="bi bi-eye"></i> View
+                                                    </a>
+                                                    
+                                                    {% if current_user.is_authenticated %}
+                                                        <!-- Import button for other users -->
+                                                        <button class="btn btn-sm btn-outline-success import-deck-btn"
+                                                                data-deck-id="{{ deck.flashcard_deck_id }}"
+                                                                data-deck-name="{{ deck.name }}"
+                                                                data-username="{{ user.username }}">
+                                                            <i class="bi bi-download me-1"></i> Import Deck
+                                                        </button>
+                                                    {% endif %}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
-                            {% endfor %}
-                        </div>
-                    {% else %}
-                        <p class="text-muted text-center py-3">
-                            <i class="bi bi-info-circle me-2"></i> 
-                            {% if is_own_profile %}
-                                You don't have any decks yet.
-                            {% else %}
-                                This user has no public decks yet.
-                            {% endif %}
-                        </p>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="text-muted text-center py-3">
+                                <i class="bi bi-info-circle me-2"></i> This user has no public decks yet.
+                            </p>
+                        {% endif %}
                     {% endif %}
                 </div>
             </div>
