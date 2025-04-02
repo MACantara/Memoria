@@ -234,9 +234,9 @@ def study_deck(deck_id):
         due_only=due_only
     )
 
-# Update the get_due_cards function to explicitly order cards by due date
+# Update the get_due_cards function to prioritize forgotten and learning cards
 def get_due_cards(deck_id, due_only=False):
-    """Get cards due for review"""
+    """Get cards due for review with prioritized ordering"""
     from models import db  # Import here to avoid circular imports
     
     # Create recursive CTE to find all decks including this one and its sub-decks
@@ -254,31 +254,72 @@ def get_due_cards(deck_id, due_only=False):
         )
     )
     
-    # Base query that includes all cards in the deck and its sub-decks
-    query = db.session.query(Flashcards).filter(
-        Flashcards.flashcard_deck_id.in_(db.session.query(cte.c.id))
-    )
+    # Base query conditions for cards in this deck and its sub-decks
+    base_conditions = [Flashcards.flashcard_deck_id.in_(db.session.query(cte.c.id))]
     
-    # Add filters for due cards if needed
+    # Add due date filter if needed
     if due_only:
         current_time = get_current_time()
-        query = query.filter(
-            db.or_(Flashcards.due_date <= current_time, Flashcards.due_date == None),
-            Flashcards.state != 2  # Exclude cards already mastered
+        base_conditions.append(
+            db.or_(Flashcards.due_date <= current_time, Flashcards.due_date == None)
         )
     
-    # Always order by due date (null values first, then earliest due date)
-    # This ensures consistent ordering in both Due Only and Study All modes
-    query = query.order_by(
-        # Cards with no due date come first
+    # 1. First, get up to 25 forgotten flashcards (state=3)
+    forgotten_query = db.session.query(Flashcards).filter(
+        *base_conditions,
+        Flashcards.state == 3
+    ).order_by(
+        # Order forgotten cards by due date (most overdue first)
         case((Flashcards.due_date == None, 0), else_=1),
-        # Then order by due date (earliest first)
         asc(Flashcards.due_date),
-        # Finally by ID for stable ordering of cards with the same due date
+        asc(Flashcards.flashcard_id)
+    ).limit(25)
+    
+    forgotten_cards = forgotten_query.all()
+    forgotten_ids = [card.flashcard_id for card in forgotten_cards]
+    
+    # 2. Next, get up to 25 learning flashcards (state=1)
+    learning_query = db.session.query(Flashcards).filter(
+        *base_conditions,
+        Flashcards.state == 1,
+        ~Flashcards.flashcard_id.in_(forgotten_ids)  # Exclude cards we already have
+    ).order_by(
+        # Order learning cards by due date (most overdue first)
+        case((Flashcards.due_date == None, 0), else_=1),
+        asc(Flashcards.due_date),
+        asc(Flashcards.flashcard_id)
+    ).limit(25)
+    
+    learning_cards = learning_query.all()
+    all_prioritized_ids = forgotten_ids + [card.flashcard_id for card in learning_cards]
+    
+    # 3. Finally, get the rest of the cards using the original ordering
+    # but exclude the cards we've already selected
+    remaining_query = db.session.query(Flashcards).filter(
+        *base_conditions,
+        ~Flashcards.flashcard_id.in_(all_prioritized_ids)
+    )
+    
+    # For due_only mode, exclude mastered cards from remaining cards
+    if due_only:
+        remaining_query = remaining_query.filter(Flashcards.state != 2)
+    
+    remaining_query = remaining_query.order_by(
+        # Cards with no due date (new cards) come first
+        case((Flashcards.due_date == None, 0), else_=1),
+        # Then by state (new=0, learning=1, mastered=2, forgotten=3)
+        # This ensures new cards are prioritized after the initial forgotten/learning batches
+        asc(Flashcards.state),
+        # Then by due date (earliest first)
+        asc(Flashcards.due_date),
+        # Finally by ID for stable ordering
         asc(Flashcards.flashcard_id)
     )
-        
-    return query.all()
+    
+    remaining_cards = remaining_query.all()
+    
+    # Combine the results in the prioritized order
+    return forgotten_cards + learning_cards + remaining_cards
 
 @deck_view_bp.route("/random-deck")
 @login_required
