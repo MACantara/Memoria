@@ -532,6 +532,12 @@ export class UIManager {
             }
         }
         
+        // Get the correct answer from the current card before fetching the explanation
+        let correctAnswer = null;
+        if (window.flashcardManager && window.flashcardManager.currentCard) {
+            correctAnswer = window.flashcardManager.currentCard.correct_answer;
+        }
+        
         // Show loading state in the modal
         const loadingElement = document.getElementById('explanationLoading');
         const contentElement = document.getElementById('explanationContent');
@@ -569,6 +575,9 @@ export class UIManager {
             if (contentElement) {
                 contentElement.classList.remove('d-none');
                 
+                // Use the correct answer from the current card if not provided in the response
+                const displayCorrectAnswer = data.correct_answer || correctAnswer || 'Not provided';
+                
                 if (data.explanation) {
                     // Format the explanation with proper styling
                     contentElement.innerHTML = `
@@ -576,7 +585,7 @@ export class UIManager {
                             <div class="correct-answer mb-3">
                                 <h6 class="text-muted mb-1">Correct Answer:</h6>
                                 <div class="p-2 bg-success bg-opacity-10 border border-success rounded">
-                                    ${data.correct_answer || 'Not provided'}
+                                    ${displayCorrectAnswer}
                                 </div>
                             </div>
                             <div class="explanation-text">
@@ -592,7 +601,9 @@ export class UIManager {
                     contentElement.innerHTML = `
                         <div class="alert alert-info">
                             <i class="bi bi-info-circle me-2"></i>
-                            No detailed explanation is available for this question.
+                            <p>No detailed explanation is available for this question.</p>
+                            <hr>
+                            <p class="mb-0"><strong>Correct Answer:</strong> ${displayCorrectAnswer}</p>
                         </div>
                     `;
                 }

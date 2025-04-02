@@ -699,12 +699,12 @@ export class FlashcardManager {
         
         const flashcardId = this.currentCard.id;
         try {
-            // Let UIManager handle showing the modal
+            // Ensure the current card is accessible to the UI manager
             this.ui.showExplanationModal(flashcardId);
         } catch (e) {
             console.error('Error showing explanation:', e);
-            // Fallback to simple alert
-            alert(`An error occurred showing the explanation. Please try again.`);
+            // Fallback to simple alert with correct answer
+            alert(`An error occurred showing the explanation.\n\nCorrect answer: ${this.currentCard.correct_answer}`);
         }
     }
 }
