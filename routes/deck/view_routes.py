@@ -20,10 +20,15 @@ def load_all_decks():
 @login_required
 def get_deck_flashcards(deck_id):
     """View all flashcards in a deck with pagination"""
-    # Get the deck with its sub-decks using eager loading
+    # Use aggressive eager loading with selective field loading to reduce query size
     deck = FlashcardDecks.query.options(
-        joinedload(FlashcardDecks.parent_deck),
-        joinedload(FlashcardDecks.child_decks)
+        joinedload(FlashcardDecks.parent_deck).load_only(
+            FlashcardDecks.flashcard_deck_id, FlashcardDecks.name, FlashcardDecks.parent_deck_id
+        ),
+        joinedload(FlashcardDecks.child_decks).load_only(
+            FlashcardDecks.flashcard_deck_id, FlashcardDecks.name, FlashcardDecks.created_at
+        ),
+        defer(FlashcardDecks.description)  # Defer loading large fields not needed initially
     ).get_or_404(deck_id)
     
     # Check ownership
@@ -81,7 +86,7 @@ def get_deck_flashcards(deck_id):
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return jsonify({"error": "Use the /flashcard/lazy_load endpoint for AJAX requests"})
     
-    # Get total count for pagination info
+    # Optimize the count query with a simpler approach
     total_flashcards = db.session.query(
         func.count(Flashcards.flashcard_id)
     ).filter_by(
@@ -97,7 +102,7 @@ def get_deck_flashcards(deck_id):
     elif sort_by == 'created_asc':
         flashcards_query = flashcards_query.order_by(asc(Flashcards.created_at))
     elif sort_by == 'question':
-        flashcards_query = flashcards_query.order_by(asc(Flashcards.question))
+        flashcards_query = flashcards_query.order_by(func.lower(Flashcards.question))
     elif sort_by == 'answer':
         flashcards_query = flashcards_query.order_by(asc(Flashcards.correct_answer))
     elif sort_by == 'due_asc':
@@ -151,25 +156,59 @@ def study_deck(deck_id):
     # Check if studying due cards only
     due_only = request.args.get('due_only') == 'true'
     
-    # AJAX request for loading flashcards - modified to load all at once
+    # AJAX request for loading flashcards - modified to use pagination
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        # Get all cards without pagination
-        if due_only:
-            flashcards = get_due_cards(deck_id, due_only=True)
-        else:
-            flashcards = get_due_cards(deck_id, due_only=False)
+        # Get pagination parameters
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
         
-        # Serialize flashcards to JSON
+        # Create recursive CTE to find all decks including this one and its sub-decks
+        cte = db.session.query(
+            FlashcardDecks.flashcard_deck_id.label('id')
+        ).filter(
+            FlashcardDecks.flashcard_deck_id == deck_id
+        ).cte(name='study_deck_hierarchy', recursive=True)
+
+        cte = cte.union_all(
+            db.session.query(
+                FlashcardDecks.flashcard_deck_id.label('id')
+            ).filter(
+                FlashcardDecks.parent_deck_id == cte.c.id
+            )
+        )
+        
+        # Use a query instead of loading all cards at once
+        query = Flashcards.query.filter(
+            Flashcards.flashcard_deck_id.in_(db.session.query(cte.c.id))
+        )
+        
+        # Apply due filtering if needed
+        if due_only:
+            query = query.filter(
+                db.or_(Flashcards.due_date <= get_current_time(), Flashcards.due_date == None),
+                Flashcards.state != 2  # Exclude cards already mastered
+            )
+        
+        # Order by due date
+        query = query.order_by(
+            case((Flashcards.due_date == None, 0), else_=1),
+            asc(Flashcards.due_date),
+            asc(Flashcards.flashcard_id)
+        )
+        
+        # Apply pagination
+        paginated_cards = query.paginate(page=page, per_page=per_page, error_out=False)
+        
+        # Serialize flashcards with only needed fields
         flashcard_data = []
-        for card in flashcards:
+        for card in paginated_cards.items:
+            # Only include subdeck info if from a different deck
             deck_info = None
-            if card.flashcard_deck_id != deck_id:  # This is from a subdeck
-                subdeck = FlashcardDecks.query.get(card.flashcard_deck_id)
-                if subdeck:
-                    deck_info = {
-                        'deck_id': subdeck.flashcard_deck_id,
-                        'deck_name': subdeck.name
-                    }
+            if card.flashcard_deck_id != deck_id:
+                deck_info = {
+                    'deck_id': card.flashcard_deck_id,
+                    'deck_name': getattr(card, 'deck_name', None)  # Add joined field
+                }
             
             flashcard_data.append({
                 'id': card.flashcard_id,
@@ -181,10 +220,17 @@ def study_deck(deck_id):
                 'subdeck': deck_info
             })
         
-        # Return all cards at once
+        # Return paginated data
         return jsonify({
             'flashcards': flashcard_data,
-            'total': len(flashcard_data)
+            'pagination': {
+                'total': paginated_cards.total,
+                'pages': paginated_cards.pages,
+                'page': page,
+                'per_page': per_page,
+                'has_next': paginated_cards.has_next,
+                'has_prev': paginated_cards.has_prev
+            }
         })
     
     # Normal page load - calculate the count of cards for rendering the template
@@ -312,3 +358,61 @@ def random_deck():
         # All decks are empty, just pick any deck and show appropriate message
         selected_deck = random.choice(user_decks)
         return redirect(url_for('deck.deck_view.study_deck', deck_id=selected_deck.flashcard_deck_id, empty_deck='true'))
+
+# Add a new API endpoint for lazy loading
+@deck_view_bp.route("/flashcards/lazy_load/<int:deck_id>")
+@login_required
+def lazy_load_flashcards(deck_id):
+    """Lazy load flashcards as user scrolls"""
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 25, type=int)
+    sort_by = request.args.get('sort', 'created_desc')
+    
+    # Apply filtering
+    query = Flashcards.query.filter_by(flashcard_deck_id=deck_id)
+    
+    # Apply sorting
+    if sort_by == 'created_desc':
+        query = query.order_by(desc(Flashcards.created_at))
+    elif sort_by == 'created_asc':
+        query = query.order_by(asc(Flashcards.created_at))
+    elif sort_by == 'question':
+        query = query.order_by(func.lower(Flashcards.question))
+    elif sort_by == 'answer':
+        query = query.order_by(asc(Flashcards.correct_answer))
+    elif sort_by == 'due_asc':
+        query = query.order_by(
+            case((Flashcards.due_date == None, 1), else_=0),
+            asc(Flashcards.due_date)
+        )
+    elif sort_by == 'state':
+        query = query.order_by(
+            asc(Flashcards.state),
+            desc(Flashcards.due_date)
+        )
+    
+    # Return only necessary fields
+    flashcards = query.with_entities(
+        Flashcards.flashcard_id,
+        Flashcards.question,
+        Flashcards.correct_answer,
+        Flashcards.state,
+        Flashcards.due_date
+    ).paginate(page=page, per_page=per_page, error_out=False)
+    
+    return jsonify({
+        "flashcards": [
+            {
+                "id": f.flashcard_id,
+                "question": f.question,
+                "correct_answer": f.correct_answer,
+                "state": f.state,
+                "due_date": f.due_date.isoformat() if f.due_date else None
+            } for f in flashcards.items
+        ],
+        "pagination": {
+            "total": flashcards.total,
+            "pages": flashcards.pages,
+            "page": page
+        }
+    })

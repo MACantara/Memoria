@@ -20,22 +20,47 @@ def view_deck_stats(deck_id, page=1):
 
 @stats_bp.route("/deck/<int:deck_id>/stats")
 def deck_stats(deck_id):
-    """Get spaced repetition stats for a deck as JSON"""
+    """Get spaced repetition stats for a deck as JSON with caching"""
+    from flask import current_app
+    cache_key = f"deck_stats:{deck_id}"
+    
+    # Try to get stats from cache
+    if hasattr(current_app, 'cache') and current_app.cache:
+        cached_stats = current_app.cache.get(cache_key)
+        if cached_stats:
+            return jsonify(cached_stats)
+    
+    # Not in cache, calculate stats
     deck = FlashcardDecks.query.get_or_404(deck_id)
     stats = get_stats(deck_id)
+    
+    # Cache the result
+    if hasattr(current_app, 'cache') and current_app.cache:
+        current_app.cache.set(cache_key, stats, timeout=1800)  # Cache for 30 minutes
+    
     return jsonify(stats)
 
 @stats_bp.route("/deck/<int:deck_id>/retention")
 def deck_retention(deck_id):
-    """Get retention analytics for a deck"""
-    deck = FlashcardDecks.query.get_or_404(deck_id)
+    """Get retention analytics for a deck with caching"""
+    from flask import current_app
+    cache_key = f"deck_retention:{deck_id}"
     
-    # Query for cards with retrievability values AND review history
-    cards_with_retention = Flashcards.query.filter_by(flashcard_deck_id=deck_id)\
-        .filter(
-            Flashcards.retrievability > 0,
-            Flashcards.last_reviewed.isnot(None)  # Only include cards that have been reviewed
-        ).all()
+    # Try to get from cache
+    if hasattr(current_app, 'cache') and current_app.cache:
+        cached_retention = current_app.cache.get(cache_key)
+        if cached_retention:
+            return jsonify(cached_retention)
+    
+    # Optimize query to only retrieve needed fields and apply indexing
+    cards_with_retention = Flashcards.query.with_entities(
+        Flashcards.retrievability
+    ).filter_by(
+        flashcard_deck_id=deck_id
+    ).filter(
+        Flashcards.retrievability > 0,
+        Flashcards.last_reviewed.isnot(None)
+    ).all()
     
     # Calculate retention statistics
     retention_data = {
@@ -51,6 +76,10 @@ def deck_retention(deck_id):
         retention_data['average_retention'] = None
         retention_data['retention_distribution'] = {}
     
+    # Cache the result
+    if hasattr(current_app, 'cache') and current_app.cache:
+        current_app.cache.set(cache_key, retention_data, timeout=1800)  # Cache for 30 minutes
+        
     return jsonify(retention_data)
 
 def get_retention_distribution(cards):
@@ -95,8 +124,22 @@ def get_retention_distribution(cards):
 
 @stats_bp.route("/deck/<int:deck_id>/upcoming-reviews")
 def get_upcoming_reviews(deck_id):
-    """Get upcoming review cards data for a specific deck"""
+    """Get upcoming review cards data with pagination and caching"""
     try:
+        # Get pagination parameters
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        
+        # Build a cache key that includes pagination
+        from flask import current_app
+        cache_key = f"upcoming_reviews:{deck_id}:{page}:{per_page}"
+        
+        # Try to get from cache
+        if hasattr(current_app, 'cache') and current_app.cache:
+            cached_results = current_app.cache.get(cache_key)
+            if cached_results:
+                return jsonify(cached_results)
+        
         # Create recursive CTE to find all decks including this one and its sub-decks
         cte = db.session.query(
             FlashcardDecks.flashcard_deck_id.label('id')
@@ -115,38 +158,34 @@ def get_upcoming_reviews(deck_id):
         # Get current time in UTC
         current_time = get_current_time()
         
-        # Query for all cards
-        query = Flashcards.query.filter(
+        # Use WITH_ENTITIES to only select needed fields
+        query = Flashcards.query.with_entities(
+            Flashcards.flashcard_id,
+            Flashcards.question,
+            Flashcards.due_date,
+            Flashcards.last_reviewed,
+            Flashcards.state,
+            Flashcards.retrievability,
+            Flashcards.flashcard_deck_id
+        ).filter(
             Flashcards.flashcard_deck_id.in_(db.session.query(cte.c.id))
-        )
-        
-        # Order the results by due date
-        query = query.order_by(
-            # Cards with no due date first, then by due date ascending
+        ).order_by(
             case((Flashcards.due_date == None, 0), else_=1),
             Flashcards.due_date.asc()
         )
         
-        # Get pagination parameters
-        page = request.args.get('page', 1, type=int)
-        per_page = request.args.get('per_page', 20, type=int)
-        
-        # Paginate the results
+        # Apply pagination
         paginated_cards = query.paginate(page=page, per_page=per_page, error_out=False)
         
-        # Format results
+        # Format results with more efficient processing
         results = []
         for card in paginated_cards.items:
-            # Determine card state name
-            state_name = "New"
-            if card.state == 1:
-                state_name = "Learning"
-            elif card.state == 2:
-                state_name = "Mastered"
-            elif card.state == 3:
-                state_name = "Forgotten"
+            # Simplify state name determination
+            state_names = ["New", "Learning", "Mastered", "Forgotten"]
+            state_value = card.state or 0
+            state_name = state_names[state_value] if state_value < len(state_names) else "Unknown"
             
-            # Format due date with timezone information - ensure UTC is explicit in ISO format
+            # Format dates directly, without checking for None repeatedly
             due_date_str = "Not scheduled" if card.due_date is None else card.due_date.isoformat() + 'Z'
             last_reviewed_str = "Never" if card.last_reviewed is None else card.last_reviewed.isoformat() + 'Z'
             
@@ -156,7 +195,7 @@ def get_upcoming_reviews(deck_id):
                 'due_date': due_date_str,
                 'last_reviewed': last_reviewed_str,
                 'state': state_name,
-                'state_value': card.state or 0,
+                'state_value': state_value,
                 'retrievability': card.retrievability or 0.0,
                 'deck_id': card.flashcard_deck_id
             })
@@ -169,7 +208,7 @@ def get_upcoming_reviews(deck_id):
             'prev_url': url_for('stats.view_deck_stats', deck_id=deck_id, page=paginated_cards.prev_num) if paginated_cards.has_prev else None,
         }
         
-        return jsonify({
+        response_data = {
             'cards': results,
             'pagination': {
                 'total': paginated_cards.total,
@@ -182,7 +221,13 @@ def get_upcoming_reviews(deck_id):
                 'prev_page': paginated_cards.prev_num,
                 'urls': pagination_urls
             }
-        })
+        }
+        
+        # Cache the result
+        if hasattr(current_app, 'cache') and current_app.cache:
+            current_app.cache.set(cache_key, response_data, timeout=300)  # Cache for 5 minutes
+            
+        return jsonify(response_data)
         
     except Exception as e:
         print(f"Error getting upcoming review cards: {e}")

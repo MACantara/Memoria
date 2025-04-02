@@ -1,6 +1,6 @@
-from flask import Blueprint, request, jsonify, abort
+from flask import Blueprint, request, jsonify, abort, current_app
 from models import db, FlashcardDecks, Flashcards
-from utils import is_descendant  # Updated import path
+from utils import is_descendant, get_descendant_deck_ids  # Updated import path
 from flask_login import current_user, login_required
 
 # Change the URL prefix to match how it's being called
@@ -146,36 +146,22 @@ def delete_deck(deck_id):
         return jsonify({"success": False, "error": "Unauthorized access"}), 403
     
     try:
-        # Create recursive CTE to find all sub-decks
-        cte = db.session.query(
-            FlashcardDecks.flashcard_deck_id.label('id')
-        ).filter(
-            FlashcardDecks.parent_deck_id == deck_id
-        ).cte(name='sub_decks', recursive=True)
-
-        cte = cte.union_all(
-            db.session.query(
-                FlashcardDecks.flashcard_deck_id.label('id')
-            ).filter(
-                FlashcardDecks.parent_deck_id == cte.c.id
-            )
-        )
-
-        # Get all deck IDs including the parent
-        all_deck_ids = [deck_id]  # Include the parent deck ID
-        all_deck_ids.extend([row[0] for row in db.session.query(cte.c.id).all()])
+        # Create a materialized path to improve hierarchy traversal
+        all_deck_ids = get_descendant_deck_ids(deck_id)
         
         # Count sub-decks (excluding parent)
         sub_decks_count = len(all_deck_ids) - 1
         
-        # Count flashcards from all levels
-        flashcards_count = Flashcards.query.filter(
+        # More efficient count using direct SQL count
+        flashcards_count = db.session.query(
+            db.func.count(Flashcards.flashcard_id)
+        ).filter(
             Flashcards.flashcard_deck_id.in_(all_deck_ids)
-        ).count()
+        ).scalar() or 0
 
         # Process flashcard deletion in batches to avoid timeout
         if flashcards_count > 0:
-            batch_delete_flashcards(all_deck_ids)
+            batch_delete_flashcards(all_deck_ids, batch_size=1000)  # Increased batch size
 
         # Delete the deck (cascade will handle children)
         db.session.delete(deck)
@@ -191,42 +177,37 @@ def delete_deck(deck_id):
         print(f"Error deleting deck: {str(e)}")
         return jsonify({"success": False, "error": str(e)}), 500
 
-
-def batch_delete_flashcards(deck_ids, batch_size=500):
+def batch_delete_flashcards(deck_ids, batch_size=1000):
     """
-    Delete flashcards in batches to avoid database timeouts
-    
-    Args:
-        deck_ids: List of deck IDs to delete flashcards from
-        batch_size: Number of flashcards to delete in each batch
+    More efficient batch deletion with direct SQL for larger batches
     """
-    total_deleted = 0
-    
-    while True:
-        # Get a batch of flashcard IDs to delete
-        flashcard_batch = db.session.query(Flashcards.flashcard_id).filter(
-            Flashcards.flashcard_deck_id.in_(deck_ids)
-        ).limit(batch_size).all()
-        
-        # If no more flashcards to delete, we're done
-        if not flashcard_batch:
-            break
-        
-        # Extract IDs from the query result
-        batch_ids = [card[0] for card in flashcard_batch]
-        batch_count = len(batch_ids)
-        
-        # Delete this batch
-        Flashcards.query.filter(Flashcards.flashcard_id.in_(batch_ids)).delete(
-            synchronize_session=False
-        )
-        
-        # Commit the batch deletion
-        db.session.commit()
-        
-        # Update total count and log progress
-        total_deleted += batch_count
-        print(f"Deleted batch of {batch_count} flashcards, total: {total_deleted}")
+    try:
+        # Use raw SQL for more efficient deletion in large batches
+        while True:
+            # Get IDs using a much larger batch size
+            card_ids = db.session.query(Flashcards.flashcard_id).filter(
+                Flashcards.flashcard_deck_id.in_(deck_ids)
+            ).limit(batch_size).all()
+            
+            if not card_ids:
+                break
+                
+            batch_ids = [id[0] for id in card_ids]
+            batch_count = len(batch_ids)
+            
+            # Execute direct SQL for faster batch deletion
+            db.session.execute(
+                "DELETE FROM flashcards WHERE flashcard_id IN :ids",
+                {"ids": tuple(batch_ids)}
+            )
+            
+            # Commit each batch
+            db.session.commit()
+            print(f"Deleted batch of {batch_count} flashcards")
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error in batch deletion: {str(e)}")
+        raise
 
 @deck_management_bp.route("/create_empty", methods=["POST"])
 @login_required

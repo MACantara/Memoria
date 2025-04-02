@@ -10,14 +10,47 @@ from google import genai
 # Update blueprint name to be more specific since it's now part of flashcard package
 flashcard_bp = Blueprint('flashcard', __name__)
 
-@flashcard_bp.route("/deck/<int:deck_id>/view")
-def view_flashcards(deck_id):
-    """View all flashcards in a deck"""
-    deck = FlashcardDecks.query.get_or_404(deck_id)
+# Add caching for flashcards
+def get_cached_flashcards(deck_id):
+    """Retrieve flashcards with caching for frequently accessed decks"""
+    from flask import current_app
+    
+    cache_key = f"deck_flashcards:{deck_id}"
+    if hasattr(current_app, 'cache') and current_app.cache:
+        cached_cards = current_app.cache.get(cache_key)
+        if cached_cards:
+            return cached_cards
+    
+    # Not cached, get from database with efficient loading
     flashcards = Flashcards.query.filter_by(flashcard_deck_id=deck_id)\
+        .options(defer('incorrect_answers'))\
         .order_by(Flashcards.created_at.desc()).all()
     
-    return render_template("view_flashcards.html", deck=deck, flashcards=flashcards)
+    if hasattr(current_app, 'cache') and current_app.cache:
+        current_app.cache.set(cache_key, flashcards, timeout=300)  # Cache for 5 minutes
+    
+    return flashcards
+
+@flashcard_bp.route("/deck/<int:deck_id>/view")
+def view_flashcards(deck_id):
+    """View all flashcards in a deck with pagination"""
+    deck = FlashcardDecks.query.get_or_404(deck_id)
+    
+    # Get pagination parameters
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 50, type=int)
+    
+    # Get paginated flashcards
+    pagination = Flashcards.query.filter_by(flashcard_deck_id=deck_id)\
+        .order_by(Flashcards.created_at.desc())\
+        .paginate(page=page, per_page=per_page, error_out=False)
+    
+    return render_template(
+        "view_flashcards.html", 
+        deck=deck, 
+        flashcards=pagination.items,
+        pagination=pagination
+    )
 
 @flashcard_bp.route("/update_progress", methods=["POST"])
 def update_progress():
@@ -78,7 +111,7 @@ def update_progress():
 @flashcard_bp.route("/create", methods=["POST"])
 @login_required
 def create_flashcard():
-    """Create a new flashcard manually"""
+    """Create a new flashcard manually with more efficient DB operations"""
     try:
         data = request.json
         deck_id = data.get('deck_id')
@@ -94,6 +127,11 @@ def create_flashcard():
         deck = FlashcardDecks.query.get_or_404(deck_id)
         if deck.user_id != current_user.id:
             return jsonify({"success": False, "error": "You don't have permission to add cards to this deck"}), 403
+        
+        # Invalidate cache for this deck's flashcards
+        from flask import current_app
+        if hasattr(current_app, 'cache') and current_app.cache:
+            current_app.cache.delete(f"deck_flashcards:{deck_id}")
         
         # Create the flashcard
         current_time = get_current_time()

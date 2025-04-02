@@ -106,32 +106,66 @@ def count_due_flashcards(deck_id, current_time=None):
 
 def batch_count_due_cards(deck_ids, user_id):
     """
-    Efficiently count due cards for multiple decks at once.
+    Efficiently count due cards for multiple decks at once with optimized query.
     Returns a dictionary mapping deck_id -> due_count.
     """
     # Create a cache key for the user's counts
     cache_key = f"due_counts_{user_id}"
     
     # Try to get from cache first if caching is enabled
-    if hasattr(current_app, 'cache') and current_app.config.get('ENABLE_CACHING', False):
+    if hasattr(current_app, 'cache') and current_app.cache:
         cached_counts = current_app.cache.get(cache_key)
         if cached_counts:
             # Filter to just the requested deck IDs
-            result = {deck_id: cached_counts.get(deck_id, 0) for deck_id in deck_ids}
+            result = {deck_id: cached_counts.get(str(deck_id), 0) for deck_id in deck_ids}
             return result
     
-    # If not cached or no cache available, count for each deck
-    result = {}
-    for deck_id in deck_ids:
-        result[deck_id] = count_due_flashcards(deck_id)
+    # If not cached or no cache available, use a single optimized query
+    result = {deck_id: 0 for deck_id in deck_ids}  # Initialize all with 0
+    current_time = get_current_time()  # Get current time once for all decks
+    
+    # Use a single query to get all due counts
+    due_counts_query = """
+    WITH RECURSIVE subdeck(id, parent_id, root_id) AS (
+        SELECT d.flashcard_deck_id, d.parent_deck_id, d.flashcard_deck_id
+        FROM flashcard_decks d
+        WHERE d.flashcard_deck_id = ANY(:deck_ids)
+        UNION ALL
+        SELECT d.flashcard_deck_id, d.parent_deck_id, s.root_id
+        FROM flashcard_decks d
+        JOIN subdeck s ON d.parent_deck_id = s.id
+    )
+    SELECT s.root_id, COUNT(f.flashcard_id)
+    FROM subdeck s
+    JOIN flashcards f ON f.flashcard_deck_id = s.id
+    WHERE (f.due_date <= :current_time OR f.due_date IS NULL)
+      AND f.state != 2
+    GROUP BY s.root_id
+    """
+    
+    # Execute the query with parameters
+    try:
+        counts = db.session.execute(
+            due_counts_query, 
+            {"deck_ids": deck_ids, "current_time": current_time}
+        ).fetchall()
+        
+        # Update with actual counts
+        for root_id, count in counts:
+            result[root_id] = count
+            
+    except Exception as e:
+        current_app.logger.error(f"Error in batch_count_due_cards: {str(e)}")
+        # Fall back to individual counts if the optimized query fails
+        for deck_id in deck_ids:
+            result[deck_id] = count_due_flashcards(deck_id, current_time)
     
     # Cache for future use if caching is enabled
-    if hasattr(current_app, 'cache') and current_app.config.get('ENABLE_CACHING', False):
+    if hasattr(current_app, 'cache') and current_app.cache:
         current_app.cache.set(cache_key, result, timeout=300)  # 5 minute cache
     
     return result
 
-# Pagination helper - moved from utils/pagination.py for consolidated utility functions
 def create_pagination_metadata(page, per_page, total_items, endpoint_args=None):
     """Helper function to create consistent pagination metadata"""
     # Calculate number of pages
@@ -174,3 +208,73 @@ def create_pagination_metadata(page, per_page, total_items, endpoint_args=None):
         'page_range_end': page_range_end,
         'other_args': other_args
     }
+
+# Add descendant deck ID retrieval with caching
+def get_descendant_deck_ids(deck_id):
+    """Get all descendant deck IDs with caching"""
+    cache_key = f"deck_descendants:{deck_id}"
+    
+    # Try to get from cache
+    if hasattr(current_app, 'cache') and current_app.cache:
+        cached_ids = current_app.cache.get(cache_key)
+        if cached_ids:
+            return cached_ids
+    
+    # Not in cache, fetch from database
+    # Create recursive CTE to find all sub-decks
+    cte = db.session.query(
+        FlashcardDecks.flashcard_deck_id.label('id')
+    ).filter(
+        FlashcardDecks.flashcard_deck_id == deck_id
+    ).cte(name='sub_decks', recursive=True)
+
+    cte = cte.union_all(
+        db.session.query(
+            FlashcardDecks.flashcard_deck_id.label('id')
+        ).filter(
+            FlashcardDecks.parent_deck_id == cte.c.id
+        )
+    )
+
+    # Get all deck IDs including the parent
+    all_deck_ids = [deck_id]  # Include the parent deck ID
+    all_deck_ids.extend([row[0] for row in db.session.query(cte.c.id).all()])
+    
+    # Cache the result for future use
+    if hasattr(current_app, 'cache') and current_app.cache:
+        current_app.cache.set(cache_key, all_deck_ids, timeout=3600)  # Cache for 1 hour
+    
+    return all_deck_ids
+
+# Add optimized descendant check for hierarchy operations
+def is_descendant_optimized(potential_descendant_id, ancestor_id):
+    """More efficient check if a deck is a descendant of another deck"""
+    if potential_descendant_id == ancestor_id:
+        return True
+    
+    # Get all descendants of the ancestor
+    descendant_ids = get_descendant_deck_ids(ancestor_id)
+    
+    # Check if potential descendant is in the list
+    return potential_descendant_id in descendant_ids
+
+# Add function to invalidate deck caches when structure changes
+def invalidate_deck_caches(deck_id):
+    """Invalidate cached data for a deck and its descendants"""
+    if not hasattr(current_app, 'cache') or not current_app.cache:
+        return
+    
+    # Get all descendants
+    descendant_ids = get_descendant_deck_ids(deck_id)
+    
+    # Invalidate caches for all affected decks
+    for d_id in descendant_ids:
+        current_app.cache.delete(f"deck_descendants:{d_id}")
+        current_app.cache.delete(f"deck_stats:{d_id}")
+        current_app.cache.delete(f"deck_retention:{d_id}")
+        current_app.cache.delete(f"deck_flashcards:{d_id}")
+        
+        # Also invalidate upcoming reviews cache with various page sizes
+        for page in range(1, 6):  # First 5 pages of each size
+            for per_page in [20, 50, 100]:
+                current_app.cache.delete(f"upcoming_reviews:{d_id}:{page}:{per_page}")

@@ -2,13 +2,19 @@
 
 # Import all utility functions from utils.py for proper package exports
 from utils.utils import (
+    # Existing imports
     chunk_text,
     allowed_file,
     clean_flashcard_text,
     is_descendant,
     count_due_flashcards,
     batch_count_due_cards,
-    create_pagination_metadata
+    create_pagination_metadata,
+    
+    # New optimized utility functions
+    get_descendant_deck_ids,
+    is_descendant_optimized,
+    invalidate_deck_caches
 )
 
 from typing import List, Optional, Dict
@@ -152,3 +158,19 @@ def batch_count_due_cards(deck_ids, user_id):
         current_app.cache.set(cache_key, result, timeout=300)  # 5 minute cache
     
     return result
+
+# Add exports to __all__ to make these functions accessible when importing from utils
+__all__ = [
+    'chunk_text',
+    'allowed_file',
+    'clean_flashcard_text',
+    'is_descendant',
+    'count_due_flashcards',
+    'batch_count_due_cards',
+    'create_pagination_metadata',
+    'get_descendant_deck_ids',
+    'is_descendant_optimized',
+    'invalidate_deck_caches',
+    'count_due_flashcards_simple',
+    'count_due_flashcards_fallback'
+]
