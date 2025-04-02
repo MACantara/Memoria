@@ -19,9 +19,6 @@ export class UIManager {
         this.successSound.load();
         this.errorSound.load();
 
-        // Add explanation sound
-        this.insightSound = new Audio('/static/sounds/insight.mp3');
-        this.insightSound.load();
 
         // Initialize milestone progress bar elements
         this.progressBarContainer = document.getElementById('progressBarContainer');
@@ -38,7 +35,20 @@ export class UIManager {
         // Try to initialize the explanation modal if the element exists
         const explanationModalElement = document.getElementById('explanationModal');
         if (explanationModalElement && typeof bootstrap !== 'undefined') {
-            this.explanationModal = new bootstrap.Modal(explanationModalElement);
+            try {
+                this.explanationModal = new bootstrap.Modal(explanationModalElement, {
+                    backdrop: true,
+                    keyboard: true,
+                    focus: true
+                });
+                
+                // Ensure modal properly closes with keyboard/backdrop
+                explanationModalElement.addEventListener('hidden.bs.modal', () => {
+                    console.log('Explanation modal hidden');
+                });
+            } catch (e) {
+                console.error('Error initializing explanation modal:', e);
+            }
         } else {
             console.warn('Explanation modal element not found or bootstrap not loaded');
         }
@@ -447,9 +457,9 @@ export class UIManager {
         // Focus next button to make keyboard navigation work
         setTimeout(() => nextButton.focus(), 100);
     }
-    
+
     /**
-     * Show explanation in a modal instead of inline
+     * Show explanation in a modal
      * @param {string} flashcardId - The ID of the current flashcard
      */
     showExplanationModal(flashcardId) {
@@ -457,7 +467,16 @@ export class UIManager {
         if (!this.explanationModal) {
             const modalElement = document.getElementById('explanationModal');
             if (modalElement && typeof bootstrap !== 'undefined') {
-                this.explanationModal = new bootstrap.Modal(modalElement);
+                try {
+                    this.explanationModal = new bootstrap.Modal(modalElement, {
+                        backdrop: true,
+                        keyboard: true,
+                        focus: true
+                    });
+                } catch (e) {
+                    console.error('Cannot initialize explanation modal:', e);
+                    return;
+                }
             } else {
                 console.error('Cannot show explanation: modal element not found or bootstrap not loaded');
                 return;
@@ -475,7 +494,12 @@ export class UIManager {
         }
         
         // Show the modal
-        this.explanationModal.show();
+        try {
+            this.explanationModal.show();
+        } catch (e) {
+            console.error('Error showing explanation modal:', e);
+            return;
+        }
         
         // Fetch the explanation from the server
         fetch(`/flashcard/explain/${flashcardId}`, {
@@ -491,14 +515,8 @@ export class UIManager {
             return response.json();
         })
         .then(data => {
-            // Play insight sound
-            try {
-                this.insightSound.play();
-            } catch (error) {
-                console.warn("Sound playback failed:", error);
-            }
             
-            // Check if explanation data exists
+            // Check if explanation data exists and modal is still open
             if (contentElement) {
                 contentElement.classList.remove('d-none');
                 

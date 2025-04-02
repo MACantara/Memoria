@@ -106,10 +106,37 @@ export class FlashcardManager {
         // Setup event listeners
         this.events.setupEventListeners();
 
-        // Initialize explanation modal if it exists
-        const explanationModalElement = document.getElementById('explanationModal');
-        if (explanationModalElement && typeof bootstrap !== 'undefined') {
-            this.explanationModal = new bootstrap.Modal(explanationModalElement);
+        // Initialize explanation modal with better error handling
+        try {
+            const explanationModalElement = document.getElementById('explanationModal');
+            if (explanationModalElement && typeof bootstrap !== 'undefined') {
+                this.explanationModal = new bootstrap.Modal(explanationModalElement, {
+                    backdrop: true,
+                    keyboard: true,
+                    focus: true
+                });
+                
+                // Add event handler to detect when modal is closed
+                explanationModalElement.addEventListener('hidden.bs.modal', () => {
+                    console.log('Explanation modal hidden event triggered');
+                });
+                
+                // Ensure close buttons work
+                const closeButtons = explanationModalElement.querySelectorAll('[data-bs-dismiss="modal"]');
+                closeButtons.forEach(button => {
+                    button.addEventListener('click', () => {
+                        try {
+                            this.explanationModal.hide();
+                        } catch (e) {
+                            console.error('Error hiding modal from close button:', e);
+                            // Fallback close method
+                            bootstrap.Modal.getInstance(explanationModalElement)?.hide();
+                        }
+                    });
+                });
+            }
+        } catch (e) {
+            console.error('Error initializing explanation modal:', e);
         }
     }
 
@@ -698,12 +725,18 @@ export class FlashcardManager {
     }
 
     /**
-     * Show explanation for the current flashcard using the modal
+     * Show explanation for the current flashcard using the modal with improved error handling
      */
     showExplanation() {
         if (!this.currentCard) return;
         
         const flashcardId = this.currentCard.id;
-        this.ui.showExplanationModal(flashcardId);
+        try {
+            this.ui.showExplanationModal(flashcardId);
+        } catch (e) {
+            console.error('Error showing explanation:', e);
+            // Fallback to simple alert
+            alert(`An error occurred showing the explanation. Please try again.`);
+        }
     }
 }
