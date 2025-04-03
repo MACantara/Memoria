@@ -62,8 +62,11 @@ export class EventManager {
         // Check if we're in answer selection mode (not after answer is shown)
         const feedbackContainer = document.querySelector('.feedback-container');
         
-        if (!feedbackContainer) {
-            // Handle numeric keys 1-9 for answer selection
+        // NEW: Check if any answer is already selected
+        const anyAnswerSelected = document.querySelector('.answer-option.selected');
+        
+        if (!feedbackContainer && !anyAnswerSelected) {
+            // Handle numeric keys 1-9 for answer selection ONLY when no answer is selected yet
             if (e.key >= '1' && e.key <= '9') {
                 const index = parseInt(e.key) - 1;
                 const answerOptions = document.querySelectorAll('.answer-option');
@@ -86,8 +89,8 @@ export class EventManager {
                     }
                 }
             }
-        } else {
-            // In feedback mode, handle shortcut keys specifically
+        } else if (feedbackContainer || anyAnswerSelected) {
+            // In feedback mode OR when an answer is already selected
             if (e.key === 'x' || e.key === 'X') {
                 // Add 'X' shortcut for showing explanation
                 const explainButton = document.getElementById('explainFlashcardBtn');
@@ -96,8 +99,10 @@ export class EventManager {
                     e.preventDefault();
                     return;
                 }
-            } else if (e.key !== 'e' && e.key !== 'E') { 
-                // For all other keys (except 'e' for edit), continue to next question
+            } else if (e.key !== 'e' && e.key !== 'E' && e.key !== 'd' && e.key !== 'D' && e.key !== 'Delete') { 
+                // For keys that aren't edit/delete shortcuts, try to advance to next card
+                // if we're showing feedback or have an answer selected
+                
                 // Make sure we're not focused on the Explain button
                 const explainButton = document.getElementById('explainFlashcardBtn');
                 if (document.activeElement !== explainButton) {
@@ -106,6 +111,19 @@ export class EventManager {
                     if (nextButton) {
                         nextButton.click();
                         e.preventDefault();
+                        return;
+                    }
+                    
+                    // If the Next button isn't present but we've already selected an answer,
+                    // we might need to trigger the initial answer submission
+                    if (anyAnswerSelected && !feedbackContainer) {
+                        // The answer is selected but not yet submitted - let's confirm it
+                        const radio = anyAnswerSelected.querySelector('input[type="radio"]');
+                        if (radio && !radio.disabled) {
+                            this.manager.handleAnswer(radio.value);
+                            e.preventDefault();
+                            return;
+                        }
                     }
                 }
             }
