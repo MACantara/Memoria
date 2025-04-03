@@ -113,12 +113,24 @@ export class UIManager {
     renderAnswerOptions(card) {
         if (!this.answerForm || !card) return;
         
+        // Reset form - important to clear any existing handlers
+        this.answerForm.innerHTML = '';
+        
+        // Create a container element that prevents form submission
+        this.answerForm.onsubmit = (e) => {
+            console.log('Prevented direct form submission');
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        };
+        
         // Create shuffled array of all answers
         const allAnswers = [...card.incorrect_answers, card.correct_answer];
         const shuffledAnswers = this.shuffleArray([...allAnswers]);
         
         // Create a container for the answers
         const answersContainer = document.createElement('div');
+        answersContainer.className = 'answer-options-container';
         
         // Get the current theme
         const isDarkTheme = document.documentElement.getAttribute('data-bs-theme') === 'dark';
@@ -200,7 +212,11 @@ export class UIManager {
             });
             
             // Add click handler
-            answerOption.addEventListener('click', () => {
+            answerOption.addEventListener('click', (e) => {
+                // Explicitly prevent default to avoid form submission
+                e.preventDefault();
+                e.stopPropagation();
+                
                 // Update all options to remove selection styling
                 answersContainer.querySelectorAll('.answer-option').forEach(option => {
                     option.classList.remove('selected', 'border-primary');
@@ -224,6 +240,9 @@ export class UIManager {
                         window.flashcardManager.handleAnswer(radio.value);
                     }
                 }
+                
+                // Return false to prevent further processing
+                return false;
             });
             
             answersContainer.appendChild(optionDiv);
@@ -922,30 +941,38 @@ export class UIManager {
         const minimalButtons = document.createElement('div');
         minimalButtons.className = 'd-flex justify-content-center gap-2 mt-3';
         minimalButtons.innerHTML = `
-            <button id="explainFlashcardBtn" class="btn btn-outline-secondary">
+            <button id="explainFlashcardBtn" class="btn btn-outline-secondary" type="button">
                 <i class="bi bi-lightbulb me-2"></i> Explain
             </button>
-            <button id="nextQuestionBtn" class="btn btn-primary">
+            <button id="nextQuestionBtn" class="btn btn-primary" type="button">
                 <i class="bi bi-arrow-right me-2"></i> Next
             </button>
         `;
         this.answerForm.appendChild(minimalButtons);
         
-        // Add event listeners to new buttons
+        // Make sure the buttons have type="button" to avoid form submission
+        
+        // Add event listeners to new buttons with explicit preventDefault
         const explainBtn = document.getElementById('explainFlashcardBtn');
         const nextBtn = document.getElementById('nextQuestionBtn');
         
         if (explainBtn) {
-            explainBtn.addEventListener('click', () => {
+            explainBtn.addEventListener('click', (e) => {
+                e.preventDefault();
                 const flashcardId = this.getCurrentFlashcardId();
                 if (flashcardId) {
                     this.showExplanationModal(flashcardId);
                 }
+                return false;
             });
         }
         
         if (nextBtn && typeof nextCardCallback === 'function') {
-            nextBtn.addEventListener('click', nextCardCallback);
+            nextBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                nextCardCallback();
+                return false;
+            });
             // Focus the next button for keyboard navigation
             setTimeout(() => nextBtn.focus(), 100);
         }

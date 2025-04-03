@@ -183,6 +183,7 @@ export class FlashcardManager {
             }
             
             this.isLoading = true;
+            console.log(`Starting to load segment ${this.currentPage + 1}/${this.totalPages}`);
             
             // Show loading message between segments
             this.ui.showLoadingMessage(`Loading next segment (${this.currentPage + 1}/${this.totalPages})...`);
@@ -199,49 +200,58 @@ export class FlashcardManager {
             url.searchParams.append('page', nextPage.toString());
             url.searchParams.append('per_page', this.cardsPerSegment.toString());
             
-            console.log(`Loading segment ${nextPage}/${this.totalPages}`);
+            console.log(`Loading segment ${nextPage}/${this.totalPages} from URL:`, url.toString());
             
             // Ensure this is treated as an AJAX request to prevent page navigation
-            const response = await fetch(url, {
-                method: 'GET',
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json'
-                },
-                // Prevent browser from navigating to the result
-                mode: 'same-origin',
-                credentials: 'same-origin',
-                cache: 'no-cache',
-                redirect: 'error' // Don't follow redirects
-            });
-            
-            if (!response.ok) {
-                throw new Error(`Failed to load segment ${nextPage}: ${response.status}`);
+            try {
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    },
+                    // Prevent browser from navigating to the result
+                    mode: 'same-origin',
+                    credentials: 'same-origin'
+                });
+                
+                console.log(`Received response for segment ${nextPage}, status:`, response.status);
+                
+                if (!response.ok) {
+                    console.error(`Server returned error ${response.status}`);
+                    throw new Error(`Failed to load segment ${nextPage}: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log(`Successfully parsed JSON for segment ${nextPage}`);
+                
+                // Verify we got the expected data structure
+                if (!data.flashcards || !Array.isArray(data.flashcards)) {
+                    console.error("Invalid data structure received:", data);
+                    throw new Error('Received invalid data structure from server');
+                }
+                
+                // Append to existing flashcards array
+                const newCards = data.flashcards;
+                console.log(`Adding ${newCards.length} new cards to existing ${this.flashcards.length} cards`);
+                this.flashcards = [...this.flashcards, ...newCards];
+                this.currentPage = nextPage;
+                
+                console.log(`Added ${newCards.length} more cards, total now: ${this.flashcards.length}`);
+                
+                // Return success
+                return true;
+            } catch (fetchError) {
+                console.error("Fetch error during segment loading:", fetchError);
+                throw fetchError;
             }
-            
-            const data = await response.json();
-            
-            // Verify we got the expected data structure
-            if (!data.flashcards || !Array.isArray(data.flashcards)) {
-                throw new Error('Received invalid data structure from server');
-            }
-            
-            // Append to existing flashcards array
-            const newCards = data.flashcards;
-            this.flashcards = [...this.flashcards, ...newCards];
-            this.currentPage = nextPage;
-            
-            console.log(`Added ${newCards.length} more cards, total now: ${this.flashcards.length}`);
-            
-            // Return success
-            return true;
         } catch (error) {
             console.error("Error loading next segment:", error);
-            this.ui.showLoadingError(`Failed to load next segment: ${error.message}`);
+            this.ui.showLoadingError(`Failed to load segment: ${error.message}`);
             return false;
         } finally {
             this.isLoading = false;
+            console.log(`Segment loading completed, isLoading set to false`);
         }
     }
 
@@ -369,13 +379,23 @@ export class FlashcardManager {
 
     async handleAnswer(selectedAnswer) {
         // Prevent multiple submissions while processing
-        if (this.isProcessingAnswer) return;
+        if (this.isProcessingAnswer) {
+            console.log("Already processing an answer, ignoring duplicate submission");
+            return;
+        }
+        
+        console.log(`Handling answer: "${selectedAnswer}"`);
         this.isProcessingAnswer = true;
         
         const card = this.currentCard;
-        if (!card) return;
+        if (!card) {
+            console.error("No current card available");
+            this.isProcessingAnswer = false;
+            return;
+        }
         
         const isCorrect = selectedAnswer === card.correct_answer;
+        console.log(`Answer is ${isCorrect ? 'correct' : 'incorrect'}`);
         
         try {
             // Update server-side progress first

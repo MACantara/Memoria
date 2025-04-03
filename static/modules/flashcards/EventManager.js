@@ -19,17 +19,35 @@ export class EventManager {
     setupEventListeners() {
         // Set up answer form submission (delegation)
         if (this.answerForm) {
+            // Add event listener to the form to prevent default submission
+            this.answerForm.addEventListener('submit', (e) => {
+                console.log('Preventing form submission');
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            });
+            
+            // Listen for click events on answer options
             this.answerForm.addEventListener('click', (e) => {
+                // Prevent any default behavior that might cause form submission
+                e.preventDefault();
+                
                 const answerOption = e.target.closest('.answer-option');
                 if (answerOption) {
                     const radio = answerOption.querySelector('input[type="radio"]');
                     if (radio && !radio.checked) {
                         radio.checked = true;
                         
+                        // Stop event propagation to prevent bubbling
+                        e.stopPropagation();
+                        
                         // Notify FlashcardManager about the answer
                         this.manager.handleAnswer(radio.value);
                     }
                 }
+                
+                // Return false to prevent any other handling
+                return false;
             });
         }
         
@@ -85,7 +103,8 @@ export class EventManager {
                         
                         // Prevent default behavior (page scrolling)
                         e.preventDefault();
-                        return;
+                        e.stopPropagation();
+                        return false;
                     }
                 }
             }

@@ -631,6 +631,23 @@ body.loading-next-segment .segment-loading {
     pointer-events: auto;
 }
 
+/* Disable form events during loading to prevent accidental submissions */
+.isLoading form,
+body.loading-next-segment form {
+    pointer-events: none;
+}
+
+/* Ensure form action isn't applied during AJAX operations */
+#answerForm {
+    /* Important to prevent traditional form submission */
+    action: "javascript:void(0)";
+}
+
+/* Ensure buttons don't submit forms */
+#answerForm button {
+    type: button;
+}
+
 /* Toast styling */
 .toast-container {
     z-index: 1060;

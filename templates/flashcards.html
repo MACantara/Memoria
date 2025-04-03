@@ -218,6 +218,13 @@ Study {{ deck.name }} (All Cards)
         console.log("Page loaded. Initializing FlashcardManager...");
         console.log("Total flashcards to study: {{ flashcards_count }}");
 
+        // Prevent any form submissions on the page - critical fix
+        document.addEventListener('submit', function(e) {
+            console.log('Form submission intercepted:', e.target);
+            e.preventDefault();
+            return false;
+        });
+
         const manager = new FlashcardManager();
 
         // Add debugging to verify segment loading
