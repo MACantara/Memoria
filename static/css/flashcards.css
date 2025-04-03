@@ -576,11 +576,12 @@ body {
     padding: 20px 30px;
     border-radius: 10px;
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
-    z-index: 1060;
+    z-index: 9999 !important; /* Ensure this is on top */
     text-align: center;
     animation: milestone-toast-in 3s ease forwards;
     pointer-events: none;
-    min-width: 260px;
+    min-width: 280px;
+    max-width: 90%;
 }
 
 .milestone-icon {
@@ -603,6 +604,31 @@ body {
     10% { opacity: 1; transform: translate(-50%, -50%); }
     80% { opacity: 1; transform: translate(-50%, -50%); }
     100% { opacity: 0; transform: translate(-50%, -70%); }
+}
+
+/* Improve segment loading UX */
+.segment-loading {
+    padding: 2rem;
+    background-color: rgba(var(--bs-light-rgb), 0.95);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    margin: 1rem auto;
+    max-width: 500px;
+    text-align: center;
+}
+
+[data-bs-theme="dark"] .segment-loading {
+    background-color: rgba(var(--bs-dark-rgb), 0.95);
+}
+
+/* Disable pointer events while loading to prevent accidental clicks */
+body.loading-next-segment {
+    pointer-events: none;
+}
+
+/* But keep pointer events for the loading UI */
+body.loading-next-segment .segment-loading {
+    pointer-events: auto;
 }
 
 /* Toast styling */

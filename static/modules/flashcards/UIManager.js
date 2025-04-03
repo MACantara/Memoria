@@ -269,9 +269,12 @@ export class UIManager {
                     <small>${message}</small>
                 </div>
             </div>
-            <div class="mt-2">
+            <div class="mt-3 d-flex justify-content-between">
                 <button class="btn btn-sm btn-outline-danger" onclick="window.location.reload()">
-                    Retry
+                    <i class="bi bi-arrow-clockwise me-1"></i> Retry
+                </button>
+                <button class="btn btn-sm btn-primary" id="continueAnywayBtn">
+                    <i class="bi bi-arrow-right me-1"></i> Continue with current cards
                 </button>
             </div>
         `;
@@ -287,16 +290,26 @@ export class UIManager {
             loadingContainer.style.display = 'block';
         } else {
             // If no loading container, try to add it to the flashcard container
-            const container = document.getElementById('flashcardsContainer');
-            if (container) {
-                container.appendChild(errorDiv);
+            if (this.flashcardContainer) {
+                this.flashcardContainer.innerHTML = '';
+                this.flashcardContainer.appendChild(errorDiv);
             }
         }
         
-        // Also hide the flashcard container if it exists
-        const flashcardContainer = document.getElementById('currentFlashcard');
-        if (flashcardContainer) {
-            flashcardContainer.style.display = 'none';
+        // Add event listener to the continue anyway button
+        const continueBtn = document.getElementById('continueAnywayBtn');
+        if (continueBtn) {
+            continueBtn.addEventListener('click', () => {
+                // Try to restore the original flashcard content if we have it
+                if (this._originalFlashcardContent && this.flashcardContainer) {
+                    this.flashcardContainer.innerHTML = this._originalFlashcardContent;
+                }
+                
+                // Try to resume the current card if flashcardManager is available
+                if (window.flashcardManager && window.flashcardManager.currentCard) {
+                    this.renderCard(window.flashcardManager.currentCard);
+                }
+            });
         }
     }
 
@@ -1142,6 +1155,7 @@ export class UIManager {
         // Create celebration toast
         const toast = document.createElement('div');
         toast.className = 'milestone-toast';
+        toast.style.zIndex = "9999"; // Ensure it's on top of all other elements
         
         // Choose celebration message based on progress
         let message;
@@ -1198,14 +1212,24 @@ export class UIManager {
     showLoadingMessage(message) {
         if (!this.flashcardContainer) return;
         
+        // Store original content to restore if needed
+        if (!this._originalFlashcardContent) {
+            this._originalFlashcardContent = this.flashcardContainer.innerHTML;
+        }
+        
         // Clear the current flashcard view
         this.flashcardContainer.innerHTML = `
             <div class="segment-loading text-center p-4">
-                <div class="spinner-border text-primary mb-3" role="status">
+                <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
                     <span class="visually-hidden">Loading</span>
                 </div>
-                <p class="fw-bold">${message}</p>
-                <p class="text-muted small">Loading more flashcards...</p>
+                <p class="fw-bold fs-5">${message}</p>
+                <p class="text-muted">Loading more flashcards for continued study...</p>
+                <div class="progress mt-3" style="height: 8px;">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                         role="progressbar" style="width: 100%"></div>
+                </div>
+                <p class="small text-muted mt-3">Please wait, your progress is being saved</p>
             </div>
         `;
     }

@@ -201,10 +201,19 @@ export class FlashcardManager {
             
             console.log(`Loading segment ${nextPage}/${this.totalPages}`);
             
+            // Ensure this is treated as an AJAX request to prevent page navigation
             const response = await fetch(url, {
+                method: 'GET',
                 headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                // Prevent browser from navigating to the result
+                mode: 'same-origin',
+                credentials: 'same-origin',
+                cache: 'no-cache',
+                redirect: 'error' // Don't follow redirects
             });
             
             if (!response.ok) {
@@ -212,6 +221,11 @@ export class FlashcardManager {
             }
             
             const data = await response.json();
+            
+            // Verify we got the expected data structure
+            if (!data.flashcards || !Array.isArray(data.flashcards)) {
+                throw new Error('Received invalid data structure from server');
+            }
             
             // Append to existing flashcards array
             const newCards = data.flashcards;
@@ -250,7 +264,6 @@ export class FlashcardManager {
         console.log("Moving to next card. Completed cards:", this.completedCards.size);
         console.log(`Total cards to review: ${this.totalDueCards}, completed: ${this.score}`);
         
-        // IMPORTANT: Keep the simple sequential order - don't try to reorder by due date
         // Find the next uncompleted card in the original order
         let nextCardIndex = -1;
         
@@ -302,21 +315,50 @@ export class FlashcardManager {
         }
         
         // Check if we've completed a segment and need to load more cards
-        // If we have more pages to load and we've completed at least one full segment
-        if (this.currentPage < this.totalPages && this.completedCards.size > 0 && 
+        // This calculation determines if a segment is completed: 
+        // 1. More pages to load
+        // 2. Completed at least one full segment
+        // 3. The number of completed cards is divisible by the segment size
+        if (this.currentPage < this.totalPages && 
+            this.completedCards.size > 0 && 
             this.completedCards.size % this.cardsPerSegment === 0) {
             
             console.log(`Completed segment ${this.currentPage}. Loading next segment...`);
             
-            // Show segment completion celebration
-            this.ui.celebrateSegmentCompletion(this.currentPage, this.totalPages);
+            // Prevent any user interaction during segment loading
+            document.body.classList.add('loading-next-segment');
             
-            // Load next segment
-            const loadedSuccessfully = await this.loadNextSegment();
-            
-            if (loadedSuccessfully) {
-                // Try again to find a card in the newly loaded segment
-                return this.moveToNextCard();
+            try {
+                // Show segment completion celebration
+                this.ui.celebrateSegmentCompletion(this.currentPage, this.totalPages);
+                
+                // Add small delay to let the celebration show before starting to load
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // Load next segment - this is an async operation
+                const loadedSuccessfully = await this.loadNextSegment();
+                
+                if (loadedSuccessfully) {
+                    // Reset the UI for the new segment
+                    this.ui.updateScore(this.score, this.totalDueCards);
+                    this.updateCardCounter();
+                    
+                    // Try again to find a card in the newly loaded segment
+                    this.moveToNextCard();
+                    return;
+                } else {
+                    // If we failed to load, show error and completion screen
+                    console.error("Failed to load next segment, showing completion screen");
+                    this.checkRemainingDueCards();
+                    return;
+                }
+            } catch (error) {
+                console.error("Error during segment transition:", error);
+                // Show error message
+                this.ui.showLoadingError("Error loading next segment. Please try refreshing the page.");
+            } finally {
+                // Re-enable user interaction
+                document.body.classList.remove('loading-next-segment');
             }
         }
         
