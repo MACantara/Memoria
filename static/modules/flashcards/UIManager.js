@@ -1157,15 +1157,17 @@ export class UIManager {
             message = 'First segment completed!';
         }
         
-        // Add segment count and overall progress to message
+        // Add segment count and next segment message
         const segmentCountMsg = `<div class="segment-count mt-1">Segment ${segment}/${total} completed</div>`;
-        const overallProgressMsg = `<div class="overall-progress mt-1">${segment * this.cardsPerSegment} of ${this.totalCards} cards total</div>`;
+        const nextSegmentMsg = segment < total ? 
+            `<div class="next-segment-msg mt-2">Loading next segment...</div>` : 
+            `<div class="completed-all mt-2">All segments completed!</div>`;
         
         toast.innerHTML = `
             <div class="milestone-icon mb-2"><i class="bi bi-trophy fs-3"></i></div>
             <div class="milestone-message">${message}</div>
             ${segmentCountMsg}
-            ${overallProgressMsg}
+            ${nextSegmentMsg}
         `;
         
         document.body.appendChild(toast);
@@ -1187,5 +1189,24 @@ export class UIManager {
         setTimeout(() => {
             toast.remove();
         }, 3500);
+    }
+
+    /**
+     * Show loading message between segments
+     * @param {string} message - The loading message to display
+     */
+    showLoadingMessage(message) {
+        if (!this.flashcardContainer) return;
+        
+        // Clear the current flashcard view
+        this.flashcardContainer.innerHTML = `
+            <div class="segment-loading text-center p-4">
+                <div class="spinner-border text-primary mb-3" role="status">
+                    <span class="visually-hidden">Loading</span>
+                </div>
+                <p class="fw-bold">${message}</p>
+                <p class="text-muted small">Loading more flashcards...</p>
+            </div>
+        `;
     }
 }

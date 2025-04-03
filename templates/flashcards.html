@@ -220,9 +220,9 @@ Study {{ deck.name }} (All Cards)
 
         const manager = new FlashcardManager();
 
-        // Add debugging to verify card order and count
+        // Add debugging to verify segment loading
         manager.addEventListener('firstBatchLoaded', () => {
-            console.log("Cards loaded, verifying order and count...");
+            console.log("First segment loaded, verifying order and count...");
             
             // Log state distribution
             if (manager.flashcards && manager.flashcards.length > 0) {
@@ -232,7 +232,8 @@ Study {{ deck.name }} (All Cards)
                     states[state] = (states[state] || 0) + 1;
                 });
                 console.log("Card distribution by state:", states);
-                console.log(`First batch: ${manager.flashcards.length} cards loaded out of ${manager.totalDueCards} total`);
+                console.log(`First segment: ${manager.flashcards.length} cards loaded out of ${manager.totalDueCards} total`);
+                console.log(`Total segments: ${manager.totalPages}, Cards per segment: ${manager.cardsPerSegment}`);
                 
                 // Log first few cards of each type
                 const firstCardOfType = {0: null, 1: null, 2: null, 3: null};
