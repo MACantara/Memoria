@@ -93,9 +93,6 @@ export class FlashcardManager {
                 
                 this.ui.renderCard(this.currentCard);
                 this.updateCardCounter();
-                
-                // Update the total count with the actual cards loaded
-                this.totalDueCards = this.flashcards.length;
             } else {
                 // No cards were loaded, show a message
                 this.ui.showNoCardsMessage();
@@ -148,7 +145,7 @@ export class FlashcardManager {
             this.totalPages = data.pagination.total_pages;
             this.currentPage = 1;
             
-            console.log(`Successfully loaded initial ${this.flashcards.length} flashcards`);
+            console.log(`Successfully loaded initial ${this.flashcards.length} flashcards out of ${data.total} total`);
             
             // If there are more pages, start loading the next batch in the background
             if (this.currentPage < this.totalPages) {
@@ -156,7 +153,16 @@ export class FlashcardManager {
             }
             
             // Update the total now that we know the actual count
-            this.totalDueCards = data.total;
+            if (data.total !== this.totalDueCards) {
+                console.log(`Updating total from ${this.totalDueCards} to ${data.total}`);
+                this.totalDueCards = data.total;
+                
+                // Update the counter display with the correct total
+                const remainingCountElement = document.getElementById('remainingCount');
+                if (remainingCountElement) {
+                    remainingCountElement.textContent = this.totalDueCards;
+                }
+            }
             
             // Dispatch event to indicate first batch loaded
             this.dispatchEvent('firstBatchLoaded');
