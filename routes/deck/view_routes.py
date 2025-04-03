@@ -145,18 +145,31 @@ def study_deck(deck_id):
     # Get the deck
     deck = FlashcardDecks.query.filter_by(flashcard_deck_id=deck_id, user_id=current_user.id).first_or_404()
     
-    # Get due_only parameter from URL at the beginning of the function
+    # Get parameters
     due_only = request.args.get('due_only') == 'true'
     
     # Check if it's an AJAX request for flashcard data
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        # Use the balanced cards implementation
-        flashcards = get_due_cards(deck_id, due_only)
+        # Get pagination parameters
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 50, type=int)
+        
+        # Get all due cards (still need the total count)
+        all_cards = get_due_cards(deck_id, due_only)
+        total_cards = len(all_cards)
+        
+        # Calculate pagination values
+        total_pages = (total_cards + per_page - 1) // per_page
+        start_idx = (page - 1) * per_page
+        end_idx = min(start_idx + per_page, total_cards)
+        
+        # Get just the requested page of cards
+        page_cards = all_cards[start_idx:end_idx]
         
         # Transform to JSON response format
         flashcard_data = []
         
-        for card in flashcards:
+        for card in page_cards:
             # Set default deck info
             deck_info = None
             
@@ -174,16 +187,21 @@ def study_deck(deck_id):
                 'question': card.question,
                 'correct_answer': card.correct_answer,
                 'incorrect_answers': card.incorrect_answers,
-                'state': 0 if card.state is None else int(card.state),  # Ensure state is always an integer
+                'state': 0 if card.state is None else int(card.state),
                 'retrievability': card.retrievability or 0,
                 'due_date': card.due_date.isoformat() if card.due_date else None,
                 'subdeck': deck_info
             })
         
-        # Return all cards at once
+        # Return paginated response
         return jsonify({
             'flashcards': flashcard_data,
-            'total': len(flashcard_data)
+            'total': total_cards,
+            'pagination': {
+                'page': page,
+                'per_page': per_page,
+                'total_pages': total_pages
+            }
         })
     
     # Normal page load - calculate the count of cards for rendering the template

@@ -16,6 +16,8 @@ export class FlashcardManager {
         this.studyMode = document.getElementById('studyMode')?.value === 'due_only';
         this.isLoading = false;
         this.currentCard = null;  // Store the current card data
+        this.totalPages = 0;  // Total pages for pagination
+        this.currentPage = 0;  // Current page for pagination
         
         // Initialize event system
         this.eventListeners = {};
@@ -113,7 +115,7 @@ export class FlashcardManager {
             
             this.isLoading = true;
             
-            // Build the URL for loading all cards at once
+            // Build the URL for loading cards with pagination
             const url = new URL(`/deck/study/${this.deckId}`, window.location.origin);
             
             // Add query parameter for due only
@@ -121,7 +123,11 @@ export class FlashcardManager {
                 url.searchParams.append('due_only', 'true');
             }
             
-            console.log(`Loading all flashcards from: ${url}`);
+            // Add pagination parameters - first load only 50 cards
+            url.searchParams.append('page', '1');
+            url.searchParams.append('per_page', '50');
+            
+            console.log(`Loading initial batch of flashcards from: ${url}`);
             
             const response = await fetch(url, {
                 headers: {
@@ -137,23 +143,22 @@ export class FlashcardManager {
             
             const data = await response.json();
             
-            // Store all flashcards in the order they were received
+            // Store flashcards in the order they were received
             this.flashcards = data.flashcards;
-            console.log(`Successfully loaded ${this.flashcards.length} flashcards`);
+            this.totalPages = data.pagination.total_pages;
+            this.currentPage = 1;
             
-            // Log the first 5 cards to verify order is preserved
-            console.log("First 5 cards order check:");
-            for (let i = 0; i < Math.min(5, this.flashcards.length); i++) {
-                console.log(`Card ${i+1}: ID=${this.flashcards[i].id}, State=${this.flashcards[i].state}`);
+            console.log(`Successfully loaded initial ${this.flashcards.length} flashcards`);
+            
+            // If there are more pages, start loading the next batch in the background
+            if (this.currentPage < this.totalPages) {
+                this.loadNextBatchInBackground();
             }
             
             // Update the total now that we know the actual count
-            if (this.flashcards.length !== this.totalDueCards) {
-                console.log(`Updating total from ${this.totalDueCards} to ${this.flashcards.length}`);
-                this.totalDueCards = this.flashcards.length;
-            }
+            this.totalDueCards = data.total;
             
-            // Dispatch event to indicate first load completion
+            // Dispatch event to indicate first batch loaded
             this.dispatchEvent('firstBatchLoaded');
             
         } catch (error) {
@@ -161,6 +166,46 @@ export class FlashcardManager {
             this.ui.showLoadingError(error.message);
         } finally {
             this.isLoading = false;
+        }
+    }
+
+    async loadNextBatchInBackground() {
+        try {
+            const nextPage = this.currentPage + 1;
+            const url = new URL(`/deck/study/${this.deckId}`, window.location.origin);
+            
+            if (this.studyMode) {
+                url.searchParams.append('due_only', 'true');
+            }
+            
+            url.searchParams.append('page', nextPage.toString());
+            url.searchParams.append('per_page', '50');
+            
+            console.log(`Loading next batch (page ${nextPage}) in background`);
+            
+            const response = await fetch(url, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                
+                // Append to existing flashcards array
+                this.flashcards = [...this.flashcards, ...data.flashcards];
+                this.currentPage = nextPage;
+                
+                console.log(`Added ${data.flashcards.length} more cards, total now: ${this.flashcards.length}`);
+                
+                // Continue loading more batches if available
+                if (this.currentPage < this.totalPages) {
+                    this.loadNextBatchInBackground();
+                }
+            }
+        } catch (error) {
+            console.error("Error loading next batch:", error);
+            // Non-critical error, so don't show to user
         }
     }
 
