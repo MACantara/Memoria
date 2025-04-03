@@ -27,6 +27,9 @@ export class UIManager {
         this.cardsPerSegment = 25; // Smaller, more manageable chunks
         this.celebrationSound = new Audio('/static/sounds/achievement.mp3');
         this.celebrationSound.load();
+        
+        // Add a map to track which segments have had celebrations shown
+        this.celebratedSegments = new Set();
 
         // Initialize modal for explanations
         this.explanationModal = null;
@@ -1124,9 +1127,11 @@ export class UIManager {
         
         // Only update display if we've moved to a new segment
         if (completedSegments !== this.currentSegment) {
-            // If we completed a segment, show celebration
-            if (completedSegments > this.currentSegment) {
+            // If we completed a segment, show celebration (but only if not already shown)
+            if (completedSegments > this.currentSegment && !this.celebratedSegments.has(completedSegments)) {
                 this.celebrateSegmentCompletion(this.currentSegment + 1, this.totalSegments);
+                // Track that we've shown celebration for this segment
+                this.celebratedSegments.add(completedSegments);
             }
             
             // Update current segment
@@ -1236,6 +1241,17 @@ export class UIManager {
      * @param {number} total - Total number of segments
      */
     celebrateSegmentCompletion(segment, total) {
+        // Check if we've already celebrated this segment to avoid duplicates
+        if (this.celebratedSegments.has(segment)) {
+            console.log(`Segment ${segment} celebration already shown, skipping duplicate`);
+            return;
+        }
+        
+        // Add this segment to celebrated set to prevent duplicates
+        this.celebratedSegments.add(segment);
+        
+        console.log(`Celebrating completion of segment ${segment}/${total}`);
+        
         try {
             // Play achievement sound
             this.celebrationSound.currentTime = 0;

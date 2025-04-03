@@ -424,8 +424,15 @@ export class FlashcardManager {
             this.isSegmentTransition = true; // Set transition flag
             
             try {
-                // Show segment completion celebration
-                this.ui.celebrateSegmentCompletion(this.currentPage, this.totalPages);
+                // Calculate which segment was just completed (1-based)
+                const completedSegment = Math.floor(this.completedCards.size / this.cardsPerSegment);
+                
+                // Show segment completion celebration if not already shown
+                if (!this.ui.celebratedSegments.has(completedSegment)) {
+                    this.ui.celebrateSegmentCompletion(this.currentPage, this.totalPages);
+                } else {
+                    console.log(`Segment ${completedSegment} celebration was already shown during score update`);
+                }
                 
                 // Add small delay to let the celebration show before starting to load
                 await new Promise(resolve => setTimeout(resolve, 1000));
