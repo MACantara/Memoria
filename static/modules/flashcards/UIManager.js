@@ -88,26 +88,91 @@ export class UIManager {
     }
 
     renderCard(card) {
-        if (!this.flashcardContainer || !card) return;
+        if (!this.flashcardContainer || !card) {
+            console.error(`Cannot render card: ${!this.flashcardContainer ? 'flashcardContainer missing' : 'card data missing'}`);
+            return;
+        }
         
-        // Make sure card is visible
-        this.flashcardContainer.style.display = 'block';
+        console.log(`Rendering card ID: ${card.id}, Question: "${card.question?.substring(0, 30)}..."`);
+        
+        // Make sure card container is visible and exists
+        const cardElement = document.getElementById('currentFlashcard');
+        if (!cardElement) {
+            console.error("currentFlashcard element not found in DOM!");
+            
+            // Try to restore the structure if we saved it
+            if (this._originalStructure) {
+                console.log("Attempting to restore flashcard structure");
+                const mainContainer = document.getElementById('flashcardsContainer');
+                if (mainContainer) {
+                    mainContainer.innerHTML = this._originalStructure.html;
+                    // Re-get the cardElement after restoration
+                    const restoredCard = document.getElementById('currentFlashcard');
+                    if (restoredCard) {
+                        console.log("Successfully restored flashcard structure");
+                        restoredCard.style.display = 'block';
+                    }
+                }
+            }
+            
+            // Re-check for elements after possible restoration
+            const recoveredCardElement = document.getElementById('currentFlashcard');
+            if (!recoveredCardElement) {
+                console.error("Could not recover currentFlashcard element. Creating from scratch");
+                // Last resort: recreate the element structure from scratch
+                this.recreateFlashcardStructure();
+            }
+        } else {
+            cardElement.style.display = 'block';
+        }
         
         // Set question
-        if (this.questionContainer) {
-            this.questionContainer.textContent = card.question;
+        const questionContainer = document.getElementById('questionContainer');
+        if (questionContainer) {
+            questionContainer.textContent = card.question;
+            console.log("Question set in questionContainer");
+        } else {
+            console.error("questionContainer element not found!");
+            // Try to fix by recreating structure
+            this.recreateFlashcardStructure();
+            // Try again
+            const recoveredQuestionContainer = document.getElementById('questionContainer');
+            if (recoveredQuestionContainer) {
+                recoveredQuestionContainer.textContent = card.question;
+                console.log("Question set in recovered questionContainer");
+            }
         }
         
         // Clear any previous answers and feedback
-        if (this.answerForm) {
-            this.answerForm.innerHTML = '';
+        const answerForm = document.getElementById('answerForm');
+        if (answerForm) {
+            answerForm.innerHTML = '';
+            console.log("Cleared answer form");
+        } else {
+            console.error("answerForm element not found!");
+            // If we already tried to recreate the structure, don't do it again
+            if (!document.getElementById('questionContainer')) {
+                this.recreateFlashcardStructure();
+                // Try again
+                const recoveredAnswerForm = document.getElementById('answerForm');
+                if (recoveredAnswerForm) {
+                    recoveredAnswerForm.innerHTML = '';
+                    console.log("Cleared recovered answer form");
+                }
+            }
         }
         
         // Update state badge based on card state
         this.updateStatusBadge(parseInt(card.state || 0));
         
-        // Generate and render answer options
-        this.renderAnswerOptions(card);
+        // Generate and render answer options - make this more robust
+        const finalAnswerForm = document.getElementById('answerForm');
+        if (finalAnswerForm) {
+            this.renderAnswerOptions(card);
+            console.log("Card rendering complete");
+        } else {
+            console.error("Failed to render answer options: answerForm still not available");
+        }
     }
     
     renderAnswerOptions(card) {
@@ -1237,27 +1302,128 @@ export class UIManager {
      * @param {string} message - The loading message to display
      */
     showLoadingMessage(message) {
-        if (!this.flashcardContainer) return;
+        // Get the main container (parent of flashcardContainer)
+        const mainContainer = document.getElementById('flashcardsContainer');
+        if (!mainContainer) return;
         
-        // Store original content to restore if needed
+        console.log(`Showing loading message: "${message}"`);
+        
+        // Store original structure if not already stored
         if (!this._originalFlashcardContent) {
-            this._originalFlashcardContent = this.flashcardContainer.innerHTML;
+            console.log("Storing original flashcard structure for restoration");
+            this._originalStructure = {
+                html: mainContainer.innerHTML
+            };
         }
         
-        // Clear the current flashcard view
-        this.flashcardContainer.innerHTML = `
-            <div class="segment-loading text-center p-4">
-                <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
-                    <span class="visually-hidden">Loading</span>
+        // Hide the current flashcard but don't remove it
+        const currentFlashcard = document.getElementById('currentFlashcard');
+        if (currentFlashcard) {
+            currentFlashcard.style.display = 'none';
+            console.log("Hidden currentFlashcard element during loading");
+        }
+        
+        // Create loading element outside the flashcard container
+        const loadingElement = document.createElement('div');
+        loadingElement.className = 'segment-loading text-center p-4';
+        loadingElement.innerHTML = `
+            <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+                <span class="visually-hidden">Loading</span>
+            </div>
+            <p class="fw-bold fs-5">${message}</p>
+            <p class="text-muted">Loading more flashcards for continued study...</p>
+            <div class="progress mt-3" style="height: 8px;">
+                <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                     role="progressbar" style="width: 100%"></div>
+            </div>
+            <p class="small text-muted mt-3">Please wait, your progress is being saved</p>
+        `;
+        
+        // Add loading element to the main container
+        mainContainer.appendChild(loadingElement);
+        console.log("Loading message HTML inserted into container");
+    }
+
+    /**
+     * Hide loading message between segments
+     * @param {boolean} isSegmentTransition - Whether we're transitioning between segments
+     */
+    hideLoadingMessage(isSegmentTransition = false) {
+        // Get the main container
+        const mainContainer = document.getElementById('flashcardsContainer');
+        if (!mainContainer) return;
+        
+        console.log(`Hiding loading message. isSegmentTransition=${isSegmentTransition}`);
+        
+        // Remove any loading message elements
+        const loadingMessage = mainContainer.querySelector('.segment-loading');
+        if (loadingMessage) {
+            console.log('Found .segment-loading element, removing it');
+            loadingMessage.remove();
+        } else {
+            console.log('No .segment-loading element found to remove');
+        }
+        
+        // Make sure the current flashcard element exists and is visible
+        let currentCard = document.getElementById('currentFlashcard');
+        
+        if (!currentCard && this._originalStructure) {
+            console.log('currentFlashcard element not found, restoring from saved structure');
+            
+            // Restore the entire original structure
+            mainContainer.innerHTML = this._originalStructure.html;
+            
+            // Get the current flashcard element again after restoration
+            currentCard = document.getElementById('currentFlashcard');
+        }
+        
+        if (currentCard) {
+            console.log('Making currentFlashcard visible');
+            currentCard.style.display = 'block';
+        } else {
+            console.error('currentFlashcard element not found and could not be restored!');
+        }
+    }
+
+    /**
+     * Recreate the flashcard structure if it's missing
+     * This is a fallback recovery method
+     */
+    recreateFlashcardStructure() {
+        console.log("Recreating flashcard structure from scratch");
+        
+        const flashcardsContainer = document.getElementById('flashcardsContainer');
+        if (!flashcardsContainer) {
+            console.error("Cannot recreate structure: flashcardsContainer not found");
+            return;
+        }
+        
+        // First, check if we have already tried to recreate it
+        if (document.getElementById('currentFlashcard')) {
+            return; // Already exists
+        }
+        
+        // Template based on the structure in flashcards.html
+        const template = `
+            <div id="currentFlashcard" class="card flashcard mb-4">
+                <div class="card-body">
+                    <span id="statusBadge" class="badge position-absolute top-0 start-0 m-3 compact-status-badge">New</span>
+                    <div id="questionContainer" class="card-title h4 mt-4"></div>
+                    <form id="answerForm" class="answer-form mt-4">
+                        <!-- Answer options will be dynamically inserted here -->
+                    </form>
                 </div>
-                <p class="fw-bold fs-5">${message}</p>
-                <p class="text-muted">Loading more flashcards for continued study...</p>
-                <div class="progress mt-3" style="height: 8px;">
-                    <div class="progress-bar progress-bar-striped progress-bar-animated" 
-                         role="progressbar" style="width: 100%"></div>
-                </div>
-                <p class="small text-muted mt-3">Please wait, your progress is being saved</p>
             </div>
         `;
+        
+        // Clear the container and add the template
+        flashcardsContainer.innerHTML = template;
+        
+        // Update our reference to the flashcard container
+        this.flashcardContainer = document.getElementById('currentFlashcard');
+        this.questionContainer = document.getElementById('questionContainer');
+        this.answerForm = document.getElementById('answerForm');
+        
+        console.log("Flashcard structure recreated");
     }
 }

@@ -15,6 +15,7 @@ export class FlashcardManager {
         this.deckId = document.getElementById('deckId')?.value;
         this.studyMode = document.getElementById('studyMode')?.value === 'due_only';
         this.isLoading = false;
+        this.isSegmentTransition = false; // Track segment transition state
         this.currentCard = null;  // Store the current card data
         this.totalPages = 0;  // Total pages for pagination
         this.currentPage = 0;  // Current page for pagination
@@ -183,6 +184,7 @@ export class FlashcardManager {
             }
             
             this.isLoading = true;
+            this.isSegmentTransition = true; // Set flag to indicate we're in a segment transition
             console.log(`Starting to load segment ${this.currentPage + 1}/${this.totalPages}`);
             
             // Show loading message between segments
@@ -239,19 +241,105 @@ export class FlashcardManager {
                 
                 console.log(`Added ${newCards.length} more cards, total now: ${this.flashcards.length}`);
                 
-                // Return success
-                return true;
+                // Hide the loading message BEFORE finding and rendering the card
+                this.ui.hideLoadingMessage(this.isSegmentTransition);
+                console.log("Loading message hidden after successful segment load");
+                
+                // Verify DOM elements are available before trying to render
+                this.verifyDomElements();
+                
+                // IMPORTANT: Find the first card from the new segment and display it
+                const segmentStartIndex = (this.currentPage - 1) * this.cardsPerSegment;
+                if (segmentStartIndex < this.flashcards.length) {
+                    console.log(`Looking for first uncompleted card starting at index ${segmentStartIndex}`);
+                    
+                    // Find the first uncompleted card in the new segment
+                    let nextCardIndex = -1;
+                    for (let i = segmentStartIndex; i < this.flashcards.length; i++) {
+                        if (!this.completedCards.has(this.flashcards[i].id)) {
+                            nextCardIndex = i;
+                            break;
+                        }
+                    }
+                    
+                    if (nextCardIndex >= 0) {
+                        this.currentCardIndex = nextCardIndex;
+                        this.currentCard = this.flashcards[nextCardIndex];
+                        console.log(`Found first uncompleted card at index ${nextCardIndex}: ID ${this.currentCard.id}`);
+                        
+                        // Get reference to the card container and set flashcard ID
+                        const currentCardElement = document.getElementById('currentFlashcard');
+                        if (currentCardElement) {
+                            currentCardElement.style.display = 'block';
+                            currentCardElement.dataset.flashcardId = this.currentCard.id;
+                            console.log(`Set flashcard ID in DOM element: ${this.currentCard.id}`);
+                        } else {
+                            console.error("Card container element not found!");
+                        }
+                        
+                        // Render the card immediately
+                        this.ui.renderCard(this.currentCard);
+                        this.updateCardCounter();
+                        console.log("First card from new segment rendered!");
+                        
+                        return true;
+                    } else {
+                        console.warn("No uncompleted cards found in the new segment");
+                        return false;
+                    }
+                } else {
+                    console.warn(`Start index ${segmentStartIndex} is out of bounds (${this.flashcards.length} total cards)`);
+                    return false;
+                }
+                
             } catch (fetchError) {
                 console.error("Fetch error during segment loading:", fetchError);
+                
+                // Always hide the loading message on error
+                this.ui.hideLoadingMessage(this.isSegmentTransition);
+                console.log("Loading message hidden after fetch error");
+                
                 throw fetchError;
             }
         } catch (error) {
             console.error("Error loading next segment:", error);
+            
+            // Always hide the loading message in the outer catch block too
+            this.ui.hideLoadingMessage(this.isSegmentTransition);
+            console.log("Loading message hidden in outer catch block");
+            
             this.ui.showLoadingError(`Failed to load segment: ${error.message}`);
             return false;
         } finally {
             this.isLoading = false;
-            console.log(`Segment loading completed, isLoading set to false`);
+            this.isSegmentTransition = false; // Reset segment transition flag
+            console.log(`Segment loading completed, isLoading set to false, isSegmentTransition reset to false`);
+        }
+    }
+
+    /**
+     * Verify that all required DOM elements exist for rendering cards
+     * If not, attempt to recreate the structure
+     */
+    verifyDomElements() {
+        console.log("Verifying DOM elements for card rendering");
+        
+        const cardElement = document.getElementById('currentFlashcard');
+        const questionElement = document.getElementById('questionContainer');
+        const answerFormElement = document.getElementById('answerForm');
+        
+        if (!cardElement || !questionElement || !answerFormElement) {
+            console.error("Required DOM elements missing, attempting to recreate structure");
+            this.ui.recreateFlashcardStructure();
+            
+            // Check if recreation was successful
+            const hasCard = document.getElementById('currentFlashcard') !== null;
+            const hasQuestion = document.getElementById('questionContainer') !== null;
+            const hasAnswerForm = document.getElementById('answerForm') !== null;
+            
+            console.log(`Structure check after recreation: flashcard=${hasCard}, question=${hasQuestion}, answerForm=${hasAnswerForm}`);
+        } else {
+            console.log("All required DOM elements found");
         }
     }
 
@@ -325,10 +413,6 @@ export class FlashcardManager {
         }
         
         // Check if we've completed a segment and need to load more cards
-        // This calculation determines if a segment is completed: 
-        // 1. More pages to load
-        // 2. Completed at least one full segment
-        // 3. The number of completed cards is divisible by the segment size
         if (this.currentPage < this.totalPages && 
             this.completedCards.size > 0 && 
             this.completedCards.size % this.cardsPerSegment === 0) {
@@ -337,6 +421,7 @@ export class FlashcardManager {
             
             // Prevent any user interaction during segment loading
             document.body.classList.add('loading-next-segment');
+            this.isSegmentTransition = true; // Set transition flag
             
             try {
                 // Show segment completion celebration
@@ -348,13 +433,12 @@ export class FlashcardManager {
                 // Load next segment - this is an async operation
                 const loadedSuccessfully = await this.loadNextSegment();
                 
+                // Note: loadNextSegment now handles displaying the first card from the new segment
+                // So we don't need to call moveToNextCard() recursively
+                
                 if (loadedSuccessfully) {
-                    // Reset the UI for the new segment
-                    this.ui.updateScore(this.score, this.totalDueCards);
-                    this.updateCardCounter();
-                    
-                    // Try again to find a card in the newly loaded segment
-                    this.moveToNextCard();
+                    console.log("Successfully loaded next segment, card already rendered");
+                    // No need to call moveToNextCard() again since loadNextSegment already displayed a card
                     return;
                 } else {
                     // If we failed to load, show error and completion screen
@@ -369,6 +453,7 @@ export class FlashcardManager {
             } finally {
                 // Re-enable user interaction
                 document.body.classList.remove('loading-next-segment');
+                this.isSegmentTransition = false; // Reset transition flag when complete
             }
         }
         
