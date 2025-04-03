@@ -213,7 +213,7 @@ def get_due_cards(deck_id, due_only=False):
           f"Mastered: {len(mastered_cards)}, Forgotten: {len(forgotten_cards)}")
     
     # Create balanced segments of 25 cards with the desired ratio
-    # Target: 10 new, 5 learning, 5 forgotten, 5 others per segment
+    # Target: 5 forgotten, 5 learning, 10 new, 5 mastered per segment
     balanced_cards = []
     
     # Calculate how many segments we need
@@ -229,70 +229,133 @@ def get_due_cards(deck_id, due_only=False):
     
     # Create segments
     for segment in range(num_segments):
+        # Create a new segment with cards in the specified order
         segment_cards = []
         
-        # Try to add 5 forgotten cards or as many as available
-        for _ in range(5):
-            if forgotten_index < len(forgotten_cards):
-                segment_cards.append(forgotten_cards[forgotten_index])
-                forgotten_index += 1
-            elif learning_index < len(learning_cards):  # Backfill with learning cards
-                segment_cards.append(learning_cards[learning_index])
-                learning_index += 1
-            elif new_index < len(new_cards):  # Backfill with new cards
-                segment_cards.append(new_cards[new_index])
-                new_index += 1
-            elif mastered_index < len(mastered_cards):  # Backfill with mastered cards
-                segment_cards.append(mastered_cards[mastered_index])
-                mastered_index += 1
+        # First part: Add forgotten cards (target: 5)
+        forgotten_to_add = min(5, len(forgotten_cards) - forgotten_index)
+        for i in range(forgotten_index, forgotten_index + forgotten_to_add):
+            segment_cards.append(forgotten_cards[i])
+        forgotten_index += forgotten_to_add
         
-        # Try to add 5 learning cards or as many as available
-        for _ in range(5):
-            if learning_index < len(learning_cards):
-                segment_cards.append(learning_cards[learning_index])
-                learning_index += 1
-            elif new_index < len(new_cards):  # Backfill with new cards
-                segment_cards.append(new_cards[new_index])
-                new_index += 1
-            elif forgotten_index < len(forgotten_cards):  # Backfill with forgotten cards
-                segment_cards.append(forgotten_cards[forgotten_index])
-                forgotten_index += 1
-            elif mastered_index < len(mastered_cards):  # Backfill with mastered cards
-                segment_cards.append(mastered_cards[mastered_index])
-                mastered_index += 1
+        # If we don't have enough forgotten cards, backfill with other types
+        remaining_forgotten = 5 - forgotten_to_add
         
-        # Try to add 10 new cards or as many as available
-        for _ in range(10):
-            if new_index < len(new_cards):
-                segment_cards.append(new_cards[new_index])
-                new_index += 1
-            elif learning_index < len(learning_cards):  # Backfill with learning cards
-                segment_cards.append(learning_cards[learning_index])
-                learning_index += 1
-            elif forgotten_index < len(forgotten_cards):  # Backfill with forgotten cards
-                segment_cards.append(forgotten_cards[forgotten_index])
-                forgotten_index += 1
-            elif mastered_index < len(mastered_cards):  # Backfill with mastered cards
-                segment_cards.append(mastered_cards[mastered_index])
-                mastered_index += 1
+        # Backfill priority: learning -> new -> mastered
+        # Try learning cards first
+        learning_backfill = min(remaining_forgotten, len(learning_cards) - learning_index)
+        for i in range(learning_index, learning_index + learning_backfill):
+            segment_cards.append(learning_cards[i])
+        learning_index += learning_backfill
+        remaining_forgotten -= learning_backfill
         
-        # Fill remaining slots with mastered cards or other available cards
+        # Then try new cards
+        new_backfill = min(remaining_forgotten, len(new_cards) - new_index)
+        for i in range(new_index, new_index + new_backfill):
+            segment_cards.append(new_cards[i])
+        new_index += new_backfill
+        remaining_forgotten -= new_backfill
+        
+        # Finally mastered cards
+        mastered_backfill = min(remaining_forgotten, len(mastered_cards) - mastered_index)
+        for i in range(mastered_index, mastered_index + mastered_backfill):
+            segment_cards.append(mastered_cards[i])
+        mastered_index += mastered_backfill
+        
+        # Second part: Add learning cards (target: 5)
+        learning_to_add = min(5, len(learning_cards) - learning_index)
+        for i in range(learning_index, learning_index + learning_to_add):
+            segment_cards.append(learning_cards[i])
+        learning_index += learning_to_add
+        
+        # Backfill if needed
+        remaining_learning = 5 - learning_to_add
+        
+        # Backfill priority: new -> forgotten -> mastered
+        # Try new cards first
+        new_backfill = min(remaining_learning, len(new_cards) - new_index)
+        for i in range(new_index, new_index + new_backfill):
+            segment_cards.append(new_cards[i])
+        new_index += new_backfill
+        remaining_learning -= new_backfill
+        
+        # Then try forgotten cards
+        forgotten_backfill = min(remaining_learning, len(forgotten_cards) - forgotten_index)
+        for i in range(forgotten_index, forgotten_index + forgotten_backfill):
+            segment_cards.append(forgotten_cards[i])
+        forgotten_index += forgotten_backfill
+        remaining_learning -= forgotten_backfill
+        
+        # Finally mastered cards
+        mastered_backfill = min(remaining_learning, len(mastered_cards) - mastered_index)
+        for i in range(mastered_index, mastered_index + mastered_backfill):
+            segment_cards.append(mastered_cards[i])
+        mastered_index += mastered_backfill
+        
+        # Third part: Add new cards (target: 10)
+        new_to_add = min(10, len(new_cards) - new_index)
+        for i in range(new_index, new_index + new_to_add):
+            segment_cards.append(new_cards[i])
+        new_index += new_to_add
+        
+        # Backfill if needed
+        remaining_new = 10 - new_to_add
+        
+        # Backfill priority: learning -> forgotten -> mastered
+        # Try learning cards first
+        learning_backfill = min(remaining_new, len(learning_cards) - learning_index)
+        for i in range(learning_index, learning_index + learning_backfill):
+            segment_cards.append(learning_cards[i])
+        learning_index += learning_backfill
+        remaining_new -= learning_backfill
+        
+        # Then try forgotten cards
+        forgotten_backfill = min(remaining_new, len(forgotten_cards) - forgotten_index)
+        for i in range(forgotten_index, forgotten_index + forgotten_backfill):
+            segment_cards.append(forgotten_cards[i])
+        forgotten_index += forgotten_backfill
+        remaining_new -= forgotten_backfill
+        
+        # Finally mastered cards
+        mastered_backfill = min(remaining_new, len(mastered_cards) - mastered_index)
+        for i in range(mastered_index, mastered_index + mastered_backfill):
+            segment_cards.append(mastered_cards[i])
+        mastered_index += mastered_backfill
+        
+        # Fourth part: Add remaining cards to fill segment (target: 5, usually mastered)
         remaining_slots = segment_size - len(segment_cards)
-        for _ in range(remaining_slots):
-            if mastered_index < len(mastered_cards):
-                segment_cards.append(mastered_cards[mastered_index])
-                mastered_index += 1
-            elif new_index < len(new_cards):
-                segment_cards.append(new_cards[new_index])
-                new_index += 1
-            elif learning_index < len(learning_cards):
-                segment_cards.append(learning_cards[learning_index])
-                learning_index += 1
-            elif forgotten_index < len(forgotten_cards):
-                segment_cards.append(forgotten_cards[forgotten_index])
-                forgotten_index += 1
         
-        # If we've reached the end of all card types, break out
+        # Fill with mastered cards first
+        mastered_to_add = min(remaining_slots, len(mastered_cards) - mastered_index)
+        for i in range(mastered_index, mastered_index + mastered_to_add):
+            segment_cards.append(mastered_cards[i])
+        mastered_index += mastered_to_add
+        remaining_slots -= mastered_to_add
+        
+        # If we still need cards, use any remaining cards from any state
+        # Priority: new -> learning -> forgotten
+        
+        # Try new cards
+        new_fill = min(remaining_slots, len(new_cards) - new_index)
+        for i in range(new_index, new_index + new_fill):
+            segment_cards.append(new_cards[i])
+        new_index += new_fill
+        remaining_slots -= new_fill
+        
+        # Try learning cards
+        learning_fill = min(remaining_slots, len(learning_cards) - learning_index)
+        for i in range(learning_index, learning_index + learning_fill):
+            segment_cards.append(learning_cards[i])
+        learning_index += learning_fill
+        remaining_slots -= learning_fill
+        
+        # Try forgotten cards
+        forgotten_fill = min(remaining_slots, len(forgotten_cards) - forgotten_index)
+        for i in range(forgotten_index, forgotten_index + forgotten_fill):
+            segment_cards.append(forgotten_cards[i])
+        forgotten_index += forgotten_fill
+        
+        # If we have no cards in this segment, we're done
         if not segment_cards:
             break
             
