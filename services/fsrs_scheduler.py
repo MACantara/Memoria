@@ -2,6 +2,10 @@ from datetime import datetime, timedelta, timezone
 from fsrs import Scheduler, Card, Rating, ReviewLog, State
 import traceback
 from models import db  # Add this import at the top
+import logging
+
+# Get logger
+logger = logging.getLogger(__name__)
 
 # We MUST use UTC timezone for FSRS
 def get_current_time():
@@ -135,19 +139,28 @@ def process_review(flashcard, is_correct):
         return flashcard.due_date, 0.0
 
 def get_due_cards(deck_id, due_only=False):
-    """
-    Get cards that are due for review from a deck and its sub-decks.
-    
-    Args:
-        deck_id: The ID of the deck to get cards from.
-        due_only: If True, only return cards that are due for review today.
-                 If False, return all cards regardless of due date.
-    
-    Returns:
-        A list of Flashcards objects that are due for review, ordered by due date.
-    """
+    """Get cards that are due for review from a deck and its sub-decks"""
     from models import FlashcardDecks, Flashcards
     from sqlalchemy import case
+    from sqlalchemy.orm import load_only
+    
+    # Only log at debug level, not in production
+    if logger.isEnabledFor(logging.DEBUG):
+        logger.debug(f"Starting get_due_cards for deck_id={deck_id}, due_only={due_only}")
+    
+    # Optimize queries by selecting only needed columns
+    query = Flashcards.query.options(
+        load_only(
+            Flashcards.flashcard_id, 
+            Flashcards.question,
+            Flashcards.correct_answer,
+            Flashcards.incorrect_answers,
+            Flashcards.state,
+            Flashcards.due_date,
+            Flashcards.flashcard_deck_id,
+            Flashcards.retrievability
+        )
+    )
     
     # Create recursive CTE to find all decks including this one and its sub-decks
     cte = db.session.query(
@@ -164,18 +177,10 @@ def get_due_cards(deck_id, due_only=False):
         )
     )
     
-    # Debug to check the CTE query
-    deck_ids = [row[0] for row in db.session.query(cte.c.id).all()]
-    print(f"Found {len(deck_ids)} decks in tree including deck {deck_id}")
-    
     # Start with a query for all cards in these decks
-    query = Flashcards.query.filter(
+    query = query.filter(
         Flashcards.flashcard_deck_id.in_(db.session.query(cte.c.id))
     )
-    
-    # Debug
-    total_cards = query.count()
-    print(f"Total cards in all decks: {total_cards}")
     
     # If due_only is True, filter for only cards that are due today
     if due_only:
@@ -184,21 +189,192 @@ def get_due_cards(deck_id, due_only=False):
             (Flashcards.due_date <= current_time) | 
             (Flashcards.due_date == None)  # Include cards without due date
         )
-        print(f"Due cards: {query.count()} (out of {total_cards})")
     
-    # Order by due date - cards with no due date come first (new cards)
-    # followed by cards with the earliest due dates first to ensure
-    # users study the most overdue cards first
-    flashcards = query.order_by(
-        # Put cards without due date first - FIXED CASE EXPRESSION
+    # Fetch cards for each state separately with proper ordering within each state
+    new_cards = query.filter(Flashcards.state == 0).order_by(
         case((Flashcards.due_date == None, 0), else_=1),
-        # Then order by due date (earliest first)
         Flashcards.due_date.asc(),
-        # Finally by ID to ensure stable ordering
         Flashcards.flashcard_id.asc()
     ).all()
     
-    return flashcards
+    learning_cards = query.filter(Flashcards.state == 1).order_by(
+        case((Flashcards.due_date == None, 0), else_=1),
+        Flashcards.due_date.asc(),
+        Flashcards.flashcard_id.asc()
+    ).all()
+    
+    mastered_cards = query.filter(Flashcards.state == 2).order_by(
+        case((Flashcards.due_date == None, 0), else_=1),
+        Flashcards.due_date.asc(),
+        Flashcards.flashcard_id.asc()
+    ).all()
+    
+    forgotten_cards = query.filter(Flashcards.state == 3).order_by(
+        case((Flashcards.due_date == None, 0), else_=1),
+        Flashcards.due_date.asc(),
+        Flashcards.flashcard_id.asc()
+    ).all()
+    
+    # Create balanced segments of 25 cards with the desired ratio
+    # Target: 5 forgotten, 5 learning, 10 new, 5 mastered per segment
+    balanced_cards = []
+    
+    # Calculate how many segments we need
+    total_available_cards = len(new_cards) + len(learning_cards) + len(forgotten_cards) + len(mastered_cards)
+    segment_size = 25
+    num_segments = max(1, (total_available_cards + segment_size - 1) // segment_size)
+    
+    # Track indices to avoid repeating cards
+    new_index = 0
+    learning_index = 0 
+    forgotten_index = 0
+    mastered_index = 0
+    
+    # Create segments
+    for segment in range(num_segments):
+        # Create a new segment with cards in the specified order
+        segment_cards = []
+        
+        # First part: Add forgotten cards (target: 5)
+        forgotten_to_add = min(5, len(forgotten_cards) - forgotten_index)
+        for i in range(forgotten_index, forgotten_index + forgotten_to_add):
+            segment_cards.append(forgotten_cards[i])
+        forgotten_index += forgotten_to_add
+        
+        # If we don't have enough forgotten cards, backfill with other types
+        remaining_forgotten = 5 - forgotten_to_add
+        
+        if remaining_forgotten > 0:
+            # Backfill priority: learning -> new -> mastered
+            # Try learning cards first
+            learning_backfill = min(remaining_forgotten, len(learning_cards) - learning_index)
+            for i in range(learning_index, learning_index + learning_backfill):
+                segment_cards.append(learning_cards[i])
+            learning_index += learning_backfill
+            remaining_forgotten -= learning_backfill
+            
+            # Then try new cards
+            new_backfill = min(remaining_forgotten, len(new_cards) - new_index)
+            for i in range(new_index, new_index + new_backfill):
+                segment_cards.append(new_cards[i])
+            new_index += new_backfill
+            remaining_forgotten -= new_backfill
+            
+            # Finally mastered cards
+            mastered_backfill = min(remaining_forgotten, len(mastered_cards) - mastered_index)
+            for i in range(mastered_index, mastered_index + mastered_backfill):
+                segment_cards.append(mastered_cards[i])
+            mastered_index += mastered_backfill
+        
+        # Second part: Add learning cards (target: 5)
+        learning_to_add = min(5, len(learning_cards) - learning_index)
+        for i in range(learning_index, learning_index + learning_to_add):
+            segment_cards.append(learning_cards[i])
+        learning_index += learning_to_add
+        
+        # Backfill if needed
+        remaining_learning = 5 - learning_to_add
+        
+        if remaining_learning > 0:
+            # Backfill priority: new -> forgotten -> mastered
+            # Try new cards first
+            new_backfill = min(remaining_learning, len(new_cards) - new_index)
+            for i in range(new_index, new_index + new_backfill):
+                segment_cards.append(new_cards[i])
+            new_index += new_backfill
+            remaining_learning -= new_backfill
+            
+            # Then try forgotten cards
+            forgotten_backfill = min(remaining_learning, len(forgotten_cards) - forgotten_index)
+            for i in range(forgotten_index, forgotten_index + forgotten_backfill):
+                segment_cards.append(forgotten_cards[i])
+            forgotten_index += forgotten_backfill
+            remaining_learning -= forgotten_backfill
+            
+            # Finally mastered cards
+            mastered_backfill = min(remaining_learning, len(mastered_cards) - mastered_index)
+            for i in range(mastered_index, mastered_index + mastered_backfill):
+                segment_cards.append(mastered_cards[i])
+            mastered_index += mastered_backfill
+        
+        # Third part: Add new cards (target: 10)
+        new_to_add = min(10, len(new_cards) - new_index)
+        for i in range(new_index, new_index + new_to_add):
+            segment_cards.append(new_cards[i])
+        new_index += new_to_add
+        
+        # Backfill if needed
+        remaining_new = 10 - new_to_add
+        
+        if remaining_new > 0:
+            # Backfill priority: learning -> forgotten -> mastered
+            # Try learning cards first
+            learning_backfill = min(remaining_new, len(learning_cards) - learning_index)
+            for i in range(learning_index, learning_index + learning_backfill):
+                segment_cards.append(learning_cards[i])
+            learning_index += learning_backfill
+            remaining_new -= learning_backfill
+            
+            # Then try forgotten cards
+            forgotten_backfill = min(remaining_new, len(forgotten_cards) - forgotten_index)
+            for i in range(forgotten_index, forgotten_index + forgotten_backfill):
+                segment_cards.append(forgotten_cards[i])
+            forgotten_index += forgotten_backfill
+            remaining_new -= forgotten_backfill
+            
+            # Finally mastered cards
+            mastered_backfill = min(remaining_new, len(mastered_cards) - mastered_index)
+            for i in range(mastered_index, mastered_index + mastered_backfill):
+                segment_cards.append(mastered_cards[i])
+            mastered_index += mastered_backfill
+        
+        # Fourth part: Add remaining cards to fill segment (target: 5, usually mastered)
+        remaining_slots = segment_size - len(segment_cards)
+        
+        # Fill with mastered cards first
+        mastered_to_add = min(remaining_slots, len(mastered_cards) - mastered_index)
+        for i in range(mastered_index, mastered_index + mastered_to_add):
+            segment_cards.append(mastered_cards[i])
+        mastered_index += mastered_to_add
+        remaining_slots -= mastered_to_add
+        
+        # If we still need cards, use any remaining cards from any state
+        if remaining_slots > 0:
+            # Try new cards
+            new_fill = min(remaining_slots, len(new_cards) - new_index)
+            for i in range(new_index, new_index + new_fill):
+                segment_cards.append(new_cards[i])
+            new_index += new_fill
+            remaining_slots -= new_fill
+            
+            # Try learning cards
+            learning_fill = min(remaining_slots, len(learning_cards) - learning_index)
+            for i in range(learning_index, learning_index + learning_fill):
+                segment_cards.append(learning_cards[i])
+            learning_index += learning_fill
+            remaining_slots -= learning_fill
+            
+            # Try forgotten cards
+            forgotten_fill = min(remaining_slots, len(forgotten_cards) - forgotten_index)
+            for i in range(forgotten_index, forgotten_index + forgotten_fill):
+                segment_cards.append(forgotten_cards[i])
+            forgotten_index += forgotten_fill
+        
+        # If we have no cards in this segment, we're done
+        if not segment_cards:
+            break
+            
+        # Add this segment's cards to the final list
+        balanced_cards.extend(segment_cards)
+        
+        # If we've used all cards, break
+        if (new_index >= len(new_cards) and 
+            learning_index >= len(learning_cards) and 
+            forgotten_index >= len(forgotten_cards) and
+            mastered_index >= len(mastered_cards)):
+            break
+    
+    return balanced_cards
 
 def get_stats(deck_id=None):
     """
@@ -244,15 +420,12 @@ def get_stats(deck_id=None):
     # Add a check for cards with uninitialized state
     uninitialized_count = query.filter(Flashcards.state.is_(None)).count()
     if uninitialized_count > 0:
-        print(f"Warning: Found {uninitialized_count} cards with NULL state")
         # Add these to new cards
         state_counts['new'] += uninitialized_count
     
     # Verify the totals add up correctly
     total = sum(state_counts.values())
     total_cards = query.count()
-    if total != total_cards:
-        print(f"Warning: State counts ({total}) don't match total cards ({total_cards})")
     
     # Count due cards - use timezone-aware datetime
     now = get_current_time()
@@ -311,8 +484,6 @@ def get_stats(deck_id=None):
         {'date': date.isoformat(), 'count': count}
         for date, count in sorted(upcoming.items())
     ]
-    
-    print(f"Upcoming reviews: {formatted_upcoming}")  # Debug info
     
     return {
         'total_cards': total_cards,

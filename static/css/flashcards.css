@@ -330,12 +330,47 @@ body {
 .compact-status-badge {
     font-size: 0.75rem;
     padding: 0.25em 0.6em;
-    position: relative;
-    top: -8px;
+    position: absolute;
+    top: 0.5rem;
+    left: 0.5rem;
     z-index: 5;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    font-weight: 600;
 }
 
-/* Remove margin from the flashcard to make it tighter with the status badge */
+/* State-specific badge styling */
+#statusBadge[data-state="0"] { /* New */
+    background-color: var(--bs-secondary);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+#statusBadge[data-state="1"] { /* Learning */
+    background-color: var(--bs-warning);
+    border: 1px solid rgba(255, 193, 7, 0.3);
+}
+
+#statusBadge[data-state="2"] { /* Mastered */
+    background-color: var(--bs-success);
+    border: 1px solid rgba(25, 135, 84, 0.3);
+}
+
+#statusBadge[data-state="3"] { /* Forgotten */
+    background-color: var(--bs-danger);
+    border: 1px solid rgba(220, 53, 69, 0.3);
+}
+
+/* Add subtle animations for state changes */
+#statusBadge {
+    animation: badge-pop 0.3s ease-out;
+}
+
+@keyframes badge-pop {
+    0% { transform: scale(0.8); opacity: 0.7; }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); opacity: 1; }
+}
+
 #flashcardsContainer .card.flashcard {
     margin-top: 0.5rem;
 }
@@ -541,11 +576,12 @@ body {
     padding: 20px 30px;
     border-radius: 10px;
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
-    z-index: 1060;
+    z-index: 9999 !important; /* Ensure this is on top */
     text-align: center;
     animation: milestone-toast-in 3s ease forwards;
     pointer-events: none;
-    min-width: 260px;
+    min-width: 280px;
+    max-width: 90%;
 }
 
 .milestone-icon {
@@ -568,6 +604,48 @@ body {
     10% { opacity: 1; transform: translate(-50%, -50%); }
     80% { opacity: 1; transform: translate(-50%, -50%); }
     100% { opacity: 0; transform: translate(-50%, -70%); }
+}
+
+/* Improve segment loading UX */
+.segment-loading {
+    padding: 2rem;
+    background-color: rgba(var(--bs-light-rgb), 0.95);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    margin: 1rem auto;
+    max-width: 500px;
+    text-align: center;
+}
+
+[data-bs-theme="dark"] .segment-loading {
+    background-color: rgba(var(--bs-dark-rgb), 0.95);
+}
+
+/* Disable pointer events while loading to prevent accidental clicks */
+body.loading-next-segment {
+    pointer-events: none;
+}
+
+/* But keep pointer events for the loading UI */
+body.loading-next-segment .segment-loading {
+    pointer-events: auto;
+}
+
+/* Disable form events during loading to prevent accidental submissions */
+.isLoading form,
+body.loading-next-segment form {
+    pointer-events: none;
+}
+
+/* Ensure form action isn't applied during AJAX operations */
+#answerForm {
+    /* Important to prevent traditional form submission */
+    action: "javascript:void(0)";
+}
+
+/* Ensure buttons don't submit forms */
+#answerForm button {
+    type: button;
 }
 
 /* Toast styling */

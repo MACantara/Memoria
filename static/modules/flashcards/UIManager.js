@@ -27,6 +27,9 @@ export class UIManager {
         this.cardsPerSegment = 25; // Smaller, more manageable chunks
         this.celebrationSound = new Audio('/static/sounds/achievement.mp3');
         this.celebrationSound.load();
+        
+        // Add a map to track which segments have had celebrations shown
+        this.celebratedSegments = new Set();
 
         // Initialize modal for explanations
         this.explanationModal = null;
@@ -88,30 +91,106 @@ export class UIManager {
     }
 
     renderCard(card) {
-        if (!this.flashcardContainer || !card) return;
+        if (!this.flashcardContainer || !card) {
+            console.error(`Cannot render card: ${!this.flashcardContainer ? 'flashcardContainer missing' : 'card data missing'}`);
+            return;
+        }
         
-        // Make sure card is visible
-        this.flashcardContainer.style.display = 'block';
+        console.log(`Rendering card ID: ${card.id}, Question: "${card.question?.substring(0, 30)}..."`);
+        
+        // Make sure card container is visible and exists
+        const cardElement = document.getElementById('currentFlashcard');
+        if (!cardElement) {
+            console.error("currentFlashcard element not found in DOM!");
+            
+            // Try to restore the structure if we saved it
+            if (this._originalStructure) {
+                console.log("Attempting to restore flashcard structure");
+                const mainContainer = document.getElementById('flashcardsContainer');
+                if (mainContainer) {
+                    mainContainer.innerHTML = this._originalStructure.html;
+                    // Re-get the cardElement after restoration
+                    const restoredCard = document.getElementById('currentFlashcard');
+                    if (restoredCard) {
+                        console.log("Successfully restored flashcard structure");
+                        restoredCard.style.display = 'block';
+                    }
+                }
+            }
+            
+            // Re-check for elements after possible restoration
+            const recoveredCardElement = document.getElementById('currentFlashcard');
+            if (!recoveredCardElement) {
+                console.error("Could not recover currentFlashcard element. Creating from scratch");
+                // Last resort: recreate the element structure from scratch
+                this.recreateFlashcardStructure();
+            }
+        } else {
+            cardElement.style.display = 'block';
+        }
         
         // Set question
-        if (this.questionContainer) {
-            this.questionContainer.textContent = card.question;
+        const questionContainer = document.getElementById('questionContainer');
+        if (questionContainer) {
+            questionContainer.textContent = card.question;
+            console.log("Question set in questionContainer");
+        } else {
+            console.error("questionContainer element not found!");
+            // Try to fix by recreating structure
+            this.recreateFlashcardStructure();
+            // Try again
+            const recoveredQuestionContainer = document.getElementById('questionContainer');
+            if (recoveredQuestionContainer) {
+                recoveredQuestionContainer.textContent = card.question;
+                console.log("Question set in recovered questionContainer");
+            }
         }
         
         // Clear any previous answers and feedback
-        if (this.answerForm) {
-            this.answerForm.innerHTML = '';
+        const answerForm = document.getElementById('answerForm');
+        if (answerForm) {
+            answerForm.innerHTML = '';
+            console.log("Cleared answer form");
+        } else {
+            console.error("answerForm element not found!");
+            // If we already tried to recreate the structure, don't do it again
+            if (!document.getElementById('questionContainer')) {
+                this.recreateFlashcardStructure();
+                // Try again
+                const recoveredAnswerForm = document.getElementById('answerForm');
+                if (recoveredAnswerForm) {
+                    recoveredAnswerForm.innerHTML = '';
+                    console.log("Cleared recovered answer form");
+                }
+            }
         }
         
         // Update state badge based on card state
         this.updateStatusBadge(parseInt(card.state || 0));
         
-        // Generate and render answer options
-        this.renderAnswerOptions(card);
+        // Generate and render answer options - make this more robust
+        const finalAnswerForm = document.getElementById('answerForm');
+        if (finalAnswerForm) {
+            this.renderAnswerOptions(card);
+            console.log("Card rendering complete");
+        } else {
+            console.error("Failed to render answer options: answerForm still not available");
+        }
     }
     
     renderAnswerOptions(card) {
         if (!this.answerForm || !card) return;
+        
+        // Reset form - important to clear any existing handlers
+        this.answerForm.innerHTML = '';
+        
+        // Create a container element that prevents form submission
+        this.answerForm.onsubmit = (e) => {
+            console.log('Prevented direct form submission');
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        };
         
         // Create shuffled array of all answers
         const allAnswers = [...card.incorrect_answers, card.correct_answer];
@@ -119,6 +198,7 @@ export class UIManager {
         
         // Create a container for the answers
         const answersContainer = document.createElement('div');
+        answersContainer.className = 'answer-options-container';
         
         // Get the current theme
         const isDarkTheme = document.documentElement.getAttribute('data-bs-theme') === 'dark';
@@ -200,7 +280,11 @@ export class UIManager {
             });
             
             // Add click handler
-            answerOption.addEventListener('click', () => {
+            answerOption.addEventListener('click', (e) => {
+                // Explicitly prevent default to avoid form submission
+                e.preventDefault();
+                e.stopPropagation();
+                
                 // Update all options to remove selection styling
                 answersContainer.querySelectorAll('.answer-option').forEach(option => {
                     option.classList.remove('selected', 'border-primary');
@@ -224,6 +308,9 @@ export class UIManager {
                         window.flashcardManager.handleAnswer(radio.value);
                     }
                 }
+                
+                // Return false to prevent further processing
+                return false;
             });
             
             answersContainer.appendChild(optionDiv);
@@ -269,9 +356,12 @@ export class UIManager {
                     <small>${message}</small>
                 </div>
             </div>
-            <div class="mt-2">
+            <div class="mt-3 d-flex justify-content-between">
                 <button class="btn btn-sm btn-outline-danger" onclick="window.location.reload()">
-                    Retry
+                    <i class="bi bi-arrow-clockwise me-1"></i> Retry
+                </button>
+                <button class="btn btn-sm btn-primary" id="continueAnywayBtn">
+                    <i class="bi bi-arrow-right me-1"></i> Continue with current cards
                 </button>
             </div>
         `;
@@ -287,16 +377,26 @@ export class UIManager {
             loadingContainer.style.display = 'block';
         } else {
             // If no loading container, try to add it to the flashcard container
-            const container = document.getElementById('flashcardsContainer');
-            if (container) {
-                container.appendChild(errorDiv);
+            if (this.flashcardContainer) {
+                this.flashcardContainer.innerHTML = '';
+                this.flashcardContainer.appendChild(errorDiv);
             }
         }
         
-        // Also hide the flashcard container if it exists
-        const flashcardContainer = document.getElementById('currentFlashcard');
-        if (flashcardContainer) {
-            flashcardContainer.style.display = 'none';
+        // Add event listener to the continue anyway button
+        const continueBtn = document.getElementById('continueAnywayBtn');
+        if (continueBtn) {
+            continueBtn.addEventListener('click', () => {
+                // Try to restore the original flashcard content if we have it
+                if (this._originalFlashcardContent && this.flashcardContainer) {
+                    this.flashcardContainer.innerHTML = this._originalFlashcardContent;
+                }
+                
+                // Try to resume the current card if flashcardManager is available
+                if (window.flashcardManager && window.flashcardManager.currentCard) {
+                    this.renderCard(window.flashcardManager.currentCard);
+                }
+            });
         }
     }
 
@@ -909,30 +1009,38 @@ export class UIManager {
         const minimalButtons = document.createElement('div');
         minimalButtons.className = 'd-flex justify-content-center gap-2 mt-3';
         minimalButtons.innerHTML = `
-            <button id="explainFlashcardBtn" class="btn btn-outline-secondary">
+            <button id="explainFlashcardBtn" class="btn btn-outline-secondary" type="button">
                 <i class="bi bi-lightbulb me-2"></i> Explain
             </button>
-            <button id="nextQuestionBtn" class="btn btn-primary">
+            <button id="nextQuestionBtn" class="btn btn-primary" type="button">
                 <i class="bi bi-arrow-right me-2"></i> Next
             </button>
         `;
         this.answerForm.appendChild(minimalButtons);
         
-        // Add event listeners to new buttons
+        // Make sure the buttons have type="button" to avoid form submission
+        
+        // Add event listeners to new buttons with explicit preventDefault
         const explainBtn = document.getElementById('explainFlashcardBtn');
         const nextBtn = document.getElementById('nextQuestionBtn');
         
         if (explainBtn) {
-            explainBtn.addEventListener('click', () => {
+            explainBtn.addEventListener('click', (e) => {
+                e.preventDefault();
                 const flashcardId = this.getCurrentFlashcardId();
                 if (flashcardId) {
                     this.showExplanationModal(flashcardId);
                 }
+                return false;
             });
         }
         
         if (nextBtn && typeof nextCardCallback === 'function') {
-            nextBtn.addEventListener('click', nextCardCallback);
+            nextBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                nextCardCallback();
+                return false;
+            });
             // Focus the next button for keyboard navigation
             setTimeout(() => nextBtn.focus(), 100);
         }
@@ -1019,9 +1127,11 @@ export class UIManager {
         
         // Only update display if we've moved to a new segment
         if (completedSegments !== this.currentSegment) {
-            // If we completed a segment, show celebration
-            if (completedSegments > this.currentSegment) {
+            // If we completed a segment, show celebration (but only if not already shown)
+            if (completedSegments > this.currentSegment && !this.celebratedSegments.has(completedSegments)) {
                 this.celebrateSegmentCompletion(this.currentSegment + 1, this.totalSegments);
+                // Track that we've shown celebration for this segment
+                this.celebratedSegments.add(completedSegments);
             }
             
             // Update current segment
@@ -1131,6 +1241,17 @@ export class UIManager {
      * @param {number} total - Total number of segments
      */
     celebrateSegmentCompletion(segment, total) {
+        // Check if we've already celebrated this segment to avoid duplicates
+        if (this.celebratedSegments.has(segment)) {
+            console.log(`Segment ${segment} celebration already shown, skipping duplicate`);
+            return;
+        }
+        
+        // Add this segment to celebrated set to prevent duplicates
+        this.celebratedSegments.add(segment);
+        
+        console.log(`Celebrating completion of segment ${segment}/${total}`);
+        
         try {
             // Play achievement sound
             this.celebrationSound.currentTime = 0;
@@ -1142,6 +1263,7 @@ export class UIManager {
         // Create celebration toast
         const toast = document.createElement('div');
         toast.className = 'milestone-toast';
+        toast.style.zIndex = "9999"; // Ensure it's on top of all other elements
         
         // Choose celebration message based on progress
         let message;
@@ -1157,15 +1279,17 @@ export class UIManager {
             message = 'First segment completed!';
         }
         
-        // Add segment count and overall progress to message
+        // Add segment count and next segment message
         const segmentCountMsg = `<div class="segment-count mt-1">Segment ${segment}/${total} completed</div>`;
-        const overallProgressMsg = `<div class="overall-progress mt-1">${segment * this.cardsPerSegment} of ${this.totalCards} cards total</div>`;
+        const nextSegmentMsg = segment < total ? 
+            `<div class="next-segment-msg mt-2">Loading next segment...</div>` : 
+            `<div class="completed-all mt-2">All segments completed!</div>`;
         
         toast.innerHTML = `
             <div class="milestone-icon mb-2"><i class="bi bi-trophy fs-3"></i></div>
             <div class="milestone-message">${message}</div>
             ${segmentCountMsg}
-            ${overallProgressMsg}
+            ${nextSegmentMsg}
         `;
         
         document.body.appendChild(toast);
@@ -1187,5 +1311,135 @@ export class UIManager {
         setTimeout(() => {
             toast.remove();
         }, 3500);
+    }
+
+    /**
+     * Show loading message between segments
+     * @param {string} message - The loading message to display
+     */
+    showLoadingMessage(message) {
+        // Get the main container (parent of flashcardContainer)
+        const mainContainer = document.getElementById('flashcardsContainer');
+        if (!mainContainer) return;
+        
+        console.log(`Showing loading message: "${message}"`);
+        
+        // Store original structure if not already stored
+        if (!this._originalFlashcardContent) {
+            console.log("Storing original flashcard structure for restoration");
+            this._originalStructure = {
+                html: mainContainer.innerHTML
+            };
+        }
+        
+        // Hide the current flashcard but don't remove it
+        const currentFlashcard = document.getElementById('currentFlashcard');
+        if (currentFlashcard) {
+            currentFlashcard.style.display = 'none';
+            console.log("Hidden currentFlashcard element during loading");
+        }
+        
+        // Create loading element outside the flashcard container
+        const loadingElement = document.createElement('div');
+        loadingElement.className = 'segment-loading text-center p-4';
+        loadingElement.innerHTML = `
+            <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+                <span class="visually-hidden">Loading</span>
+            </div>
+            <p class="fw-bold fs-5">${message}</p>
+            <p class="text-muted">Loading more flashcards for continued study...</p>
+            <div class="progress mt-3" style="height: 8px;">
+                <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                     role="progressbar" style="width: 100%"></div>
+            </div>
+            <p class="small text-muted mt-3">Please wait, your progress is being saved</p>
+        `;
+        
+        // Add loading element to the main container
+        mainContainer.appendChild(loadingElement);
+        console.log("Loading message HTML inserted into container");
+    }
+
+    /**
+     * Hide loading message between segments
+     * @param {boolean} isSegmentTransition - Whether we're transitioning between segments
+     */
+    hideLoadingMessage(isSegmentTransition = false) {
+        // Get the main container
+        const mainContainer = document.getElementById('flashcardsContainer');
+        if (!mainContainer) return;
+        
+        console.log(`Hiding loading message. isSegmentTransition=${isSegmentTransition}`);
+        
+        // Remove any loading message elements
+        const loadingMessage = mainContainer.querySelector('.segment-loading');
+        if (loadingMessage) {
+            console.log('Found .segment-loading element, removing it');
+            loadingMessage.remove();
+        } else {
+            console.log('No .segment-loading element found to remove');
+        }
+        
+        // Make sure the current flashcard element exists and is visible
+        let currentCard = document.getElementById('currentFlashcard');
+        
+        if (!currentCard && this._originalStructure) {
+            console.log('currentFlashcard element not found, restoring from saved structure');
+            
+            // Restore the entire original structure
+            mainContainer.innerHTML = this._originalStructure.html;
+            
+            // Get the current flashcard element again after restoration
+            currentCard = document.getElementById('currentFlashcard');
+        }
+        
+        if (currentCard) {
+            console.log('Making currentFlashcard visible');
+            currentCard.style.display = 'block';
+        } else {
+            console.error('currentFlashcard element not found and could not be restored!');
+        }
+    }
+
+    /**
+     * Recreate the flashcard structure if it's missing
+     * This is a fallback recovery method
+     */
+    recreateFlashcardStructure() {
+        console.log("Recreating flashcard structure from scratch");
+        
+        const flashcardsContainer = document.getElementById('flashcardsContainer');
+        if (!flashcardsContainer) {
+            console.error("Cannot recreate structure: flashcardsContainer not found");
+            return;
+        }
+        
+        // First, check if we have already tried to recreate it
+        if (document.getElementById('currentFlashcard')) {
+            return; // Already exists
+        }
+        
+        // Template based on the structure in flashcards.html
+        const template = `
+            <div id="currentFlashcard" class="card flashcard mb-4">
+                <div class="card-body">
+                    <span id="statusBadge" class="badge position-absolute top-0 start-0 m-3 compact-status-badge">New</span>
+                    <div id="questionContainer" class="card-title h4 mt-4"></div>
+                    <form id="answerForm" class="answer-form mt-4">
+                        <!-- Answer options will be dynamically inserted here -->
+                    </form>
+                </div>
+            </div>
+        `;
+        
+        // Clear the container and add the template
+        flashcardsContainer.innerHTML = template;
+        
+        // Update our reference to the flashcard container
+        this.flashcardContainer = document.getElementById('currentFlashcard');
+        this.questionContainer = document.getElementById('questionContainer');
+        this.answerForm = document.getElementById('answerForm');
+        
+        console.log("Flashcard structure recreated");
     }
 }
