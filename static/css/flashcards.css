@@ -330,12 +330,47 @@ body {
 .compact-status-badge {
     font-size: 0.75rem;
     padding: 0.25em 0.6em;
-    position: relative;
-    top: -8px;
+    position: absolute;
+    top: 0.5rem;
+    left: 0.5rem;
     z-index: 5;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    font-weight: 600;
 }
 
-/* Remove margin from the flashcard to make it tighter with the status badge */
+/* State-specific badge styling */
+#statusBadge[data-state="0"] { /* New */
+    background-color: var(--bs-secondary);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+#statusBadge[data-state="1"] { /* Learning */
+    background-color: var(--bs-warning);
+    border: 1px solid rgba(255, 193, 7, 0.3);
+}
+
+#statusBadge[data-state="2"] { /* Mastered */
+    background-color: var(--bs-success);
+    border: 1px solid rgba(25, 135, 84, 0.3);
+}
+
+#statusBadge[data-state="3"] { /* Forgotten */
+    background-color: var(--bs-danger);
+    border: 1px solid rgba(220, 53, 69, 0.3);
+}
+
+/* Add subtle animations for state changes */
+#statusBadge {
+    animation: badge-pop 0.3s ease-out;
+}
+
+@keyframes badge-pop {
+    0% { transform: scale(0.8); opacity: 0.7; }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); opacity: 1; }
+}
+
 #flashcardsContainer .card.flashcard {
     margin-top: 0.5rem;
 }

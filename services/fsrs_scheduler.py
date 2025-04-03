@@ -136,7 +136,8 @@ def process_review(flashcard, is_correct):
 
 def get_due_cards(deck_id, due_only=False):
     """
-    Get cards that are due for review from a deck and its sub-decks.
+    Get cards that are due for review from a deck and its sub-decks,
+    with a balanced distribution of card states.
     
     Args:
         deck_id: The ID of the deck to get cards from.
@@ -144,7 +145,7 @@ def get_due_cards(deck_id, due_only=False):
                  If False, return all cards regardless of due date.
     
     Returns:
-        A list of Flashcards objects that are due for review, ordered by due date.
+        A list of Flashcards objects with balanced states.
     """
     from models import FlashcardDecks, Flashcards
     from sqlalchemy import case
@@ -164,10 +165,6 @@ def get_due_cards(deck_id, due_only=False):
         )
     )
     
-    # Debug to check the CTE query
-    deck_ids = [row[0] for row in db.session.query(cte.c.id).all()]
-    print(f"Found {len(deck_ids)} decks in tree including deck {deck_id}")
-    
     # Start with a query for all cards in these decks
     query = Flashcards.query.filter(
         Flashcards.flashcard_deck_id.in_(db.session.query(cte.c.id))
@@ -186,19 +183,139 @@ def get_due_cards(deck_id, due_only=False):
         )
         print(f"Due cards: {query.count()} (out of {total_cards})")
     
-    # Order by due date - cards with no due date come first (new cards)
-    # followed by cards with the earliest due dates first to ensure
-    # users study the most overdue cards first
-    flashcards = query.order_by(
-        # Put cards without due date first - FIXED CASE EXPRESSION
+    # Fetch cards for each state separately with proper ordering within each state
+    new_cards = query.filter(Flashcards.state == 0).order_by(
         case((Flashcards.due_date == None, 0), else_=1),
-        # Then order by due date (earliest first)
         Flashcards.due_date.asc(),
-        # Finally by ID to ensure stable ordering
         Flashcards.flashcard_id.asc()
     ).all()
     
-    return flashcards
+    learning_cards = query.filter(Flashcards.state == 1).order_by(
+        case((Flashcards.due_date == None, 0), else_=1),
+        Flashcards.due_date.asc(),
+        Flashcards.flashcard_id.asc()
+    ).all()
+    
+    mastered_cards = query.filter(Flashcards.state == 2).order_by(
+        case((Flashcards.due_date == None, 0), else_=1),
+        Flashcards.due_date.asc(),
+        Flashcards.flashcard_id.asc()
+    ).all()
+    
+    forgotten_cards = query.filter(Flashcards.state == 3).order_by(
+        case((Flashcards.due_date == None, 0), else_=1),
+        Flashcards.due_date.asc(),
+        Flashcards.flashcard_id.asc()
+    ).all()
+    
+    # Log card counts by state
+    print(f"Cards by state - New: {len(new_cards)}, Learning: {len(learning_cards)}, "
+          f"Mastered: {len(mastered_cards)}, Forgotten: {len(forgotten_cards)}")
+    
+    # Create balanced segments of 25 cards with the desired ratio
+    # Target: 10 new, 5 learning, 5 forgotten, 5 others per segment
+    balanced_cards = []
+    
+    # Calculate how many segments we need
+    total_available_cards = len(new_cards) + len(learning_cards) + len(forgotten_cards) + len(mastered_cards)
+    segment_size = 25
+    num_segments = max(1, (total_available_cards + segment_size - 1) // segment_size)
+    
+    # Track indices to avoid repeating cards
+    new_index = 0
+    learning_index = 0 
+    forgotten_index = 0
+    mastered_index = 0
+    
+    # Create segments
+    for segment in range(num_segments):
+        segment_cards = []
+        
+        # Try to add 5 forgotten cards or as many as available
+        for _ in range(5):
+            if forgotten_index < len(forgotten_cards):
+                segment_cards.append(forgotten_cards[forgotten_index])
+                forgotten_index += 1
+            elif learning_index < len(learning_cards):  # Backfill with learning cards
+                segment_cards.append(learning_cards[learning_index])
+                learning_index += 1
+            elif new_index < len(new_cards):  # Backfill with new cards
+                segment_cards.append(new_cards[new_index])
+                new_index += 1
+            elif mastered_index < len(mastered_cards):  # Backfill with mastered cards
+                segment_cards.append(mastered_cards[mastered_index])
+                mastered_index += 1
+        
+        # Try to add 5 learning cards or as many as available
+        for _ in range(5):
+            if learning_index < len(learning_cards):
+                segment_cards.append(learning_cards[learning_index])
+                learning_index += 1
+            elif new_index < len(new_cards):  # Backfill with new cards
+                segment_cards.append(new_cards[new_index])
+                new_index += 1
+            elif forgotten_index < len(forgotten_cards):  # Backfill with forgotten cards
+                segment_cards.append(forgotten_cards[forgotten_index])
+                forgotten_index += 1
+            elif mastered_index < len(mastered_cards):  # Backfill with mastered cards
+                segment_cards.append(mastered_cards[mastered_index])
+                mastered_index += 1
+        
+        # Try to add 10 new cards or as many as available
+        for _ in range(10):
+            if new_index < len(new_cards):
+                segment_cards.append(new_cards[new_index])
+                new_index += 1
+            elif learning_index < len(learning_cards):  # Backfill with learning cards
+                segment_cards.append(learning_cards[learning_index])
+                learning_index += 1
+            elif forgotten_index < len(forgotten_cards):  # Backfill with forgotten cards
+                segment_cards.append(forgotten_cards[forgotten_index])
+                forgotten_index += 1
+            elif mastered_index < len(mastered_cards):  # Backfill with mastered cards
+                segment_cards.append(mastered_cards[mastered_index])
+                mastered_index += 1
+        
+        # Fill remaining slots with mastered cards or other available cards
+        remaining_slots = segment_size - len(segment_cards)
+        for _ in range(remaining_slots):
+            if mastered_index < len(mastered_cards):
+                segment_cards.append(mastered_cards[mastered_index])
+                mastered_index += 1
+            elif new_index < len(new_cards):
+                segment_cards.append(new_cards[new_index])
+                new_index += 1
+            elif learning_index < len(learning_cards):
+                segment_cards.append(learning_cards[learning_index])
+                learning_index += 1
+            elif forgotten_index < len(forgotten_cards):
+                segment_cards.append(forgotten_cards[forgotten_index])
+                forgotten_index += 1
+        
+        # If we've reached the end of all card types, break out
+        if not segment_cards:
+            break
+            
+        # Add this segment's cards to the final list
+        balanced_cards.extend(segment_cards)
+        
+        # If we've used all cards, break
+        if (new_index >= len(new_cards) and 
+            learning_index >= len(learning_cards) and 
+            forgotten_index >= len(forgotten_cards) and
+            mastered_index >= len(mastered_cards)):
+            break
+    
+    # Log final card distribution for debugging
+    final_states = {}
+    for card in balanced_cards:
+        state = card.state or 0
+        final_states[state] = final_states.get(state, 0) + 1
+    
+    print(f"Balanced card count: {len(balanced_cards)}")
+    print(f"Final distribution by state: {final_states}")
+    
+    return balanced_cards
 
 def get_stats(deck_id=None):
     """
