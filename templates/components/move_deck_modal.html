@@ -28,17 +28,32 @@
                         <select class="form-select deck-search-select" id="parentDeckSelect" disabled>
                             <option value="" disabled selected>Select a parent deck...</option>
                             
-                            <!-- List of possible parent decks -->
+                            <!-- Root level decks -->
                             {% for deck in g.all_decks %}
-                                {% if not deck.parent_deck_id %}  <!-- Show only top-level decks -->
+                                {% if not deck.parent_deck_id %}
                                     <option value="{{ deck.flashcard_deck_id }}" 
-                                            data-parent="">{{ deck.name }}</option>
+                                            data-parent=""
+                                            data-level="0">{{ deck.name }}</option>
                                     
-                                    <!-- First level of child decks -->
-                                    {% for child in deck.child_decks %}
-                                        <option value="{{ child.flashcard_deck_id }}" 
-                                                data-parent="{{ deck.name }}">{{ child.name }}</option>
-                                    {% endfor %}
+                                    <!-- Render all child decks recursively using macro -->
+                                    {% macro render_child_decks(deck, level, parent_path) -%}
+                                        {% for child in deck.child_decks %}
+                                            <option value="{{ child.flashcard_deck_id }}" 
+                                                    data-parent="{{ parent_path }}" 
+                                                    data-level="{{ level }}">
+                                                {{'└ ' * level}}{{ child.name }}
+                                            </option>
+                                            
+                                            <!-- Recursive call to render this child's children -->
+                                            {% if child.child_decks %}
+                                                {{ render_child_decks(child, level + 1, 
+                                                   parent_path + ' > ' + child.name) }}
+                                            {% endif %}
+                                        {% endfor %}
+                                    {%- endmacro %}
+                                    
+                                    <!-- Call the recursive macro for each root deck's children -->
+                                    {{ render_child_decks(deck, 1, deck.name) }}
                                 {% endif %}
                             {% endfor %}
                         </select>
