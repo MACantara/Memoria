@@ -220,8 +220,33 @@ Study {{ deck.name }} (All Cards)
 
         const manager = new FlashcardManager();
 
-        // Once the cards are loaded, hide the initial loading indicator
+        // Add debugging to verify card order
         manager.addEventListener('firstBatchLoaded', () => {
+            console.log("Cards loaded, verifying order is preserved...");
+            
+            // Log state distribution
+            if (manager.flashcards && manager.flashcards.length > 0) {
+                const states = {0: 0, 1: 0, 2: 0, 3: 0};
+                manager.flashcards.forEach(card => {
+                    const state = parseInt(card.state) || 0;
+                    states[state] = (states[state] || 0) + 1;
+                });
+                console.log("Card distribution by state:", states);
+                
+                // Log first few cards of each type
+                const firstCardOfType = {0: null, 1: null, 2: null, 3: null};
+                for (let i = 0; i < manager.flashcards.length; i++) {
+                    const card = manager.flashcards[i];
+                    const state = parseInt(card.state) || 0;
+                    if (firstCardOfType[state] === null) {
+                        firstCardOfType[state] = {index: i, id: card.id};
+                        // Once we found one of each type, we can stop
+                        if (Object.values(firstCardOfType).every(v => v !== null)) break;
+                    }
+                }
+                console.log("First card of each type (index, id):", firstCardOfType);
+            }
+            
             const initialLoader = document.getElementById('initialLoadingIndicator');
             if (initialLoader) {
                 initialLoader.style.display = 'none';

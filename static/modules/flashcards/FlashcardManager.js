@@ -137,9 +137,15 @@ export class FlashcardManager {
             
             const data = await response.json();
             
-            // Store all flashcards
+            // Store all flashcards in the order they were received
             this.flashcards = data.flashcards;
             console.log(`Successfully loaded ${this.flashcards.length} flashcards`);
+            
+            // Log the first 5 cards to verify order is preserved
+            console.log("First 5 cards order check:");
+            for (let i = 0; i < Math.min(5, this.flashcards.length); i++) {
+                console.log(`Card ${i+1}: ID=${this.flashcards[i].id}, State=${this.flashcards[i].state}`);
+            }
             
             // Update the total now that we know the actual count
             if (this.flashcards.length !== this.totalDueCards) {
@@ -177,28 +183,35 @@ export class FlashcardManager {
         console.log("Moving to next card. Completed cards:", this.completedCards.size);
         console.log(`Total cards to review: ${this.totalDueCards}, completed: ${this.score}`);
         
-        // Find the earliest due card that hasn't been completed yet
+        // IMPORTANT: Keep the simple sequential order - don't try to reorder by due date
+        // Find the next uncompleted card in the original order
         let nextCardIndex = -1;
-        let earliestDueDate = null;
         
         for (let i = 0; i < this.flashcards.length; i++) {
-            const card = this.flashcards[i];
-            const cardState = parseInt(card.state || 0);
-            
-            // Skip completed cards
-            if (this.completedCards.has(card.id)) continue;
+            // Skip the current card and completed cards
+            if (i === this.currentCardIndex || this.completedCards.has(this.flashcards[i].id)) {
+                continue;
+            }
             
             // In "Due Only" mode, skip mastered cards
-            if (this.studyMode && cardState === 2) continue;
+            if (this.studyMode && parseInt(this.flashcards[i].state) === 2) {
+                continue;
+            }
             
-            // Convert due date string to Date object for comparison
-            // If no due date, treat as earliest possible date (beginning of time)
-            const cardDueDate = card.due_date ? new Date(card.due_date) : new Date(0);
-            
-            // If this is the first valid card we've found, or it's due earlier than our current earliest
-            if (nextCardIndex === -1 || cardDueDate < earliestDueDate) {
-                nextCardIndex = i;
-                earliestDueDate = cardDueDate;
+            // Found the next card
+            nextCardIndex = i;
+            break;
+        }
+        
+        // If we couldn't find the next card, try again from the start
+        if (nextCardIndex === -1) {
+            for (let i = 0; i < this.currentCardIndex; i++) {
+                if (!this.completedCards.has(this.flashcards[i].id)) {
+                    if (!(this.studyMode && parseInt(this.flashcards[i].state) === 2)) {
+                        nextCardIndex = i;
+                        break;
+                    }
+                }
             }
         }
         
@@ -207,7 +220,7 @@ export class FlashcardManager {
             this.currentCardIndex = nextCardIndex;
             this.currentCard = this.flashcards[nextCardIndex];
             const visibleCardIndex = this.getDisplayIndex(nextCardIndex);
-            console.log(`Moving to card ${visibleCardIndex}/${this.totalDueCards} with ID ${this.currentCard.id} (due: ${this.currentCard.due_date || 'N/A'})`);
+            console.log(`Moving to card ${visibleCardIndex}/${this.totalDueCards} with ID ${this.currentCard.id} (state: ${this.currentCard.state}, due: ${this.currentCard.due_date || 'N/A'})`);
             
             // Add the current flashcard ID as a data attribute
             const currentCardElement = document.getElementById('currentFlashcard');
@@ -283,9 +296,6 @@ export class FlashcardManager {
             this.ui.showAnswerFeedback(false, () => {
                 // This callback is triggered when the user clicks "Next"
                 
-                // Add card back to the end of the queue for review
-                this.moveCardToEnd(card);
-                
                 // If all cards are completed, show completion screen
                 if (this.completedCards.size >= this.totalDueCards) {
                     console.log("All cards completed. Showing completion screen.");
@@ -299,46 +309,6 @@ export class FlashcardManager {
         
         // Reset processing flag
         this.isProcessingAnswer = false;
-    }
-
-    moveCardToEnd(card) {
-        // Remove the card from its current position
-        this.flashcards.splice(this.currentCardIndex, 1);
-        
-        // Update the due date to reschedule the card
-        // If the card has a due_date, add a small delay (5 minutes) to push it back
-        // This ensures it comes after currently due cards but before far-future cards
-        const now = new Date();
-        const updatedDueDate = new Date(now.getTime() + 5 * 60 * 1000); // now + 5 minutes
-        card.due_date = updatedDueDate.toISOString();
-        
-        // Find the right insertion point based on due date
-        // Cards are ordered by due date, so insert after all currently due cards
-        // but before cards due further in the future
-        let insertIndex = this.flashcards.length; // Default to end
-        
-        for (let i = 0; i < this.flashcards.length; i++) {
-            // Skip completed cards at beginning of search
-            if (this.completedCards.has(this.flashcards[i].id)) continue;
-            
-            const otherCardDueDate = this.flashcards[i].due_date ? 
-                new Date(this.flashcards[i].due_date) : new Date(0);
-            
-            if (otherCardDueDate > updatedDueDate) {
-                insertIndex = i;
-                break;
-            }
-        }
-        
-        // Insert the card at the appropriate position
-        this.flashcards.splice(insertIndex, 0, card);
-        
-        console.log(`Card ${card.id} rescheduled to ${card.due_date} and inserted at position ${insertIndex}`);
-        
-        // Adjust currentCardIndex if needed
-        if (this.currentCardIndex > insertIndex) {
-            this.currentCardIndex++;
-        }
     }
 
     getFsrsStateNumber(stateName) {
