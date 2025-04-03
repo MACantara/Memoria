@@ -213,14 +213,11 @@ def study_deck(deck_id):
         flashcards_count = db.session.query(db.func.count(Flashcards.flashcard_id)).filter(
             Flashcards.flashcard_deck_id.in_(db.session.query(cte.c.id))
         ).scalar()
-    # Pass batch size for loading
-    batch_size = 20  # Set your desired batch size
     
     return render_template(
         "flashcards.html", 
         deck=deck,
         flashcards_count=flashcards_count,
-        batch_size=batch_size,
         due_only=due_only
     )
 
