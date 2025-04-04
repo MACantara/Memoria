@@ -13,7 +13,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const processingStatus = document.getElementById('processingStatus');
     const processingProgress = document.getElementById('processingProgress');
     const importResults = document.getElementById('importResults');
-    const saveFlashcardsBtn = document.getElementById('saveFlashcardsBtn');
     const resultsTab = document.getElementById('results-tab');
     const deckSearchInput = document.getElementById('deckSearchInput');
     const viewResultsBtn = document.getElementById('viewResultsBtn');
@@ -371,16 +370,20 @@ document.addEventListener('DOMContentLoaded', function() {
                             </div>
                         `;
                         
-                        // Repurpose save button to "View in Deck" button
-                        saveFlashcardsBtn.innerHTML = '<i class="bi bi-journal-text me-1"></i> View Cards in Deck';
-                        saveFlashcardsBtn.classList.remove('d-none');
-                        saveFlashcardsBtn.onclick = () => {
-                            // Get the selected deck ID
-                            const deckId = importDeckSelect.value;
-                            if (deckId) {
-                                window.location.href = `/deck/${deckId}`;
-                            }
-                        };
+                        // Show the view results button
+                        if (viewResultsBtn) {
+                            viewResultsBtn.classList.remove('d-none');
+                            viewResultsBtn.innerHTML = '<i class="bi bi-journal-text me-1"></i> View Cards in Deck';
+                            
+                            // Ensure we only attach the event listener once
+                            viewResultsBtn.onclick = () => {
+                                // Navigate to the deck page
+                                const deckId = importDeckSelect.value;
+                                if (deckId) {
+                                    window.location.href = `/deck/${deckId}`;
+                                }
+                            };
+                        }
                         
                         // Make "View Cards" button work to show all generated cards
                         const viewBtn = document.getElementById('viewGeneratedCardsBtn');
@@ -759,7 +762,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         // If all cards are deleted, show empty state
                         if (generatedFlashcards.length === 0) {
                             importResults.innerHTML = '<div class="alert alert-warning"><i class="bi bi-exclamation-triangle me-2"></i>All flashcards have been deleted.</div>';
-                            saveFlashcardsBtn.classList.add('d-none');
                         }
                     }, 300);
                 }
@@ -803,79 +805,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     renderFlashcardPage();
                 }
             });
-        });
-    }
-    
-    // Save flashcards to deck - update to handle deleted cards
-    saveFlashcardsBtn.addEventListener('click', function() {
-        if (!fileKey || !importDeckSelect.value || generatedFlashcards.length === 0) {
-            return;
-        }
-        
-        this.disabled = true;
-        this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
-        
-        fetch('/import/save-to-deck', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                file_key: fileKey,
-                deck_id: importDeckSelect.value,
-                flashcards: generatedFlashcards // Send only the remaining flashcards
-            })
-        })
-        .then(response => {
-            if (!response.ok) throw new Error('Save failed');
-            return response.json();
-        })
-        .then(data => {
-            if (data.error) throw new Error(data.error);
-            
-            // Show success message
-            processingInfo.innerHTML = `
-                <div class="alert alert-success">
-                    <i class="bi bi-check-circle me-2"></i>
-                    <strong>Success!</strong> ${data.message || 'Flashcards saved successfully!'}
-                </div>
-            `;
-            
-            // Hide the next step instructions after saving
-            document.getElementById('nextStepInstructions').classList.add('d-none');
-            
-            // Close modal after delay
-            setTimeout(() => {
-                const modalInstance = bootstrap.Modal.getInstance(document.getElementById('importContentModal'));
-                modalInstance.hide();
-                
-                // Refresh page or update deck list if needed
-                if (window.location.href.includes('/deck/')) {
-                    window.location.reload();
-                }
-            }, 2000);
-        })
-        .catch(error => {
-            this.disabled = false;
-            this.innerHTML = '<i class="bi bi-save"></i> Save Flashcards';
-            
-            processingInfo.innerHTML = `
-                <div class="alert alert-danger">
-                    <i class="bi bi-exclamation-triangle me-2"></i>
-                    Error: ${error.message}
-                </div>
-            `;
-        });
-    });
-    
-    // Remove the original save flashcards button click handler and replace with:
-    if (saveFlashcardsBtn) {
-        saveFlashcardsBtn.addEventListener('click', function() {
-            // By default, this now navigates to the deck page since cards are auto-saved
-            const deckId = importDeckSelect.value;
-            if (deckId) {
-                window.location.href = `/deck/${deckId}`;
-            }
         });
     }
     
