@@ -111,6 +111,18 @@
         tooltips.map(function(tooltipTriggerEl) {
             return new bootstrap.Tooltip(tooltipTriggerEl);
         });
+        
+        // Add event listener for modal close to refresh the page
+        const importModal = document.getElementById('importContentModal');
+        if (importModal) {
+            importModal.addEventListener('hidden.bs.modal', function() {
+                // Refresh the page when the modal is closed
+                window.location.reload();
+            });
+            
+            // Log message to confirm event is registered
+            console.log('Import modal close event listener added');
+        }
     });
 </script>
 {% endblock %}
