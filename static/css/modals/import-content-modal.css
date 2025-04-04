@@ -212,3 +212,26 @@
     70% { box-shadow: 0 0 0 5px rgba(13, 110, 253, 0); }
     100% { box-shadow: 0 0 0 0 rgba(13, 110, 253, 0); }
 }
+
+/* Preview styling */
+#cardsPreviewContainer {
+    display: none;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+#cardsPreviewContainer.show-preview {
+    display: block;
+}
+
+.auto-save-indicator {
+    position: relative;
+    display: inline-block;
+    margin-left: 5px;
+}
+
+.auto-save-indicator .spinner-border {
+    width: 0.8rem;
+    height: 0.8rem;
+    border-width: 0.1em;
+}

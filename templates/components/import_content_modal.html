@@ -14,9 +14,9 @@
                     <strong>How this works:</strong>
                     <ol class="mb-0">
                         <li>Upload a file and select a deck</li>
-                        <li>Generate flashcards from the content</li>
-                        <li>Review the flashcards</li>
-                        <li>Click "Save Flashcards" when you're satisfied</li>
+                        <li>Your flashcards will be automatically generated and saved</li>
+                        <li>Each batch is saved as it's created - no manual saving needed!</li>
+                        <li>When complete, view your cards in the deck</li>
                     </ol>
                 </div>
 
@@ -28,7 +28,7 @@
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" id="results-tab" data-bs-toggle="tab" href="#resultsContent" role="tab">
-                            <i class="bi bi-card-list me-1"></i> 2. Review Results
+                            <i class="bi bi-card-list me-1"></i> 2. Processing Results
                         </a>
                     </li>
                 </ul>
@@ -103,22 +103,33 @@
                             </div>
                         </div>
                         
-                        <div id="importResults" class="mt-3">
-                            <!-- Generated flashcards will appear here -->
+                        <div class="p-2 mb-3">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="togglePreviewBtn">
+                                <i class="bi bi-eye"></i> Show Preview
+                            </button>
+                        </div>
+                        
+                        <div id="cardsPreviewContainer" class="mt-3">
+                            <div id="importResults">
+                                <!-- Generated flashcards will appear here -->
+                                <div class="text-center p-3 text-muted">
+                                    <i class="bi bi-card-list fs-3 mb-2"></i>
+                                    <p>Cards will be shown here if you enable preview</p>
+                                </div>
+                            </div>
                         </div>
 
-                        <!-- Add clear instructions for the next step -->
-                        <div id="nextStepInstructions" class="alert alert-success d-none mt-3">
-                            <i class="bi bi-arrow-down-circle-fill me-2"></i>
-                            <strong>Next Step:</strong> Review the flashcards above. If you're satisfied, click the "Save Flashcards" button below to add them to your selected deck.
-                        </div>
+                        <!-- Removed next step instructions since saving is automatic -->
                     </div>
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-success d-none" id="viewResultsBtn">
+                    <i class="bi bi-journal-text me-1"></i> View Cards in Deck
+                </button>
                 <button type="button" class="btn btn-success d-none" id="saveFlashcardsBtn">
-                    <i class="bi bi-save me-1"></i> Save Flashcards to Deck
+                    <i class="bi bi-journal-text me-1"></i> View Cards in Deck
                 </button>
             </div>
         </div>

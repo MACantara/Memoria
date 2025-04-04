@@ -2,17 +2,31 @@ import json
 import traceback
 import re
 from google.genai import types
-from models import FlashcardGenerator
+from models import FlashcardGenerator, db, Flashcards
 from config import Config
 from utils import clean_flashcard_text
 from services.storage_service import ProcessingState
 from flask import current_app
+from services.fsrs_scheduler import get_current_time
 
 def process_file_chunk_batch(client, file_key, chunk_index):
     """Process a single chunk of a file in batch mode"""
     state = ProcessingState.get_state(file_key)
     if not state or state['is_complete'] or chunk_index >= state['total_chunks']:
         return {'error': 'Invalid state or chunk index'}
+    
+    # Check if this chunk has already been processed and saved
+    if chunk_index in state.get('saved_chunks', []):
+        current_app.logger.info(f"Chunk {chunk_index} already processed and saved, skipping")
+        return {
+            'flashcards': [],
+            'all_flashcards_count': len(ProcessingState.get_all_flashcards(file_key)),
+            'chunk_index': chunk_index,
+            'total_chunks': state['total_chunks'],
+            'is_complete': state['is_complete'],
+            'already_saved': True,
+            'cards_saved': 0
+        }
     
     # Get chunk content
     chunk = ProcessingState.get_chunk(file_key, chunk_index)
@@ -120,6 +134,74 @@ def process_file_chunk_batch(client, file_key, chunk_index):
         if len(state['processed_chunks']) == state['total_chunks']:
             state['is_complete'] = True
         
+        # NEW: Automatically save the flashcards to the database
+        cards_saved = 0
+        if 'deck_id' in state and state['deck_id']:
+            deck_id = state['deck_id']
+            current_app.logger.info(f"Auto-saving {len(mc_data)} flashcards to deck {deck_id}")
+            
+            # Get current time for all cards to use same timestamp
+            current_time = get_current_time()
+            
+            for card in mc_data:
+                # Extract and validate required fields
+                question = card.get('q', '')
+                correct_answer = card.get('ca', '')
+                incorrect_answers = card.get('ia', [])
+                
+                # Skip incomplete cards
+                if not question or not correct_answer:
+                    current_app.logger.warning(f"Skipping incomplete card: {card}")
+                    continue
+                
+                # Ensure incorrect_answers is a list and limit to 3 items
+                if not isinstance(incorrect_answers, list):
+                    incorrect_answers = [str(incorrect_answers)]
+                incorrect_answers = incorrect_answers[:3]
+                
+                # Pad with empty answers if needed
+                while len(incorrect_answers) < 3:
+                    incorrect_answers.append(f"Incorrect answer {len(incorrect_answers) + 1}")
+                
+                # Create a new flashcard
+                new_card = Flashcards(
+                    question=question,
+                    correct_answer=correct_answer,
+                    incorrect_answers=incorrect_answers,
+                    flashcard_deck_id=int(deck_id),
+                    due_date=current_time,
+                    state=0
+                )
+                
+                # Initialize FSRS state for the new card
+                new_card.init_fsrs_state()
+                
+                # Add to session
+                db.session.add(new_card)
+                cards_saved += 1
+            
+            # Commit all changes at once
+            if cards_saved > 0:
+                try:
+                    db.session.commit()
+                    current_app.logger.info(f"Successfully saved {cards_saved} flashcards to deck {deck_id}")
+                    
+                    # Mark this chunk as saved
+                    if 'saved_chunks' not in state:
+                        state['saved_chunks'] = []
+                    state['saved_chunks'].append(chunk_index)
+                    
+                    # Update counter of total saved cards
+                    if 'total_saved_cards' not in state:
+                        state['total_saved_cards'] = 0
+                    state['total_saved_cards'] += cards_saved
+                    
+                except Exception as save_error:
+                    db.session.rollback()
+                    current_app.logger.error(f"Error saving flashcards: {str(save_error)}")
+        else:
+            current_app.logger.warning(f"No deck_id found in state, flashcards not saved")
+        
         ProcessingState.update_state(file_key, state)
         
         # Get total flashcards count
@@ -131,7 +213,9 @@ def process_file_chunk_batch(client, file_key, chunk_index):
             'chunk_index': chunk_index,
             'total_chunks': state['total_chunks'],
             'is_complete': state['is_complete'],
-            'has_mc_data': len(mc_data) > 0
+            'has_mc_data': len(mc_data) > 0,
+            'cards_saved': cards_saved,
+            'total_saved_cards': state.get('total_saved_cards', 0)
         }
         
     except Exception as e:

@@ -89,10 +89,11 @@ def generate_chunk():
         if chunk_index >= state['total_chunks']:
             return jsonify({
                 'message': 'All chunks processed',
-                'is_complete': True
+                'is_complete': True,
+                'total_saved_cards': state.get('total_saved_cards', 0)
             })
         
-        # Use the reference processor for generating flashcards from chunks
+        # Use the processor for generating and auto-saving flashcards from chunks
         result = process_file_chunk_batch(current_app.gemini_client, file_key, chunk_index)
         return jsonify(result)
         
@@ -109,6 +110,13 @@ def file_state():
         return jsonify({'error': 'File key is required'}), 400
     
     result = get_file_state(file_key)
+
+    # Add the count of saved cards to the response
+    state = ProcessingState.get_state(file_key)
+    if state:
+        result['total_saved_cards'] = state.get('total_saved_cards', 0)
+        result['saved_chunks'] = state.get('saved_chunks', [])
+    
     return jsonify(result)
 
 @import_bp.route('/all-file-flashcards', methods=['GET'])
@@ -120,29 +128,39 @@ def all_file_flashcards():
     if not file_key:
         return jsonify({'error': 'File key is required'}), 400
     
+    # Get saved cards count
+    state = ProcessingState.get_state(file_key)
+    total_saved_cards = state.get('total_saved_cards', 0) if state else 0
+    
     if format_type == 'mc':
         # Return multiple-choice format if requested
         mc_flashcards = ProcessingState.get_mc_flashcards(file_key)
         return jsonify({
             'flashcards': ProcessingState.get_all_flashcards(file_key),  # For backward compatibility
             'mc_flashcards': mc_flashcards,
-            'count': len(mc_flashcards)
+            'count': len(mc_flashcards),
+            'total_saved_cards': total_saved_cards
         })
     else:
         # Return standard format by default
         all_flashcards = ProcessingState.get_all_flashcards(file_key)
         return jsonify({
             'flashcards': all_flashcards,
-            'count': len(all_flashcards)
+            'count': len(all_flashcards),
+            'total_saved_cards': total_saved_cards
         })
 
 @import_bp.route('/save-to-deck', methods=['POST'])
 def save_to_deck():
-    """Save generated flashcards to a deck"""
+    """
+    Manual save endpoint - only used for backward compatibility or 
+    if auto-save fails for some reason
+    """
     try:
         data = request.get_json()
         file_key = data.get('file_key')
         deck_id = data.get('deck_id')
+        flashcards = data.get('flashcards', [])
         
         if not file_key:
             return jsonify({'error': 'File key is required'}), 400
@@ -150,19 +168,27 @@ def save_to_deck():
         if not deck_id:
             return jsonify({'error': 'Deck ID is required'}), 400
             
-        # Get all multiple choice flashcards generated from this file
-        mc_flashcards = ProcessingState.get_mc_flashcards(file_key)
+        # No flashcards provided, try to use all from file
+        if not flashcards:
+            flashcards = ProcessingState.get_mc_flashcards(file_key)
         
-        if not mc_flashcards:
+        if not flashcards:
             return jsonify({'error': 'No flashcards found for this file'}), 400
             
+        # Get state to check if we've already saved cards
+        state = ProcessingState.get_state(file_key)
+        existing_count = state.get('total_saved_cards', 0) if state else 0
+        
+        if existing_count > 0:
+            current_app.logger.info(f"Already saved {existing_count} cards, adding only additional cards")
+        
         # Save each flashcard to the database
         cards_added = 0
         # Get current time for all cards to use same timestamp
         from services.fsrs_scheduler import get_current_time
         current_time = get_current_time()
         
-        for card in mc_flashcards:
+        for card in flashcards:
             # Extract and validate required fields
             question = card.get('q', '')
             correct_answer = card.get('ca', '')
@@ -203,13 +229,55 @@ def save_to_deck():
         db.session.commit()
         current_app.logger.info(f"Added {cards_added} flashcards to deck {deck_id}")
         
+        # Update total saved count in state
+        if state:
+            state['total_saved_cards'] = existing_count + cards_added
+            ProcessingState.update_state(file_key, state)
+        
         return jsonify({
             'success': True,
             'message': f'Added {cards_added} flashcards to deck',
-            'count': cards_added
+            'count': cards_added,
+            'total_saved_cards': existing_count + cards_added
         })
         
     except Exception as e:
         current_app.logger.error(f"Error saving flashcards to deck: {str(e)}")
         db.session.rollback()
         return jsonify({'error': f'Failed to save flashcards to deck: {str(e)}'}), 500
+
+# Add a new route to check saved status
+@import_bp.route('/saved-status', methods=['GET'])
+def get_saved_status():
+    """Get the saved status for a file processing job"""
+    file_key = request.args.get('file_key')
+    
+    if not file_key:
+        return jsonify({'error': 'File key is required'}), 400
+    
+    state = ProcessingState.get_state(file_key)
+    if not state:
+        return jsonify({'error': 'Invalid file key'}), 400
+    
+    # Check if all chunks have been processed and saved
+    total_chunks = state.get('total_chunks', 0)
+    saved_chunks = state.get('saved_chunks', [])
+    is_complete = state.get('is_complete', False)
+    total_saved_cards = state.get('total_saved_cards', 0)
+    
+    # Calculate percentage complete for saving
+    save_progress = 0
+    if total_chunks > 0:
+        save_progress = int(len(saved_chunks) / total_chunks * 100)
+    
+    return jsonify({
+        'file_key': file_key,
+        'total_chunks': total_chunks,
+        'saved_chunks': len(saved_chunks),
+        'saved_chunks_list': saved_chunks,
+        'save_progress': save_progress,
+        'is_complete': is_complete,
+        'total_saved_cards': total_saved_cards,
+        'fully_saved': len(saved_chunks) == total_chunks and is_complete,
+        'deck_id': state.get('deck_id')
+    })
