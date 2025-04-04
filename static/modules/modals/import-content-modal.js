@@ -21,6 +21,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let fileKey = null;
     let generatedFlashcards = [];
     let totalSavedCards = 0;
+    let shouldRefreshOnClose = false; // New flag to track if we should refresh on close
     
     // Pagination state
     let currentPage = 1;
@@ -55,6 +56,17 @@ document.addEventListener('DOMContentLoaded', function() {
         // Call attention to drag area with subtle pulse
         dragArea.classList.add('pulse-once');
         setTimeout(() => dragArea.classList.remove('pulse-once'), 1500);
+
+        // Reset refresh flag
+        shouldRefreshOnClose = false;
+    });
+    
+    // Add event handler for modal hidden event to refresh page if needed
+    $('#importContentModal').on('hidden.bs.modal', function () {
+        if (shouldRefreshOnClose && totalSavedCards > 0) {
+            // If we saved cards and the flag is set, refresh the page
+            window.location.reload();
+        }
     });
     
     // Add search functionality
@@ -321,6 +333,10 @@ document.addEventListener('DOMContentLoaded', function() {
             // Track saved cards
             if (data.cards_saved) {
                 totalSavedCards = data.total_saved_cards || (totalSavedCards + data.cards_saved);
+                // Set the refresh flag if any cards were saved
+                if (data.cards_saved > 0) {
+                    shouldRefreshOnClose = true;
+                }
             }
             
             // Update processing status with auto-saving information
@@ -382,6 +398,11 @@ document.addEventListener('DOMContentLoaded', function() {
                                 </div>
                             </div>
                         `;
+                        
+                        // Set the flag to refresh on close after successful completion
+                        if (totalSavedCards > 0) {
+                            shouldRefreshOnClose = true;
+                        }
                         
                         // Show the view results button
                         if (viewResultsBtn) {
