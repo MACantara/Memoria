@@ -3,7 +3,17 @@
 {% block title %}Import Dashboard{% endblock %}
 
 {% block content %}
-<div class="container py-4">
+<div>
+    <!-- Add back button above the header -->
+    <div class="mb-4">
+        <a href="{{ url_for('main.index') }}" class="btn btn-outline-primary"
+           data-bs-toggle="tooltip" 
+           data-bs-placement="top" 
+           title="Return to Dashboard">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+    </div>
+
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 class="h2">
             <i class="bi bi-cloud-arrow-down-fill me-2 text-primary"></i>
@@ -97,34 +107,16 @@
                 </div>
             </div>
             
-            <!-- Quick Actions Card -->
-            <div class="card shadow-sm">
-                <div class="card-header bg-body-tertiary">
-                    <h5 class="mb-0">Quick Actions</h5>
-                </div>
-                <div class="card-body">
-                    <div class="d-grid gap-2">
-                        <a href="/decks" class="btn btn-outline-primary">
-                            <i class="bi bi-journals me-2"></i>
-                            View All Decks
-                        </a>
-                        <a href="/dashboard" class="btn btn-outline-secondary">
-                            <i class="bi bi-speedometer2 me-2"></i>
-                            Go to Dashboard
-                        </a>
-                        
-                        {% if active_tasks %}
-                        <hr>
-                        <div class="alert alert-info d-flex align-items-center">
-                            <i class="bi bi-info-circle-fill me-2"></i>
-                            <div>
-                                You have {{ active_tasks|length }} active import{{ "s" if active_tasks|length != 1 }} running
-                            </div>
-                        </div>
-                        {% endif %}
-                    </div>
+            <!-- Removed Quick Actions card -->
+            
+            {% if active_tasks %}
+            <div class="alert alert-info d-flex align-items-center">
+                <i class="bi bi-info-circle-fill me-2"></i>
+                <div>
+                    You have {{ active_tasks|length }} active import{{ "s" if active_tasks|length != 1 }} running
                 </div>
             </div>
+            {% endif %}
         </div>
     </div>
 </div>
@@ -136,4 +128,13 @@
 
 {% block extra_js %}
 <script src="{{ url_for('static', filename='modules/import/import-tracker.js') }}"></script>
+<script>
+    // Initialize tooltips
+    document.addEventListener('DOMContentLoaded', function() {
+        const tooltips = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltips.map(function(tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    });
+</script>
 {% endblock %}
