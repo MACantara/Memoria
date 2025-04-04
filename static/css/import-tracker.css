@@ -1,0 +1,192 @@
+/* Styling for import tracker */
+
+.import-tracker-container {
+    margin-bottom: 1.5rem;
+}
+
+.import-task-item {
+    padding: 1rem;
+    border-left: 0;
+    border-right: 0;
+    transition: background-color 0.2s ease;
+}
+
+.import-task-item:hover {
+    background-color: var(--bs-tertiary-bg);
+}
+
+.import-task-item:first-child {
+    border-top: 0;
+}
+
+.status-badge {
+    font-size: 0.75rem;
+    padding: 0.35rem 0.65rem;
+}
+
+.import-filename {
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+    max-width: 400px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.import-task-item .progress {
+    height: 0.6rem;
+    overflow: hidden;
+    background-color: var(--bs-secondary-bg);
+    position: relative;
+}
+
+.import-task-item .progress-bar {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    text-align: center;
+    white-space: nowrap;
+    transition: width 0.6s ease, background-color 0.3s ease;
+}
+
+/* Animation for progress spinner */
+@keyframes pulse-bg {
+    0% { background-color: rgba(var(--bs-primary-rgb), 0.7); }
+    50% { background-color: rgba(var(--bs-primary-rgb), 0.9); }
+    100% { background-color: rgba(var(--bs-primary-rgb), 0.7); }
+}
+
+/* Use the data-status attribute for styling */
+.import-task-item[data-status="running"] .progress-bar,
+.import-task-item[data-status="pending"] .progress-bar {
+    background-size: 1rem 1rem;
+    background-image: linear-gradient(
+        45deg,
+        rgba(255, 255, 255, 0.15) 25%,
+        transparent 25%,
+        transparent 50%,
+        rgba(255, 255, 255, 0.15) 50%,
+        rgba(255, 255, 255, 0.15) 75%,
+        transparent 75%,
+        transparent
+    );
+    animation: progress-bar-stripes 1s linear infinite, pulse-bg 2s infinite ease-in-out;
+}
+
+@keyframes progress-bar-stripes {
+    0% { background-position: 1rem 0; }
+    100% { background-position: 0 0; }
+}
+
+/* Pulse animation for active tasks */
+.import-task-item[data-status="running"] .progress-bar {
+    background-color: var(--bs-primary);
+}
+
+.import-task-item[data-status="pending"] .progress-bar {
+    background-color: var(--bs-warning);
+}
+
+/* Glow effect for active progress bars */
+.import-task-item[data-status="running"] .progress-bar::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(
+        circle at center,
+        rgba(var(--bs-primary-rgb), 0.4) 0%,
+        transparent 70%
+    );
+    animation: progress-glow 3s ease-in-out infinite;
+}
+
+@keyframes progress-glow {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 0.7; }
+}
+
+/* Success animation when task completes */
+.import-task-item[data-status="completed"] .progress-bar {
+    background-color: var(--bs-success);
+    transition: width 0.8s ease-out;
+}
+
+/* Completed progress bar subtle shine effect */
+.import-task-item[data-status="completed"] .progress-bar::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.1) 50%,
+        transparent 100%
+    );
+    transform: translateX(-100%);
+    animation: progress-shine 3s ease-in-out infinite;
+}
+
+@keyframes progress-shine {
+    0% { transform: translateX(-100%); }
+    50%, 100% { transform: translateX(100%); }
+}
+
+/* Failed task error animation */
+.import-task-item[data-status="failed"] .progress-bar {
+    background-color: var(--bs-danger);
+    transition: background-color 0.3s ease;
+}
+
+/* Styling for pending/running items - yellow left border */
+.import-task-item[data-status="running"],
+.import-task-item[data-status="pending"] {
+    border-left: 4px solid var(--bs-warning);
+}
+
+/* Styling for completed items - green left border */
+.import-task-item[data-status="completed"] {
+    border-left: 4px solid var(--bs-success);
+}
+
+/* Styling for failed items - red left border */
+.import-task-item[data-status="failed"] {
+    border-left: 4px solid var(--bs-danger);
+}
+
+/* Error message styling */
+.import-task-item .error-message {
+    padding: 0.25rem 0.5rem;
+    background-color: var(--bs-danger-bg-subtle);
+    border-radius: 0.25rem;
+    margin-top: 0.5rem;
+}
+
+/* Add refresh button animation */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.spin-animation {
+    animation: spin 1s linear infinite;
+}
+
+/* Improve button hover states */
+#refreshImportsBtn:hover {
+    background-color: rgba(255, 255, 255, 0.9);
+}
+
+.view-deck-btn {
+    transition: all 0.2s ease;
+}
+
+.view-deck-btn:hover {
+    transform: translateY(-1px);
+}

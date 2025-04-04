@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+
+{% block title %}Import Dashboard{% endblock %}
+
+{% block content %}
+<div>
+    <!-- Add back button above the header -->
+    <div class="mb-4">
+        <a href="{{ url_for('main.index') }}" class="btn btn-outline-primary"
+           data-bs-toggle="tooltip" 
+           data-bs-placement="top" 
+           title="Return to Dashboard">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h2">
+            <i class="bi bi-cloud-arrow-down-fill me-2 text-primary"></i>
+            Import Dashboard
+        </h1>
+        <div>
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#importContentModal">
+                <i class="bi bi-plus-lg me-2"></i>
+                New Import
+            </button>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Import tracker component -->
+            {% include 'components/import_tracker.html' %}
+            
+        </div>
+        
+        <div class="col-lg-4">
+            <!-- Stats Card -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-body-tertiary">
+                    <h5 class="mb-0">Import Statistics</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <div class="p-3 border rounded bg-warning-subtle text-center">
+                                <div class="h3 mb-0" id="activeTasksCount">{{ stats.active }}</div>
+                                <div class="small text-muted">Active</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-3 border rounded bg-success-subtle text-center">
+                                <div class="h3 mb-0" id="completedTasksCount">{{ stats.completed }}</div>
+                                <div class="small text-muted">Completed</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-3 border rounded bg-danger-subtle text-center">
+                                <div class="h3 mb-0" id="failedTasksCount">{{ stats.failed }}</div>
+                                <div class="small text-muted">Failed</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-3 border rounded bg-success-subtle text-center">
+                                <div class="h3 mb-0" id="totalSavedCardsCount">{{ stats.total_cards_saved }}</div>
+                                <div class="small text-muted">Cards Saved</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Info Card -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-body-tertiary">
+                    <h5 class="mb-0">Import Information</h5>
+                </div>
+                <div class="card-body">
+                    <p>
+                        <i class="bi bi-info-circle-fill text-primary me-2"></i>
+                        The import dashboard allows you to track the progress of your flashcard imports 
+                        and view the status of completed imports.
+                    </p>
+                    <p>
+                        <strong>Features:</strong>
+                    </p>
+                    <ul>
+                        <li>Background processing - imports continue even if you navigate away</li>
+                        <li>Real-time status updates on import progress</li>
+                        <li>One-click access to view your imported flashcards</li>
+                    </ul>
+                    <hr>
+                    <p class="text-muted small mb-0">
+                        <i class="bi bi-clock-history me-1"></i>
+                        Import history is retained for 7 days.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='modules/import/import-tracker.js') }}"></script>
+<script>
+    // Initialize tooltips
+    document.addEventListener('DOMContentLoaded', function() {
+        const tooltips = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltips.map(function(tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+        
+        // Add event listener for modal close to refresh the page
+        const importModal = document.getElementById('importContentModal');
+        if (importModal) {
+            importModal.addEventListener('hidden.bs.modal', function() {
+                // Refresh the page when the modal is closed
+                window.location.reload();
+            });
+            
+            // Log message to confirm event is registered
+            console.log('Import modal close event listener added');
+        }
+    });
+</script>
+{% endblock %}

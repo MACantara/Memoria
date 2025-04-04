@@ -1,18 +1,31 @@
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, render_template, g
 import os
 import uuid
 from werkzeug.utils import secure_filename
 from flask_login import current_user, login_required
 
 from config import Config
-from utils import allowed_file
+from utils import allowed_file, count_due_flashcards
 from models import db, FlashcardDecks, Flashcards, ImportFile, ImportChunk, ImportFlashcard
 from services.file_service import FileProcessor
 from services.storage_service import ProcessingState
 from services.chunk_service import process_file_chunk_batch, get_file_state, cleanup_all_flashcards
+from services.background_service import (
+    start_processing, get_user_tasks, get_task, 
+    get_task_by_file_key, TaskStatus
+)
 
 # Create Blueprint
 import_bp = Blueprint('import', __name__, url_prefix='/import')
+
+@import_bp.before_request
+def load_all_decks():
+    """Load all decks for the current user for use in templates"""
+    if current_user.is_authenticated:
+        # Load all decks with parent-child relationships
+        g.all_decks = FlashcardDecks.query.filter_by(user_id=current_user.id).all()
+    else:
+        g.all_decks = []
 
 @import_bp.route('/upload-file', methods=['POST'])
 @login_required
@@ -362,3 +375,187 @@ def get_saved_status():
         'fully_saved': len(saved_chunks) == import_file.total_chunks and import_file.is_complete,
         'deck_id': import_file.deck_id
     })
+
+@import_bp.route('/start-background-import', methods=['POST'])
+@login_required
+def start_background_import():
+    """Start processing a file in the background"""
+    try:
+        data = request.get_json()
+        file_key = data.get('file_key')
+        deck_id = data.get('deck_id')
+        
+        if not file_key:
+            return jsonify({'error': 'File key is required'}), 400
+            
+        if not deck_id:
+            return jsonify({'error': 'Deck ID is required'}), 400
+        
+        # Verify the file belongs to the current user
+        import_file = ImportFile.query.filter_by(file_key=file_key, user_id=current_user.id).first()
+        if not import_file:
+            return jsonify({'error': 'Import file not found or access denied'}), 403
+        
+        # Verify the deck belongs to the current user
+        deck = FlashcardDecks.query.filter_by(
+            flashcard_deck_id=deck_id, 
+            user_id=current_user.id
+        ).first()
+        
+        if not deck:
+            return jsonify({'error': 'Invalid deck ID'}), 403
+        
+        # Check if there's already a task for this file
+        existing_task = get_task_by_file_key(file_key)
+        if existing_task:
+            return jsonify({
+                'success': True,
+                'task_id': existing_task.id,
+                'message': 'Import already in progress'
+            })
+        
+        # Start background processing
+        task_id = start_processing(
+            current_app._get_current_object(),
+            current_app.gemini_client,
+            file_key,
+            import_file.filename,
+            deck_id,
+            deck.name,
+            current_user.id
+        )
+        
+        return jsonify({
+            'success': True,
+            'task_id': task_id,
+            'message': 'Background import started'
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Error starting background import: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@import_bp.route('/import-tasks', methods=['GET'])
+@login_required
+def get_import_tasks():
+    """Get all import tasks for the current user"""
+    try:
+        tasks = get_user_tasks(current_user.id)
+        return jsonify({
+            'success': True,
+            'tasks': [task.to_dict() for task in tasks]
+        })
+    except Exception as e:
+        current_app.logger.error(f"Error getting import tasks: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@import_bp.route('/import-task/<task_id>', methods=['GET'])
+@login_required
+def get_import_task(task_id):
+    """Get a specific import task"""
+    try:
+        task = get_task(task_id)
+        if not task:
+            return jsonify({'error': 'Task not found'}), 404
+            
+        if task.user_id != current_user.id:
+            return jsonify({'error': 'Access denied'}), 403
+            
+        return jsonify({
+            'success': True,
+            'task': task.to_dict()
+        })
+    except Exception as e:
+        current_app.logger.error(f"Error getting import task: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@import_bp.route('/import-dashboard')
+@login_required
+def imports_dashboard():
+    """View all imports dashboard"""
+    try:
+        # Get all import tasks for the current user
+        tasks = get_user_tasks(current_user.id)
+        
+        # Calculate summary statistics
+        active_tasks = [t for t in tasks if t.status in [TaskStatus.PENDING, TaskStatus.RUNNING]]
+        completed_tasks = [t for t in tasks if t.status == TaskStatus.COMPLETED]
+        failed_tasks = [t for t in tasks if t.status == TaskStatus.FAILED]
+        
+        # Get recent imports (last 7 days)
+        from datetime import datetime, timedelta
+        cutoff_date = datetime.utcnow() - timedelta(days=7)
+        recent_tasks = [t for t in tasks if t.created_at > cutoff_date]
+        
+        stats = {
+            'total': len(tasks),
+            'active': len(active_tasks),
+            'completed': len(completed_tasks),
+            'failed': len(failed_tasks),
+            'total_cards_saved': sum(t.saved_cards for t in tasks),
+            'recent_count': len(recent_tasks)
+        }
+        
+        # Get a list of decks for the import modal with additional metadata
+        decks = []
+        root_decks = FlashcardDecks.query.filter_by(
+            user_id=current_user.id, 
+            parent_deck_id=None
+        ).all()
+        
+        # Recursively process decks to build hierarchy
+        def process_deck_hierarchy(deck_list, depth=0, parent_path=''):
+            result = []
+            for deck in deck_list:
+                # Include additional metadata
+                deck_info = {
+                    'deck': deck,
+                    'depth': depth,
+                    'path': (parent_path + ' > ' + deck.name) if parent_path else deck.name,
+                    'card_count': deck.count_all_flashcards(),
+                    'due_count': count_due_flashcards(deck.flashcard_deck_id)
+                }
+                result.append(deck_info)
+                
+                # Process children recursively
+                if deck.child_decks:
+                    child_result = process_deck_hierarchy(
+                        deck.child_decks, 
+                        depth + 1,
+                        deck_info['path']
+                    )
+                    result.extend(child_result)
+            return result
+        
+        decks_with_metadata = process_deck_hierarchy(root_decks)
+        
+        return render_template(
+            'import-dashboard.html',
+            tasks=tasks,
+            stats=stats,
+            active_tasks=active_tasks,
+            completed_tasks=completed_tasks,
+            failed_tasks=failed_tasks,
+            decks=g.all_decks,  # For backward compatibility
+            decks_with_metadata=decks_with_metadata  # Enhanced deck data
+        )
+    except Exception as e:
+        current_app.logger.error(f"Error rendering imports dashboard: {str(e)}")
+        # Provide default values for all required template variables
+        return render_template(
+            'import-dashboard.html',
+            tasks=[],
+            stats={
+                'total': 0,
+                'active': 0,
+                'completed': 0,
+                'failed': 0,
+                'total_cards_saved': 0,
+                'recent_count': 0
+            },
+            active_tasks=[],
+            completed_tasks=[],
+            failed_tasks=[],
+            decks=g.all_decks,
+            decks_with_metadata=[]
+        )

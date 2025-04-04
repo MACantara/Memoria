@@ -81,3 +81,45 @@ class ImportFlashcard(db.Model):
     
     def __repr__(self):
         return f"<ImportFlashcard {self.id} (file: {self.file_id}, chunk: {self.chunk_id})>"
+
+
+class ImportTask(db.Model):
+    """Tracks background import tasks"""
+    __tablename__ = 'import_tasks'
+    
+    id = db.Column(db.String(36), primary_key=True)  # UUID as string
+    file_key = db.Column(db.String(64), db.ForeignKey('import_files.file_key'))
+    filename = db.Column(db.String(255), nullable=False)
+    deck_id = db.Column(db.Integer, db.ForeignKey('flashcard_decks.flashcard_deck_id'), nullable=False)
+    deck_name = db.Column(db.String(255), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    status = db.Column(db.String(20), default='pending')  # pending, running, completed, failed
+    progress = db.Column(db.Integer, default=0)
+    total_chunks = db.Column(db.Integer, default=0)
+    current_chunk = db.Column(db.Integer, default=0)
+    total_cards = db.Column(db.Integer, default=0)
+    saved_cards = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    completed_at = db.Column(db.DateTime, nullable=True)
+    error = db.Column(db.Text, nullable=True)
+    
+    def to_dict(self):
+        """Convert task to dictionary for API responses"""
+        return {
+            'id': self.id,
+            'file_key': self.file_key,
+            'filename': self.filename,
+            'deck_id': self.deck_id,
+            'deck_name': self.deck_name,
+            'status': self.status,
+            'progress': self.progress,
+            'total_chunks': self.total_chunks,
+            'current_chunk': self.current_chunk,
+            'total_cards': self.total_cards,
+            'saved_cards': self.saved_cards,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'completed_at': self.completed_at.isoformat() if self.completed_at else None,
+            'error': self.error
+        }
