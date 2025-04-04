@@ -19,11 +19,60 @@
     
     <div class="row">
         <div class="col-lg-8">
+            <!-- Import tracker component -->
             {% include 'components/import_tracker.html' %}
+            
+            <!-- Show empty state message if no tasks -->
+            {% if not tasks %}
+            <div class="card shadow-sm text-center p-4">
+                <div class="card-body">
+                    <i class="bi bi-inbox-fill fs-1 text-muted mb-3"></i>
+                    <h5>No Import History</h5>
+                    <p class="text-muted">You haven't imported any content yet. Click "New Import" to get started.</p>
+                </div>
+            </div>
+            {% endif %}
         </div>
+        
         <div class="col-lg-4">
+            <!-- Stats Card -->
             <div class="card shadow-sm mb-4">
-                <div class="card-header">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Import Statistics</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <div class="p-3 border rounded bg-light text-center">
+                                <div class="h3 mb-0" id="activeTasksCount">{{ stats.active }}</div>
+                                <div class="small text-muted">Active</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-3 border rounded bg-light text-center">
+                                <div class="h3 mb-0" id="completedTasksCount">{{ stats.completed }}</div>
+                                <div class="small text-muted">Completed</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-3 border rounded bg-light text-center">
+                                <div class="h3 mb-0" id="failedTasksCount">{{ stats.failed }}</div>
+                                <div class="small text-muted">Failed</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-3 border rounded bg-success-subtle text-center">
+                                <div class="h3 mb-0" id="totalSavedCardsCount">{{ stats.total_cards_saved }}</div>
+                                <div class="small text-muted">Cards Saved</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Info Card -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
                     <h5 class="mb-0">Import Information</h5>
                 </div>
                 <div class="card-body">
@@ -48,8 +97,9 @@
                 </div>
             </div>
             
+            <!-- Quick Actions Card -->
             <div class="card shadow-sm">
-                <div class="card-header">
+                <div class="card-header bg-light">
                     <h5 class="mb-0">Quick Actions</h5>
                 </div>
                 <div class="card-body">
@@ -62,6 +112,16 @@
                             <i class="bi bi-speedometer2 me-2"></i>
                             Go to Dashboard
                         </a>
+                        
+                        {% if active_tasks %}
+                        <hr>
+                        <div class="alert alert-info d-flex align-items-center">
+                            <i class="bi bi-info-circle-fill me-2"></i>
+                            <div>
+                                You have {{ active_tasks|length }} active import{{ "s" if active_tasks|length != 1 }} running
+                            </div>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>

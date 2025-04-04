@@ -9,12 +9,55 @@
             </button>
         </div>
         <div class="card-body p-0">
-            <div id="noImportsMessage" class="p-3 text-center text-muted">
-                <i class="bi bi-inbox-fill fs-3 mb-2"></i>
-                <p>No active imports</p>
+            <div id="noImportsMessage" class="p-3 text-center text-muted{% if tasks %} d-none{% endif %}">
+                <i class="bi bi-inbox-fill fs-3 mb-2 d-block"></i>
+                <p class="mb-0">No active imports</p>
             </div>
             <div id="importsList" class="list-group list-group-flush">
-                <!-- Import tasks will be displayed here -->
+                <!-- Import tasks will be displayed here by JavaScript -->
+                
+                <!-- Optional: Initial render for SEO/non-JS browsers -->
+                {% if tasks %}
+                    {% for task in tasks %}
+                    <div class="list-group-item import-task-item" data-task-id="{{ task.id }}" data-status="{{ task.status }}">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="me-2">
+                                <h6 class="import-filename mb-1">{{ task.filename }}</h6>
+                                <div class="text-muted small">
+                                    To deck: <span class="import-deck">{{ task.deck_name }}</span>
+                                </div>
+                            </div>
+                            <span class="badge rounded-pill status-badge 
+                                {% if task.status == 'pending' %}bg-secondary
+                                {% elif task.status == 'running' %}bg-primary
+                                {% elif task.status == 'completed' %}bg-success
+                                {% elif task.status == 'failed' %}bg-danger{% endif %}">
+                                {{ task.status|capitalize }}
+                            </span>
+                        </div>
+                        <div class="progress mt-2 mb-1">
+                            <div class="progress-bar {% if task.status in ['pending', 'running'] %}progress-bar-striped progress-bar-animated{% endif %}" 
+                                 role="progressbar" style="width: {{ task.progress }}%;" 
+                                 aria-valuenow="{{ task.progress }}" aria-valuemin="0" aria-valuemax="100">
+                                {{ task.progress }}%
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-between small mt-1">
+                            <div class="import-stats text-muted">
+                                {% if task.saved_cards > 0 %}
+                                <span class="badge bg-success rounded-pill me-2">{{ task.saved_cards }} cards</span>
+                                {% endif %}
+                                <span class="text-muted">{{ task.created_at|default('') }}</span>
+                            </div>
+                            <div>
+                                <button class="btn btn-sm btn-outline-primary view-deck-btn {% if task.status != 'completed' %}d-none{% endif %}">
+                                    <i class="bi bi-journal-text me-1"></i> View Cards
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% endif %}
             </div>
         </div>
     </div>

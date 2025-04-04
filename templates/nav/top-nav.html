@@ -50,6 +50,17 @@
                             </a></li>
                         </ul>
                     </li>
+                    <!-- Make sure the imports menu item is present in the nav -->
+                    <li class="nav-item">
+                        <a class="nav-link position-relative" href="/import/imports">
+                            <i class="bi bi-cloud-arrow-down"></i>
+                            <span class="d-none d-md-inline ms-1">Imports</span>
+                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none" 
+                                  id="activeImportsCount">
+                                <span class="visually-hidden">Active imports</span>
+                            </span>
+                        </a>
+                    </li>
                 </ul>
             </div>
         {% else %}
