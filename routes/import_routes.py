@@ -1,11 +1,11 @@
-from flask import Blueprint, request, jsonify, current_app, render_template
+from flask import Blueprint, request, jsonify, current_app, render_template, g
 import os
 import uuid
 from werkzeug.utils import secure_filename
 from flask_login import current_user, login_required
 
 from config import Config
-from utils import allowed_file
+from utils import allowed_file, count_due_flashcards
 from models import db, FlashcardDecks, Flashcards, ImportFile, ImportChunk, ImportFlashcard
 from services.file_service import FileProcessor
 from services.storage_service import ProcessingState
@@ -17,6 +17,15 @@ from services.background_service import (
 
 # Create Blueprint
 import_bp = Blueprint('import', __name__, url_prefix='/import')
+
+@import_bp.before_request
+def load_all_decks():
+    """Load all decks for the current user for use in templates"""
+    if current_user.is_authenticated:
+        # Load all decks with parent-child relationships
+        g.all_decks = FlashcardDecks.query.filter_by(user_id=current_user.id).all()
+    else:
+        g.all_decks = []
 
 @import_bp.route('/upload-file', methods=['POST'])
 @login_required
@@ -487,8 +496,38 @@ def imports_dashboard():
             'recent_count': len(recent_tasks)
         }
         
-        # Get a list of decks for the import modal
-        decks = FlashcardDecks.query.filter_by(user_id=current_user.id).all()
+        # Get a list of decks for the import modal with additional metadata
+        decks = []
+        root_decks = FlashcardDecks.query.filter_by(
+            user_id=current_user.id, 
+            parent_deck_id=None
+        ).all()
+        
+        # Recursively process decks to build hierarchy
+        def process_deck_hierarchy(deck_list, depth=0, parent_path=''):
+            result = []
+            for deck in deck_list:
+                # Include additional metadata
+                deck_info = {
+                    'deck': deck,
+                    'depth': depth,
+                    'path': (parent_path + ' > ' + deck.name) if parent_path else deck.name,
+                    'card_count': deck.count_all_flashcards(),
+                    'due_count': count_due_flashcards(deck.flashcard_deck_id)
+                }
+                result.append(deck_info)
+                
+                # Process children recursively
+                if deck.child_decks:
+                    child_result = process_deck_hierarchy(
+                        deck.child_decks, 
+                        depth + 1,
+                        deck_info['path']
+                    )
+                    result.extend(child_result)
+            return result
+        
+        decks_with_metadata = process_deck_hierarchy(root_decks)
         
         return render_template(
             'imports.html',
@@ -497,8 +536,26 @@ def imports_dashboard():
             active_tasks=active_tasks,
             completed_tasks=completed_tasks,
             failed_tasks=failed_tasks,
-            decks=decks
+            decks=g.all_decks,  # For backward compatibility
+            decks_with_metadata=decks_with_metadata  # Enhanced deck data
         )
     except Exception as e:
         current_app.logger.error(f"Error rendering imports dashboard: {str(e)}")
-        return render_template('imports.html')
+        # Provide default values for all required template variables
+        return render_template(
+            'imports.html',
+            tasks=[],
+            stats={
+                'total': 0,
+                'active': 0,
+                'completed': 0,
+                'failed': 0,
+                'total_cards_saved': 0,
+                'recent_count': 0
+            },
+            active_tasks=[],
+            completed_tasks=[],
+            failed_tasks=[],
+            decks=g.all_decks,
+            decks_with_metadata=[]
+        )
