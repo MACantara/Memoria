@@ -2,7 +2,7 @@ import json
 import traceback
 import re
 from google.genai import types
-from models import FlashcardGenerator, db, Flashcards
+from models import FlashcardGenerator, db, Flashcards, ImportFile, ImportChunk, ImportFlashcard
 from config import Config
 from utils import clean_flashcard_text
 from services.storage_service import ProcessingState
@@ -15,12 +15,21 @@ def process_file_chunk_batch(client, file_key, chunk_index):
     if not state or state['is_complete'] or chunk_index >= state['total_chunks']:
         return {'error': 'Invalid state or chunk index'}
     
+    # Get the import file record
+    import_file = ImportFile.query.filter_by(file_key=file_key).first()
+    if not import_file:
+        return {'error': 'Import file not found'}
+    
     # Check if this chunk has already been processed and saved
-    if chunk_index in state.get('saved_chunks', []):
+    chunk = ImportChunk.query.filter_by(file_id=import_file.id, index=chunk_index).first()
+    if not chunk:
+        return {'error': f'Chunk {chunk_index} not found'}
+    
+    if chunk.is_saved:
         current_app.logger.info(f"Chunk {chunk_index} already processed and saved, skipping")
         return {
             'flashcards': [],
-            'all_flashcards_count': len(ProcessingState.get_all_flashcards(file_key)),
+            'all_flashcards_count': ImportFlashcard.query.filter_by(file_id=import_file.id).count(),
             'chunk_index': chunk_index,
             'total_chunks': state['total_chunks'],
             'is_complete': state['is_complete'],
@@ -28,13 +37,13 @@ def process_file_chunk_batch(client, file_key, chunk_index):
             'cards_saved': 0
         }
     
-    # Get chunk content
-    chunk = ProcessingState.get_chunk(file_key, chunk_index)
-    if not chunk:
+    # Get chunk content from database
+    chunk_content = chunk.content
+    if not chunk_content:
         return {'error': f'Cannot read chunk {chunk_index}'}
     
     # Log chunk size for debugging
-    chunk_size = len(chunk)
+    chunk_size = len(chunk_content)
     current_app.logger.info(f"Processing chunk {chunk_index} with {chunk_size} characters")
     
     # Check if chunk is too small
@@ -46,7 +55,7 @@ def process_file_chunk_batch(client, file_key, chunk_index):
     
     try:
         # Generate flashcards for this chunk using the multiple-choice format
-        prompt = Config.generate_prompt_template(f"the following content: {chunk}", 
+        prompt = Config.generate_prompt_template(f"the following content: {chunk_content}", 
                                                 batch_size=Config.DEFAULT_BATCH_SIZE)
         
         # Use the model from Config instead of hardcoding it
@@ -120,41 +129,54 @@ def process_file_chunk_batch(client, file_key, chunk_index):
         # Log results
         current_app.logger.info(f"Generated {len(chunk_flashcards)} flashcards for chunk {chunk_index}")
         
-        # Store the multiple-choice data if available
+        # Store the multiple-choice data in the database
         if mc_data:
-            ProcessingState.append_mc_flashcards(file_key, mc_data)
+            # Store in database instead of memory
+            for card_data in mc_data:
+                new_card = ImportFlashcard(
+                    file_id=import_file.id,
+                    chunk_id=chunk.id,
+                    question=card_data.get('q', ''),
+                    correct_answer=card_data.get('ca', ''),
+                    incorrect_answers=card_data.get('ia', [])
+                )
+                db.session.add(new_card)
             
-        # Also store the formatted cards for backward compatibility
-        ProcessingState.append_flashcards(file_key, chunk_flashcards)
+            db.session.flush()
+            
+        # Update chunk as processed
+        chunk.is_processed = True
         
-        # Update processing state
-        state['processed_chunks'].append(chunk_index)
-        state['current_index'] = chunk_index + 1
+        # Update file processing state
+        import_file.current_index = chunk_index + 1
         
-        if len(state['processed_chunks']) == state['total_chunks']:
-            state['is_complete'] = True
+        # Check if all chunks are processed
+        if import_file.current_index >= import_file.total_chunks:
+            import_file.is_complete = True
         
         # NEW: Automatically save the flashcards to the database
         cards_saved = 0
-        if 'deck_id' in state and state['deck_id']:
-            deck_id = state['deck_id']
-            current_app.logger.info(f"Auto-saving {len(mc_data)} flashcards to deck {deck_id}")
+        if import_file.deck_id:
+            deck_id = import_file.deck_id
+            current_app.logger.info(f"Auto-saving flashcards to deck {deck_id}")
             
             # Get current time for all cards to use same timestamp
             current_time = get_current_time()
             
-            for card in mc_data:
-                # Extract and validate required fields
-                question = card.get('q', '')
-                correct_answer = card.get('ca', '')
-                incorrect_answers = card.get('ia', [])
-                
+            # Get cards for this chunk that haven't been saved yet
+            unsaved_cards = ImportFlashcard.query.filter_by(
+                file_id=import_file.id, 
+                chunk_id=chunk.id,
+                is_saved=False
+            ).all()
+            
+            for card in unsaved_cards:
                 # Skip incomplete cards
-                if not question or not correct_answer:
-                    current_app.logger.warning(f"Skipping incomplete card: {card}")
+                if not card.question or not card.correct_answer:
                     continue
                 
                 # Ensure incorrect_answers is a list and limit to 3 items
+                incorrect_answers = card.incorrect_answers or []
                 if not isinstance(incorrect_answers, list):
                     incorrect_answers = [str(incorrect_answers)]
                 incorrect_answers = incorrect_answers[:3]
@@ -165,8 +187,8 @@ def process_file_chunk_batch(client, file_key, chunk_index):
                 
                 # Create a new flashcard
                 new_card = Flashcards(
-                    question=question,
-                    correct_answer=correct_answer,
+                    question=card.question,
+                    correct_answer=card.correct_answer,
                     incorrect_answers=incorrect_answers,
                     flashcard_deck_id=int(deck_id),
                     due_date=current_time,
@@ -178,51 +200,86 @@ def process_file_chunk_batch(client, file_key, chunk_index):
                 
                 # Add to session
                 db.session.add(new_card)
+                
+                # Mark the import flashcard as saved
+                card.is_saved = True
+                
                 cards_saved += 1
             
-            # Commit all changes at once
+            # Mark the chunk as saved if any cards were saved
             if cards_saved > 0:
-                try:
-                    db.session.commit()
-                    current_app.logger.info(f"Successfully saved {cards_saved} flashcards to deck {deck_id}")
-                    
-                    # Mark this chunk as saved
-                    if 'saved_chunks' not in state:
-                        state['saved_chunks'] = []
-                    state['saved_chunks'].append(chunk_index)
-                    
-                    # Update counter of total saved cards
-                    if 'total_saved_cards' not in state:
-                        state['total_saved_cards'] = 0
-                    state['total_saved_cards'] += cards_saved
-                    
-                except Exception as save_error:
-                    db.session.rollback()
-                    current_app.logger.error(f"Error saving flashcards: {str(save_error)}")
-        else:
-            current_app.logger.warning(f"No deck_id found in state, flashcards not saved")
+                chunk.is_saved = True
+                chunk.cards_saved = cards_saved
+                
+                # Update the total saved cards count
+                import_file.total_saved_cards += cards_saved
+                
+                # Clean up saved flashcards since they're now in the main Flashcards table
+                cleanup_saved_flashcards(chunk.id)
         
-        ProcessingState.update_state(file_key, state)
+        # Commit all database changes
+        db.session.commit()
         
-        # Get total flashcards count
-        all_flashcards = ProcessingState.get_all_flashcards(file_key)
-        
+        # Return processing results
         return {
             'flashcards': chunk_flashcards,
-            'all_flashcards_count': len(all_flashcards),
+            'all_flashcards_count': ImportFlashcard.query.filter_by(file_id=import_file.id).count(),
             'chunk_index': chunk_index,
-            'total_chunks': state['total_chunks'],
-            'is_complete': state['is_complete'],
+            'total_chunks': import_file.total_chunks,
+            'is_complete': import_file.is_complete,
             'has_mc_data': len(mc_data) > 0,
             'cards_saved': cards_saved,
-            'total_saved_cards': state.get('total_saved_cards', 0)
+            'total_saved_cards': import_file.total_saved_cards
         }
         
     except Exception as e:
         error_msg = f"Error processing chunk {chunk_index}: {str(e)}"
         current_app.logger.error(error_msg)
         current_app.logger.error(traceback.format_exc())
+        db.session.rollback()
         return {'error': error_msg}
+
+def cleanup_saved_flashcards(chunk_id):
+    """Delete ImportFlashcard records that have been saved to the main Flashcards table"""
+    try:
+        # Find saved flashcards for this chunk
+        saved_cards = ImportFlashcard.query.filter_by(
+            chunk_id=chunk_id,
+            is_saved=True
+        ).all()
+        
+        # Delete them to save space
+        for card in saved_cards:
+            db.session.delete(card)
+            
+        current_app.logger.info(f"Cleaned up {len(saved_cards)} saved flashcards for chunk {chunk_id}")
+        
+    except Exception as e:
+        current_app.logger.error(f"Error cleaning up saved flashcards: {str(e)}")
+
+def cleanup_all_flashcards(file_key):
+    """Delete all ImportFlashcard records for a file after import is complete"""
+    try:
+        import_file = ImportFile.query.filter_by(file_key=file_key).first()
+        if not import_file:
+            return False
+            
+        # Get the count of flashcards for logging
+        count = ImportFlashcard.query.filter_by(file_id=import_file.id).count()
+        
+        # Delete all flashcards for this file
+        ImportFlashcard.query.filter_by(file_id=import_file.id).delete()
+        
+        # Commit the changes
+        db.session.commit()
+        
+        current_app.logger.info(f"Cleaned up {count} flashcards for file {file_key}")
+        return True
+        
+    except Exception as e:
+        current_app.logger.error(f"Error cleaning up all flashcards: {str(e)}")
+        db.session.rollback()
+        return False
 
 def repair_json(json_str):
     """Attempt to repair malformed JSON strings"""

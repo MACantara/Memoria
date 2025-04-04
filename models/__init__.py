@@ -7,6 +7,9 @@ from .flashcard import Flashcards, FlashcardSet, FlashcardGenerator
 from .user import User
 from .learning import LearningSession, LearningSection, LearningQuestion
 
+# Import new models
+from models.import_models import ImportFile, ImportChunk, ImportFlashcard
+
 __all__ = ['db', 'FlashcardDecks', 'Flashcards']
 
 # Add to FlashcardDecks class
