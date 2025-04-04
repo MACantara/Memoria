@@ -44,6 +44,7 @@
     100% { background-color: rgba(var(--bs-primary-rgb), 0.7); }
 }
 
+/* Use the data-status attribute for styling */
 .import-task-item[data-status="running"] .progress-bar {
     animation: pulse-bg 2s infinite ease-in-out;
 }
@@ -56,4 +57,12 @@
 /* Styling for failed items */
 .import-task-item[data-status="failed"] {
     border-left: 4px solid var(--bs-danger);
+}
+
+/* Error message styling */
+.import-task-item .error-message {
+    padding: 0.25rem 0.5rem;
+    background-color: var(--bs-danger-bg-subtle);
+    border-radius: 0.25rem;
+    margin-top: 0.5rem;
 }
