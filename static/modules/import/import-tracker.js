@@ -18,7 +18,22 @@ class ImportTracker {
         
         // Attach event listeners
         if (this.refreshButton) {
-            this.refreshButton.addEventListener('click', () => this.refreshTasks());
+            this.refreshButton.addEventListener('click', () => {
+                // Show spinning animation when refreshing
+                const icon = this.refreshButton.querySelector('i');
+                if (icon) {
+                    icon.classList.add('spin-animation');
+                    this.refreshButton.disabled = true;
+                }
+                
+                // Refresh tasks and restore button state when done
+                this.refreshTasks().finally(() => {
+                    setTimeout(() => {
+                        if (icon) icon.classList.remove('spin-animation');
+                        this.refreshButton.disabled = false;
+                    }, 500); // Minimum animation time for feedback
+                });
+            });
         }
         
         // Start polling for updates
@@ -70,8 +85,11 @@ class ImportTracker {
             
             // Also update the stats counters in the dashboard if they exist
             this.updateStatCounters(data.tasks);
+            
+            return data; // Return data for promise chaining
         } catch (error) {
             console.error('Error refreshing tasks:', error);
+            throw error; // Rethrow for promise chaining
         }
     }
     
@@ -310,8 +328,15 @@ class ImportTracker {
         const viewDeckBtn = taskElement.querySelector('.view-deck-btn');
         if (task.status === 'completed' && viewDeckBtn) {
             viewDeckBtn.classList.remove('d-none');
-            viewDeckBtn.addEventListener('click', () => {
-                window.location.href = `/deck/${task.deck_id}`;
+            viewDeckBtn.setAttribute('data-deck-id', task.deck_id);
+            viewDeckBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const deckId = task.deck_id || e.currentTarget.getAttribute('data-deck-id');
+                if (deckId) {
+                    window.location.href = `/deck/${deckId}`;
+                } else {
+                    console.error('No deck ID found for navigation');
+                }
             });
         }
         
@@ -432,12 +457,18 @@ class ImportTracker {
         if (viewDeckBtn) {
             if (newStatus === 'completed') {
                 viewDeckBtn.classList.remove('d-none');
+                viewDeckBtn.setAttribute('data-deck-id', task.deck_id);
                 
                 // Ensure event listener is set
-                viewDeckBtn.onclick = null; // Remove any existing handler
-                viewDeckBtn.addEventListener('click', () => {
-                    window.location.href = `/deck/${task.deck_id}`;
-                });
+                viewDeckBtn.onclick = (e) => {
+                    e.preventDefault();
+                    const deckId = task.deck_id || e.currentTarget.getAttribute('data-deck-id');
+                    if (deckId) {
+                        window.location.href = `/deck/${deckId}`;
+                    } else {
+                        console.error('No deck ID found for navigation');
+                    }
+                };
             } else {
                 viewDeckBtn.classList.add('d-none');
             }

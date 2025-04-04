@@ -167,3 +167,26 @@
     border-radius: 0.25rem;
     margin-top: 0.5rem;
 }
+
+/* Add refresh button animation */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.spin-animation {
+    animation: spin 1s linear infinite;
+}
+
+/* Improve button hover states */
+#refreshImportsBtn:hover {
+    background-color: rgba(255, 255, 255, 0.9);
+}
+
+.view-deck-btn {
+    transition: all 0.2s ease;
+}
+
+.view-deck-btn:hover {
+    transform: translateY(-1px);
+}
