@@ -324,7 +324,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <strong>Import Started!</strong> This process will continue in the background.
                                 You can close this modal and continue using the app.
                             </div>
-                            <button class="btn btn-sm btn-primary" onclick="window.location.href='/import/imports'">
+                            <button class="btn btn-sm btn-primary" onclick="window.location.href='/import/import-dashboard'">
                                 <i class="bi bi-eye me-1"></i> View All Imports
                             </button>
                         </div>
@@ -338,7 +338,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     // Navigate to imports dashboard
                     viewResultsBtn.onclick = () => {
-                        window.location.href = '/import/imports';
+                        window.location.href = '/import/import-dashboard';
                     };
                 }
             });

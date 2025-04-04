@@ -469,7 +469,7 @@ def get_import_task(task_id):
         current_app.logger.error(f"Error getting import task: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
-@import_bp.route('/imports')
+@import_bp.route('/import-dashboard')
 @login_required
 def imports_dashboard():
     """View all imports dashboard"""
