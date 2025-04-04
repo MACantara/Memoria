@@ -28,8 +28,8 @@
                                 </div>
                             </div>
                             <span class="badge rounded-pill status-badge 
-                                {% if task.status == 'pending' %}bg-secondary
-                                {% elif task.status == 'running' %}bg-primary
+                                {% if task.status == 'pending' %}bg-warning
+                                {% elif task.status == 'running' %}bg-warning
                                 {% elif task.status == 'completed' %}bg-success
                                 {% elif task.status == 'failed' %}bg-danger{% endif %}">
                                 {{ task.status|capitalize }}

@@ -171,11 +171,11 @@ class ImportTracker {
         switch (task.status) {
             case 'pending':
                 statusBadge.textContent = 'Pending';
-                statusBadge.classList.add('bg-secondary');
+                statusBadge.classList.add('bg-warning');
                 break;
             case 'running':
                 statusBadge.textContent = 'Processing';
-                statusBadge.classList.add('bg-primary');
+                statusBadge.classList.add('bg-warning');
                 break;
             case 'completed':
                 statusBadge.textContent = 'Completed';

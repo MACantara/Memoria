@@ -45,16 +45,23 @@
 }
 
 /* Use the data-status attribute for styling */
-.import-task-item[data-status="running"] .progress-bar {
+.import-task-item[data-status="running"] .progress-bar,
+.import-task-item[data-status="pending"] .progress-bar {
     animation: pulse-bg 2s infinite ease-in-out;
 }
 
-/* Styling for completed items */
+/* Styling for pending/running items - yellow left border */
+.import-task-item[data-status="running"],
+.import-task-item[data-status="pending"] {
+    border-left: 4px solid var(--bs-warning);
+}
+
+/* Styling for completed items - green left border */
 .import-task-item[data-status="completed"] {
     border-left: 4px solid var(--bs-success);
 }
 
-/* Styling for failed items */
+/* Styling for failed items - red left border */
 .import-task-item[data-status="failed"] {
     border-left: 4px solid var(--bs-danger);
 }
