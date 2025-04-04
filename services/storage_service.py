@@ -47,6 +47,8 @@ class ProcessingState:
                 'state_dir': state_dir,
                 'total_chunks': len(chunks),
                 'processed_chunks': [],
+                'saved_chunks': [],  # NEW: Track which chunks have been saved to the database
+                'total_saved_cards': 0,  # NEW: Track total number of saved flashcards
                 'current_index': 0,
                 'is_complete': False,
                 'last_updated': time.time()
@@ -222,6 +224,35 @@ class ProcessingState:
             with open(mc_file, 'rb') as f:
                 return pickle.load(f)
         return []
+    
+    @staticmethod
+    def get_saved_flashcards_count(file_key):
+        """Get count of flashcards already saved to the database"""
+        state = ProcessingState.get_state(file_key)
+        if not state:
+            return 0
+        
+        return state.get('total_saved_cards', 0)
+    
+    @staticmethod
+    def mark_chunk_saved(file_key, chunk_index, cards_saved):
+        """Mark a chunk as saved to the database"""
+        state = ProcessingState.get_state(file_key)
+        if not state:
+            return False
+        
+        if 'saved_chunks' not in state:
+            state['saved_chunks'] = []
+            
+        if chunk_index not in state['saved_chunks']:
+            state['saved_chunks'].append(chunk_index)
+            
+        if 'total_saved_cards' not in state:
+            state['total_saved_cards'] = 0
+            
+        state['total_saved_cards'] += cards_saved
+        
+        return ProcessingState.update_state(file_key, state)
     
     @staticmethod
     def cleanup_old_states(max_age=3600):  # 1 hour
