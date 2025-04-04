@@ -103,15 +103,47 @@ class ImportTracker {
     }
     
     updateTasks(tasks) {
-        // Reset the tracking object
-        this.tasks = {};
-        
+        // Create a map of current tasks for quick lookups
+        const currentTasks = Object.keys(this.tasks).reduce((acc, taskId) => {
+            acc[taskId] = this.tasks[taskId];
+            return acc;
+        }, {});
+
         // Process all tasks
         tasks.forEach(task => {
-            this.tasks[task.id] = task;
+            const taskId = task.id;
+            this.tasks[taskId] = task;
+
+            // If this task element already exists in the UI, update it instead of recreating
+            const existingElement = document.querySelector(`.import-task-item[data-task-id="${taskId}"]`);
+            if (existingElement) {
+                this.updateTaskElement(existingElement, task);
+            }
         });
         
-        // Update the UI
+        // Check if we need to add or remove elements
+        const currentTaskIds = Object.keys(currentTasks);
+        const newTaskIds = tasks.map(t => t.id);
+        
+        // Find tasks that were removed
+        const removedTaskIds = currentTaskIds.filter(id => !newTaskIds.includes(id));
+        
+        // Remove elements that are no longer in the task list
+        removedTaskIds.forEach(taskId => {
+            delete this.tasks[taskId];
+            const element = document.querySelector(`.import-task-item[data-task-id="${taskId}"]`);
+            if (element) {
+                // Add fade-out animation
+                element.style.opacity = '0';
+                element.style.transform = 'translateY(-10px)';
+                element.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+                
+                // Remove after animation completes
+                setTimeout(() => element.remove(), 300);
+            }
+        });
+        
+        // Update the UI - will only render new tasks since we already updated existing ones
         this.renderTasks();
         
         // Check if we should stop polling (no active tasks)
@@ -129,10 +161,8 @@ class ImportTracker {
     }
     
     renderTasks() {
-        // Clear the list
-        if (this.importsList) {
-            this.importsList.innerHTML = '';
-        }
+        // Don't clear the entire list, as we've already updated existing elements
+        // Only add new tasks that aren't in the DOM yet
         
         // Get all tasks as array and sort by creation date (newest first)
         const tasksArray = Object.values(this.tasks).sort((a, b) => {
@@ -142,15 +172,39 @@ class ImportTracker {
         // Show/hide no imports message
         if (tasksArray.length === 0) {
             this.noImportsMessage.classList.remove('d-none');
+            // If the list exists, clear it
+            if (this.importsList) {
+                this.importsList.innerHTML = '';
+            }
             return;
         } else {
             this.noImportsMessage.classList.add('d-none');
         }
         
-        // Add each task to the list
+        // Add each new task to the list
         tasksArray.forEach(task => {
-            const taskElement = this.createTaskElement(task);
-            this.importsList.appendChild(taskElement);
+            const taskId = task.id;
+            const existingElement = document.querySelector(`.import-task-item[data-task-id="${taskId}"]`);
+            
+            // Only create and add elements that don't already exist in the DOM
+            if (!existingElement) {
+                const taskElement = this.createTaskElement(task);
+                
+                // Add with fade-in animation
+                taskElement.style.opacity = '0';
+                taskElement.style.transform = 'translateY(10px)';
+                
+                // Add to the list
+                this.importsList.appendChild(taskElement);
+                
+                // Trigger reflow to ensure animation works
+                void taskElement.offsetWidth;
+                
+                // Apply transition
+                taskElement.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+                taskElement.style.opacity = '1';
+                taskElement.style.transform = 'translateY(0)';
+            }
         });
     }
     
@@ -187,13 +241,34 @@ class ImportTracker {
                 break;
         }
         
-        // Set progress bar
+        // Set progress bar with animation
         const progressBar = taskElement.querySelector('.progress-bar');
-        progressBar.style.width = `${task.progress}%`;
-        progressBar.setAttribute('aria-valuenow', task.progress);
-        progressBar.textContent = `${task.progress}%`;
         
-        // For failed tasks, change progress bar color
+        // Store current progress to enable animation
+        progressBar.dataset.prevProgress = 0;
+        
+        // Set initial progress
+        const progress = Math.min(Math.max(task.progress || 0, 0), 100);
+        
+        // Animate progress change with a slight delay for visual feedback
+        setTimeout(() => {
+            progressBar.style.width = `${progress}%`;
+            progressBar.setAttribute('aria-valuenow', progress);
+            
+            // For progress text, use different text based on status
+            if (task.status === 'completed') {
+                progressBar.textContent = 'Complete';
+            } else if (task.status === 'failed') {
+                progressBar.textContent = 'Failed';
+            } else {
+                progressBar.textContent = `${progress}%`;
+            }
+            
+            // Update the previous progress value
+            progressBar.dataset.prevProgress = progress;
+        }, 50);
+        
+        // For failed tasks, change progress bar class
         if (task.status === 'failed') {
             progressBar.classList.remove('progress-bar-striped', 'progress-bar-animated');
             progressBar.classList.add('bg-danger');
@@ -209,10 +284,11 @@ class ImportTracker {
             }
         }
         
-        // For completed tasks, show solid bar
+        // For completed tasks, add completion animation
         if (task.status === 'completed') {
             progressBar.classList.remove('progress-bar-striped', 'progress-bar-animated');
-            progressBar.textContent = 'Complete';
+            // Add smooth completion animation
+            progressBar.classList.add('progress-complete-animation');
         }
         
         // Set stats
@@ -240,6 +316,149 @@ class ImportTracker {
         }
         
         return taskElement;
+    }
+    
+    updateTaskElement(taskElement, task) {
+        // Only update if the element exists
+        if (!taskElement) return;
+        
+        // Update status class
+        const previousStatus = taskElement.dataset.status;
+        const newStatus = task.status;
+        
+        // Update status data attribute
+        taskElement.dataset.status = newStatus;
+        
+        // Get the status badge and update it
+        const statusBadge = taskElement.querySelector('.status-badge');
+        if (statusBadge) {
+            // Reset classes
+            statusBadge.className = 'badge rounded-pill status-badge';
+            
+            // Add new status class and text
+            switch (newStatus) {
+                case 'pending':
+                    statusBadge.textContent = 'Pending';
+                    statusBadge.classList.add('bg-warning');
+                    break;
+                case 'running':
+                    statusBadge.textContent = 'Processing';
+                    statusBadge.classList.add('bg-warning');
+                    break;
+                case 'completed':
+                    statusBadge.textContent = 'Completed';
+                    statusBadge.classList.add('bg-success');
+                    break;
+                case 'failed':
+                    statusBadge.textContent = 'Failed';
+                    statusBadge.classList.add('bg-danger');
+                    break;
+            }
+        }
+        
+        // Update progress bar with animation
+        const progressBar = taskElement.querySelector('.progress-bar');
+        if (progressBar) {
+            // Get previous progress for animation
+            const prevProgress = parseInt(progressBar.dataset.prevProgress || 0, 10);
+            const newProgress = Math.min(Math.max(task.progress || 0, 0), 100);
+            
+            // Only animate if progress has changed
+            if (prevProgress !== newProgress) {
+                // Add transition class if progress has increased
+                if (newProgress > prevProgress) {
+                    progressBar.classList.add('progress-increasing');
+                }
+                
+                // Update progress with a slight delay for visual feedback
+                setTimeout(() => {
+                    progressBar.style.width = `${newProgress}%`;
+                    progressBar.setAttribute('aria-valuenow', newProgress);
+                    
+                    // Update text based on status
+                    if (newStatus === 'completed') {
+                        progressBar.textContent = 'Complete';
+                    } else if (newStatus === 'failed') {
+                        progressBar.textContent = 'Failed';
+                    } else {
+                        progressBar.textContent = `${newProgress}%`;
+                    }
+                    
+                    // Store the new progress
+                    progressBar.dataset.prevProgress = newProgress;
+                    
+                    // Remove transition class after animation
+                    setTimeout(() => {
+                        progressBar.classList.remove('progress-increasing');
+                    }, 600);
+                }, 50);
+            }
+            
+            // Handle status changes for the progress bar
+            if (previousStatus !== newStatus) {
+                // Reset classes
+                progressBar.classList.remove('bg-danger', 'progress-bar-striped', 'progress-bar-animated', 'progress-complete-animation');
+                
+                // Apply appropriate classes for new status
+                if (newStatus === 'pending' || newStatus === 'running') {
+                    progressBar.classList.add('progress-bar-striped', 'progress-bar-animated');
+                } else if (newStatus === 'completed') {
+                    progressBar.classList.add('progress-complete-animation');
+                } else if (newStatus === 'failed') {
+                    progressBar.classList.add('bg-danger');
+                }
+            }
+        }
+        
+        // Update stats (cards saved, timestamp)
+        const statsElement = taskElement.querySelector('.import-stats');
+        if (statsElement) {
+            const createdDate = new Date(task.created_at);
+            
+            if (task.saved_cards > 0) {
+                statsElement.innerHTML = `
+                    <span class="badge bg-success rounded-pill me-2">${task.saved_cards} cards</span>
+                    <span class="text-muted">${this.formatDate(createdDate)}</span>
+                `;
+            } else {
+                statsElement.innerHTML = `
+                    <span class="text-muted">${this.formatDate(createdDate)}</span>
+                `;
+            }
+        }
+        
+        // Show/hide view deck button
+        const viewDeckBtn = taskElement.querySelector('.view-deck-btn');
+        if (viewDeckBtn) {
+            if (newStatus === 'completed') {
+                viewDeckBtn.classList.remove('d-none');
+                
+                // Ensure event listener is set
+                viewDeckBtn.onclick = null; // Remove any existing handler
+                viewDeckBtn.addEventListener('click', () => {
+                    window.location.href = `/deck/${task.deck_id}`;
+                });
+            } else {
+                viewDeckBtn.classList.add('d-none');
+            }
+        }
+        
+        // Handle error messages
+        const existingError = taskElement.querySelector('.error-message');
+        if (existingError) {
+            existingError.remove();
+        }
+        
+        if (newStatus === 'failed' && task.error) {
+            const errorElement = document.createElement('div');
+            errorElement.className = 'error-message small text-danger mt-1';
+            errorElement.innerHTML = `<i class="bi bi-exclamation-circle me-1"></i>${task.error}`;
+            
+            const stats = taskElement.querySelector('.import-stats');
+            if (stats) {
+                stats.parentNode.insertBefore(errorElement, stats.nextSibling);
+            }
+        }
     }
     
     formatDate(date) {
