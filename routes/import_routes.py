@@ -543,7 +543,7 @@ def imports_dashboard():
         current_app.logger.error(f"Error rendering imports dashboard: {str(e)}")
         # Provide default values for all required template variables
         return render_template(
-            'imports.html',
+            'import-dashboard.html',
             tasks=[],
             stats={
                 'total': 0,
