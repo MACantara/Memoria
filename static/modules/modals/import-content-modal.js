@@ -57,12 +57,6 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => dragArea.classList.remove('pulse-once'), 1500);
     });
     
-    // Add a handler for modal close to reset everything fully
-    $('#importContentModal').on('hidden.bs.modal', function () {
-        // Reset everything to initial state
-        resetImportModal();
-    });
-    
     // Add search functionality
     if (deckSearchInput) {
         // Add no results feedback if not already present
@@ -217,68 +211,6 @@ document.addEventListener('DOMContentLoaded', function() {
         fileInfo.classList.add('d-none');
         dragArea.classList.remove('d-none');
         importBtn.disabled = true;
-    }
-    
-    // Comprehensive reset function for the entire modal
-    function resetImportModal() {
-        // Reset file input area
-        resetFileInput();
-        
-        // Reset all state variables
-        fileKey = null;
-        generatedFlashcards = [];
-        totalSavedCards = 0;
-        currentPage = 1;
-        
-        // Reset deck selection if possible
-        if (importDeckSelect) {
-            importDeckSelect.selectedIndex = 0;
-        }
-        
-        // Reset UI elements
-        if (processingInfo) {
-            processingInfo.classList.add('d-none');
-            processingInfo.innerHTML = '';
-        }
-        
-        if (processingProgress) {
-            processingProgress.style.width = '0%';
-            processingProgress.textContent = '0%';
-            processingProgress.classList.remove('progress-bar-striped', 'progress-bar-animated');
-        }
-        
-        if (importResults) {
-            importResults.innerHTML = `
-                <div class="text-center p-3 text-muted">
-                    <i class="bi bi-card-list fs-3 mb-2"></i>
-                    <p>Cards will be shown here if you enable preview</p>
-                </div>
-            `;
-        }
-        
-        // Reset any preview containers
-        const previewContainer = document.getElementById('cardsPreviewContainer');
-        if (previewContainer) {
-            previewContainer.classList.remove('show-preview');
-        }
-        
-        // Reset preview toggle button
-        const previewToggleBtn = document.getElementById('togglePreviewBtn');
-        if (previewToggleBtn) {
-            previewToggleBtn.innerHTML = '<i class="bi bi-eye"></i> Show Preview';
-        }
-        
-        // Hide buttons
-        if (viewResultsBtn) {
-            viewResultsBtn.classList.add('d-none');
-        }
-        
-        // Reset to the upload tab
-        const uploadTab = document.getElementById('upload-tab');
-        if (uploadTab) {
-            const tabInstance = new bootstrap.Tab(uploadTab);
-            tabInstance.show();
-        }
     }
     
     // Enable import button only when both file and deck are selected
@@ -905,15 +837,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     renderFlashcardPage();
                 }
             }
-        });
-    }
-    
-    // Also add reset to the manual close button for consistency
-    const closeModalBtn = document.querySelector('#importContentModal .btn-secondary[data-bs-dismiss="modal"]');
-    if (closeModalBtn) {
-        closeModalBtn.addEventListener('click', function() {
-            // The hidden.bs.modal event will handle the reset, but we can force it here too
-            resetImportModal();
         });
     }
 });
