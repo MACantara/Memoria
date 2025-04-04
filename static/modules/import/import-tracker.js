@@ -67,9 +67,39 @@ class ImportTracker {
             
             // Process the tasks
             this.updateTasks(data.tasks);
+            
+            // Also update the stats counters in the dashboard if they exist
+            this.updateStatCounters(data.tasks);
         } catch (error) {
             console.error('Error refreshing tasks:', error);
         }
+    }
+    
+    updateStatCounters(tasks) {
+        // Update the stats counters if they exist on the page
+        const activeCounter = document.getElementById('activeTasksCount');
+        const completedCounter = document.getElementById('completedTasksCount');
+        const failedCounter = document.getElementById('failedTasksCount');
+        const totalCardsCounter = document.getElementById('totalSavedCardsCount');
+        
+        if (!activeCounter && !completedCounter && !failedCounter && !totalCardsCounter) {
+            // No counters on this page
+            return;
+        }
+        
+        // Count tasks by status
+        const activeCount = tasks.filter(t => t.status === 'pending' || t.status === 'running').length;
+        const completedCount = tasks.filter(t => t.status === 'completed').length;
+        const failedCount = tasks.filter(t => t.status === 'failed').length;
+        
+        // Sum up all saved cards
+        const totalSavedCards = tasks.reduce((sum, task) => sum + (task.saved_cards || 0), 0);
+        
+        // Update the counters
+        if (activeCounter) activeCounter.textContent = activeCount;
+        if (completedCounter) completedCounter.textContent = completedCount;
+        if (failedCounter) failedCounter.textContent = failedCount;
+        if (totalCardsCounter) totalCardsCounter.textContent = totalSavedCards;
     }
     
     updateTasks(tasks) {
@@ -128,8 +158,9 @@ class ImportTracker {
         // Clone the template
         const taskElement = this.template.content.cloneNode(true).querySelector('.import-task-item');
         
-        // Set task ID
+        // Set task ID and status data attributes
         taskElement.dataset.taskId = task.id;
+        taskElement.dataset.status = task.status;
         
         // Set basic information
         taskElement.querySelector('.import-filename').textContent = task.filename;
@@ -166,6 +197,16 @@ class ImportTracker {
         if (task.status === 'failed') {
             progressBar.classList.remove('progress-bar-striped', 'progress-bar-animated');
             progressBar.classList.add('bg-danger');
+            
+            // Add error message if available
+            if (task.error) {
+                const errorElement = document.createElement('div');
+                errorElement.className = 'error-message small text-danger mt-1';
+                errorElement.innerHTML = `<i class="bi bi-exclamation-circle me-1"></i>${task.error}`;
+                
+                const statsElement = taskElement.querySelector('.import-stats');
+                statsElement.parentNode.insertBefore(errorElement, statsElement.nextSibling);
+            }
         }
         
         // For completed tasks, show solid bar
@@ -176,10 +217,17 @@ class ImportTracker {
         
         // Set stats
         const statsElement = taskElement.querySelector('.import-stats');
+        const createdDate = new Date(task.created_at);
+        
         if (task.saved_cards > 0) {
-            statsElement.textContent = `${task.saved_cards} cards saved`;
+            statsElement.innerHTML = `
+                <span class="badge bg-success rounded-pill me-2">${task.saved_cards} cards</span>
+                <span class="text-muted">${this.formatDate(createdDate)}</span>
+            `;
         } else {
-            statsElement.textContent = 'Processing...';
+            statsElement.innerHTML = `
+                <span class="text-muted">${this.formatDate(createdDate)}</span>
+            `;
         }
         
         // Show view deck button for completed tasks
@@ -192,6 +240,24 @@ class ImportTracker {
         }
         
         return taskElement;
+    }
+    
+    formatDate(date) {
+        // Short date/time format
+        const now = new Date();
+        const diffMs = now - date;
+        const diffSec = Math.round(diffMs / 1000);
+        const diffMin = Math.round(diffSec / 60);
+        const diffHours = Math.round(diffMin / 60);
+        const diffDays = Math.round(diffHours / 24);
+        
+        if (diffSec < 60) return 'just now';
+        if (diffMin < 60) return `${diffMin}m ago`;
+        if (diffHours < 24) return `${diffHours}h ago`;
+        if (diffDays < 7) return `${diffDays}d ago`;
+        
+        // Fall back to simple date format
+        return date.toLocaleDateString();
     }
 }
 
