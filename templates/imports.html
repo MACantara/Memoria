@@ -96,17 +96,6 @@
                     </p>
                 </div>
             </div>
-            
-            <!-- Removed Quick Actions card -->
-            
-            {% if active_tasks %}
-            <div class="alert alert-info d-flex align-items-center">
-                <i class="bi bi-info-circle-fill me-2"></i>
-                <div>
-                    You have {{ active_tasks|length }} active import{{ "s" if active_tasks|length != 1 }} running
-                </div>
-            </div>
-            {% endif %}
         </div>
     </div>
 </div>
