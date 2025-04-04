@@ -9,9 +9,10 @@
             </button>
         </div>
         <div class="card-body p-0">
-            <div id="noImportsMessage" class="p-3 text-center text-muted{% if tasks %} d-none{% endif %}">
-                <i class="bi bi-inbox-fill fs-3 mb-2 d-block"></i>
-                <p class="mb-0">No active imports</p>
+            <div id="noImportsMessage" class="p-4 text-center text-muted{% if tasks %} d-none{% endif %}">
+                <i class="bi bi-inbox-fill fs-1 text-muted mb-3"></i>
+                <h5>No Import History</h5>
+                <p class="text-muted">You haven't imported any content yet. Click "New Import" to get started.</p>
             </div>
             <div id="importsList" class="list-group list-group-flush">
                 <!-- Import tasks will be displayed here by JavaScript -->

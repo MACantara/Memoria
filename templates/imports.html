@@ -32,16 +32,6 @@
             <!-- Import tracker component -->
             {% include 'components/import_tracker.html' %}
             
-            <!-- Show empty state message if no tasks -->
-            {% if not tasks %}
-            <div class="card shadow-sm text-center p-4">
-                <div class="card-body">
-                    <i class="bi bi-inbox-fill fs-1 text-muted mb-3"></i>
-                    <h5>No Import History</h5>
-                    <p class="text-muted">You haven't imported any content yet. Click "New Import" to get started.</p>
-                </div>
-            </div>
-            {% endif %}
         </div>
         
         <div class="col-lg-4">
