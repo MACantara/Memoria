@@ -11,7 +11,6 @@ def register_blueprints(app: Flask):
     from routes.auth_routes import auth_bp
     from routes.learning.__init__ import register_learning_blueprint
     from routes.user import user_bp
-    from routes.views import views_bp
     
     # Register blueprints
     app.register_blueprint(main_bp)
@@ -20,8 +19,6 @@ def register_blueprints(app: Flask):
     app.register_blueprint(search_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(user_bp)
-    app.register_blueprint(views_bp)
-    
     
     # Register all flashcard blueprints
     register_flashcard_blueprints(app)
