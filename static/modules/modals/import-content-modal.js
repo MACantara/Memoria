@@ -315,7 +315,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Set refresh flag so the page refreshes when modal is closed
                 shouldRefreshOnClose = true;
                 
-                // Show status info
+                // Show status info with link to imports dashboard
                 processingInfo.innerHTML = `
                     <div class="alert alert-info">
                         <div class="d-flex justify-content-between align-items-center">
@@ -324,7 +324,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <strong>Import Started!</strong> This process will continue in the background.
                                 You can close this modal and continue using the app.
                             </div>
-                            <button class="btn btn-sm btn-primary" onclick="window.location.href='/imports'">
+                            <button class="btn btn-sm btn-primary" onclick="window.location.href='/import/imports'">
                                 <i class="bi bi-eye me-1"></i> View All Imports
                             </button>
                         </div>
@@ -334,11 +334,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Show view results button
                 if (viewResultsBtn) {
                     viewResultsBtn.classList.remove('d-none');
-                    viewResultsBtn.innerHTML = '<i class="bi bi-arrow-left me-1"></i> Close & View Dashboard';
+                    viewResultsBtn.innerHTML = '<i class="bi bi-arrow-left me-1"></i> View Imports Dashboard';
                     
                     // Navigate to imports dashboard
                     viewResultsBtn.onclick = () => {
-                        window.location.href = '/imports';
+                        window.location.href = '/import/imports';
                     };
                 }
             });
