@@ -10,6 +10,10 @@ from models import db, FlashcardDecks, Flashcards, ImportFile, ImportChunk, Impo
 from services.file_service import FileProcessor
 from services.storage_service import ProcessingState
 from services.chunk_service import process_file_chunk_batch, get_file_state, cleanup_all_flashcards
+from services.background_service import (
+    start_processing, get_user_tasks, get_task, 
+    get_task_by_file_key, TaskStatus
+)
 
 # Create Blueprint
 import_bp = Blueprint('import', __name__, url_prefix='/import')
@@ -362,3 +366,96 @@ def get_saved_status():
         'fully_saved': len(saved_chunks) == import_file.total_chunks and import_file.is_complete,
         'deck_id': import_file.deck_id
     })
+
+@import_bp.route('/start-background-import', methods=['POST'])
+@login_required
+def start_background_import():
+    """Start processing a file in the background"""
+    try:
+        data = request.get_json()
+        file_key = data.get('file_key')
+        deck_id = data.get('deck_id')
+        
+        if not file_key:
+            return jsonify({'error': 'File key is required'}), 400
+            
+        if not deck_id:
+            return jsonify({'error': 'Deck ID is required'}), 400
+        
+        # Verify the file belongs to the current user
+        import_file = ImportFile.query.filter_by(file_key=file_key, user_id=current_user.id).first()
+        if not import_file:
+            return jsonify({'error': 'Import file not found or access denied'}), 403
+        
+        # Verify the deck belongs to the current user
+        deck = FlashcardDecks.query.filter_by(
+            flashcard_deck_id=deck_id, 
+            user_id=current_user.id
+        ).first()
+        
+        if not deck:
+            return jsonify({'error': 'Invalid deck ID'}), 403
+        
+        # Check if there's already a task for this file
+        existing_task = get_task_by_file_key(file_key)
+        if existing_task:
+            return jsonify({
+                'success': True,
+                'task_id': existing_task.id,
+                'message': 'Import already in progress'
+            })
+        
+        # Start background processing - pass current_app instance to the background service
+        task_id = start_processing(
+            current_app._get_current_object(),  # Get the actual Flask app instance
+            current_app.gemini_client,
+            file_key,
+            import_file.filename,
+            deck_id,
+            deck.name,
+            current_user.id
+        )
+        
+        return jsonify({
+            'success': True,
+            'task_id': task_id,
+            'message': 'Background import started'
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Error starting background import: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@import_bp.route('/import-tasks', methods=['GET'])
+@login_required
+def get_import_tasks():
+    """Get all import tasks for the current user"""
+    try:
+        tasks = get_user_tasks(current_user.id)
+        return jsonify({
+            'success': True,
+            'tasks': [task.to_dict() for task in tasks]
+        })
+    except Exception as e:
+        current_app.logger.error(f"Error getting import tasks: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@import_bp.route('/import-task/<task_id>', methods=['GET'])
+@login_required
+def get_import_task(task_id):
+    """Get a specific import task"""
+    try:
+        task = get_task(task_id)
+        if not task:
+            return jsonify({'error': 'Task not found'}), 404
+            
+        if task.user_id != current_user.id:
+            return jsonify({'error': 'Access denied'}), 403
+            
+        return jsonify({
+            'success': True,
+            'task': task.to_dict()
+        })
+    except Exception as e:
+        current_app.logger.error(f"Error getting import task: {str(e)}")
+        return jsonify({'error': str(e)}), 500
