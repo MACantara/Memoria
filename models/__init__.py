@@ -8,7 +8,7 @@ from .user import User
 from .learning import LearningSession, LearningSection, LearningQuestion
 
 # Import new models
-from models.import_models import ImportFile, ImportChunk, ImportFlashcard
+from models.import_models import ImportFile, ImportChunk, ImportFlashcard, ImportTask
 
 __all__ = ['db', 'FlashcardDecks', 'Flashcards']
 

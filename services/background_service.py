@@ -4,129 +4,107 @@ import uuid
 from datetime import datetime
 from flask import current_app
 
+from models import db, ImportTask
+
 class TaskStatus:
     PENDING = 'pending'
     RUNNING = 'running'
     COMPLETED = 'completed'
     FAILED = 'failed'
 
-class ImportTask:
-    def __init__(self, file_key, filename, deck_id, deck_name, user_id):
-        self.id = str(uuid.uuid4())
-        self.file_key = file_key
-        self.filename = filename
-        self.deck_id = deck_id
-        self.deck_name = deck_name
-        self.user_id = user_id
-        self.status = TaskStatus.PENDING
-        self.progress = 0
-        self.total_chunks = 0
-        self.current_chunk = 0
-        self.total_cards = 0
-        self.saved_cards = 0
-        self.created_at = datetime.now()
-        self.updated_at = datetime.now()
-        self.completed_at = None
-        self.error = None
-
-    def update(self, **kwargs):
-        for key, value in kwargs.items():
-            if hasattr(self, key):
-                setattr(self, key, value)
-        self.updated_at = datetime.now()
-        return self
-        
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'file_key': self.file_key,
-            'filename': self.filename,
-            'deck_id': self.deck_id,
-            'deck_name': self.deck_name,
-            'status': self.status,
-            'progress': self.progress,
-            'total_chunks': self.total_chunks,
-            'current_chunk': self.current_chunk,
-            'total_cards': self.total_cards,
-            'saved_cards': self.saved_cards,
-            'created_at': self.created_at.isoformat(),
-            'updated_at': self.updated_at.isoformat(),
-            'completed_at': self.completed_at.isoformat() if self.completed_at else None,
-            'error': self.error
-        }
-
-# In-memory storage for background tasks - in production this should use Redis or a database
-tasks = {}
-tasks_by_user = {}
-tasks_lock = threading.Lock()
+# Thread lock for preventing race conditions
+task_lock = threading.Lock()
 
 def get_user_tasks(user_id):
-    """Get all tasks for a user"""
-    with tasks_lock:
-        return [task for task in tasks.values() if task.user_id == user_id]
+    """Get all tasks for a user from the database"""
+    return ImportTask.query.filter_by(user_id=user_id).order_by(
+        ImportTask.updated_at.desc()
+    ).all()
 
 def get_task(task_id):
-    """Get a specific task by ID"""
-    with tasks_lock:
-        return tasks.get(task_id)
+    """Get a specific task by ID from the database"""
+    return ImportTask.query.get(task_id)
 
 def get_task_by_file_key(file_key):
-    """Get a task by file key"""
-    with tasks_lock:
-        for task in tasks.values():
-            if task.file_key == file_key:
-                return task
-    return None
+    """Get a task by file key from the database"""
+    return ImportTask.query.filter_by(file_key=file_key).first()
 
-def register_task(task):
-    """Register a new task"""
-    with tasks_lock:
-        tasks[task.id] = task
-        if task.user_id not in tasks_by_user:
-            tasks_by_user[task.user_id] = []
-        tasks_by_user[task.user_id].append(task.id)
-    return task
+def register_task(file_key, filename, deck_id, deck_name, user_id):
+    """Register a new task in the database"""
+    with task_lock:
+        # Create a new task with a UUID
+        task_id = str(uuid.uuid4())
+        task = ImportTask(
+            id=task_id,
+            file_key=file_key,
+            filename=filename,
+            deck_id=deck_id,
+            deck_name=deck_name,
+            user_id=user_id,
+            status=TaskStatus.PENDING,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
+        )
+        
+        # Add to database
+        db.session.add(task)
+        db.session.commit()
+        
+    return task_id
 
 def update_task(task_id, **kwargs):
-    """Update a task's status and progress"""
-    task = get_task(task_id)
-    if task:
-        with tasks_lock:
-            task.update(**kwargs)
-            # If task is completed or failed, set the completion time
-            if kwargs.get('status') in [TaskStatus.COMPLETED, TaskStatus.FAILED]:
-                task.completed_at = datetime.now()
+    """Update a task's status and progress in the database"""
+    with task_lock:
+        task = ImportTask.query.get(task_id)
+        if not task:
+            return None
+            
+        # Update fields
+        for key, value in kwargs.items():
+            if hasattr(task, key):
+                setattr(task, key, value)
+                
+        # Update timestamps
+        task.updated_at = datetime.utcnow()
+        
+        # Set completion time if task is completed or failed
+        if kwargs.get('status') in [TaskStatus.COMPLETED, TaskStatus.FAILED]:
+            task.completed_at = datetime.utcnow()
+            
+        # Save changes
+        db.session.commit()
+        
     return task
 
 def cleanup_old_tasks(age_hours=24):
-    """Remove old completed tasks"""
+    """Remove old completed tasks from the database"""
     from datetime import timedelta
-    cutoff = datetime.now() - timedelta(hours=age_hours)
-    
-    with tasks_lock:
-        to_remove = []
-        for task_id, task in tasks.items():
-            if task.status in [TaskStatus.COMPLETED, TaskStatus.FAILED] and task.updated_at < cutoff:
-                to_remove.append(task_id)
-                
-        for task_id in to_remove:
-            task = tasks.pop(task_id)
-            if task.user_id in tasks_by_user:
-                if task_id in tasks_by_user[task.user_id]:
-                    tasks_by_user[task.user_id].remove(task_id)
+    with task_lock:
+        cutoff_time = datetime.utcnow() - timedelta(hours=age_hours)
+        
+        # Find old completed or failed tasks
+        old_tasks = ImportTask.query.filter(
+            ImportTask.status.in_([TaskStatus.COMPLETED, TaskStatus.FAILED]),
+            ImportTask.updated_at < cutoff_time
+        ).all()
+        
+        # Delete them
+        for task in old_tasks:
+            db.session.delete(task)
+            
+        # Commit changes
+        db.session.commit()
+        
+        return len(old_tasks)
 
 def process_chunk(task_id, app, gemini_client, file_key, chunk_index):
     """Process a single chunk in the background"""
     from services.chunk_service import process_file_chunk_batch
     
-    task = get_task(task_id)
-    if not task:
-        return
-    
     # Create an application context for this thread
     with app.app_context():
         try:
-            # Update task status
+            # Update task status to running
             update_task(task_id, status=TaskStatus.RUNNING)
             
             # Process the chunk
@@ -177,16 +155,21 @@ def process_chunk(task_id, app, gemini_client, file_key, chunk_index):
 
 def start_processing(app, gemini_client, file_key, filename, deck_id, deck_name, user_id):
     """Start background processing of a file"""
-    # Create a new task
-    task = ImportTask(file_key, filename, deck_id, deck_name, user_id)
-    register_task(task)
+    # Register a new task in the database
+    task_id = register_task(
+        file_key=file_key,
+        filename=filename,
+        deck_id=deck_id,
+        deck_name=deck_name,
+        user_id=user_id
+    )
     
     # Start processing the first chunk
     thread = threading.Thread(
         target=process_chunk,
-        args=(task.id, app, gemini_client, file_key, 0)
+        args=(task_id, app, gemini_client, file_key, 0)
     )
     thread.daemon = True
     thread.start()
     
-    return task.id
+    return task_id

@@ -405,9 +405,9 @@ def start_background_import():
                 'message': 'Import already in progress'
             })
         
-        # Start background processing - pass current_app instance to the background service
+        # Start background processing
         task_id = start_processing(
-            current_app._get_current_object(),  # Get the actual Flask app instance
+            current_app._get_current_object(),
             current_app.gemini_client,
             file_key,
             import_file.filename,
