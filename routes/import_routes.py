@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, render_template
 import os
 import uuid
 from werkzeug.utils import secure_filename
@@ -459,3 +459,46 @@ def get_import_task(task_id):
     except Exception as e:
         current_app.logger.error(f"Error getting import task: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+@import_bp.route('/imports')
+@login_required
+def imports_dashboard():
+    """View all imports dashboard"""
+    try:
+        # Get all import tasks for the current user
+        tasks = get_user_tasks(current_user.id)
+        
+        # Calculate summary statistics
+        active_tasks = [t for t in tasks if t.status in [TaskStatus.PENDING, TaskStatus.RUNNING]]
+        completed_tasks = [t for t in tasks if t.status == TaskStatus.COMPLETED]
+        failed_tasks = [t for t in tasks if t.status == TaskStatus.FAILED]
+        
+        # Get recent imports (last 7 days)
+        from datetime import datetime, timedelta
+        cutoff_date = datetime.utcnow() - timedelta(days=7)
+        recent_tasks = [t for t in tasks if t.created_at > cutoff_date]
+        
+        stats = {
+            'total': len(tasks),
+            'active': len(active_tasks),
+            'completed': len(completed_tasks),
+            'failed': len(failed_tasks),
+            'total_cards_saved': sum(t.saved_cards for t in tasks),
+            'recent_count': len(recent_tasks)
+        }
+        
+        # Get a list of decks for the import modal
+        decks = FlashcardDecks.query.filter_by(user_id=current_user.id).all()
+        
+        return render_template(
+            'imports.html',
+            tasks=tasks,
+            stats=stats,
+            active_tasks=active_tasks,
+            completed_tasks=completed_tasks,
+            failed_tasks=failed_tasks,
+            decks=decks
+        )
+    except Exception as e:
+        current_app.logger.error(f"Error rendering imports dashboard: {str(e)}")
+        return render_template('imports.html')
