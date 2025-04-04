@@ -530,7 +530,7 @@ def imports_dashboard():
         decks_with_metadata = process_deck_hierarchy(root_decks)
         
         return render_template(
-            'imports.html',
+            'import-dashboard.html',
             tasks=tasks,
             stats=stats,
             active_tasks=active_tasks,
