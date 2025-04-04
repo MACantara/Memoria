@@ -2,18 +2,20 @@ from flask import Blueprint, request, jsonify, current_app
 import os
 import uuid
 from werkzeug.utils import secure_filename
+from flask_login import current_user, login_required
 
 from config import Config
 from utils import allowed_file
-from models import db, FlashcardDecks, Flashcards
+from models import db, FlashcardDecks, Flashcards, ImportFile, ImportChunk, ImportFlashcard
 from services.file_service import FileProcessor
 from services.storage_service import ProcessingState
-from services.chunk_service import process_file_chunk_batch, get_file_state
+from services.chunk_service import process_file_chunk_batch, get_file_state, cleanup_all_flashcards
 
 # Create Blueprint
 import_bp = Blueprint('import', __name__, url_prefix='/import')
 
 @import_bp.route('/upload-file', methods=['POST'])
+@login_required
 def upload_file():
     try:
         if 'file' not in request.files:
@@ -30,6 +32,15 @@ def upload_file():
         deck_id = request.form.get('deck_id')
         if not deck_id:
             return jsonify({'error': 'Deck ID is required'}), 400
+            
+        # Validate deck belongs to current user
+        deck = FlashcardDecks.query.filter_by(
+            flashcard_deck_id=deck_id, 
+            user_id=current_user.id
+        ).first()
+        
+        if not deck:
+            return jsonify({'error': 'Invalid deck ID'}), 403
 
         # Create a safe filename and ensure upload directory exists
         filename = secure_filename(file.filename)
@@ -39,29 +50,36 @@ def upload_file():
         # Ensure upload directory exists
         os.makedirs(Config.UPLOAD_FOLDER, exist_ok=True)
         
-        # Save file safely
+        # Save file temporarily for processing
         try:
             file.save(filepath)
         except Exception as e:
             current_app.logger.error(f"File save error: {str(e)}")
             return jsonify({'error': 'Failed to save file'}), 500
         
-        # Initialize processing state
+        # Initialize processing state in the database
         file_key = ProcessingState.init_file_state(filepath)
-        state = ProcessingState.get_state(file_key)
         
-        # Store deck_id with file_key for later use
-        state['deck_id'] = deck_id
-        ProcessingState.update_state(file_key, state)
+        # Update deck ID in the state
+        import_file = ImportFile.query.filter_by(file_key=file_key).first()
+        if import_file:
+            import_file.deck_id = deck_id
+            db.session.commit()
         
         # Clean up old processing states
         ProcessingState.cleanup_old_states()
+        
+        # Delete the temporary file after processing
+        try:
+            os.remove(filepath)
+        except:
+            current_app.logger.warning(f"Failed to delete temporary file: {filepath}")
         
         return jsonify({
             'success': True, 
             'file_key': file_key, 
             'filename': filename,
-            'total_chunks': state['total_chunks']
+            'total_chunks': import_file.total_chunks if import_file else 0
         })
         
     except Exception as e:
@@ -69,6 +87,7 @@ def upload_file():
         return jsonify({'error': 'Internal server error'}), 500
 
 @import_bp.route('/generate-chunk', methods=['POST'])
+@login_required
 def generate_chunk():
     """Generate flashcards from a specific chunk of a file"""
     try:
@@ -79,18 +98,22 @@ def generate_chunk():
         if not file_key:
             return jsonify({'error': 'File key is required'}), 400
         
-        state = ProcessingState.get_state(file_key)
-        if not state:
-            return jsonify({'error': 'Invalid file key'}), 400
+        # Verify the file belongs to the current user
+        import_file = ImportFile.query.filter_by(file_key=file_key, user_id=current_user.id).first()
+        if not import_file:
+            return jsonify({'error': 'Import file not found or access denied'}), 403
         
         if chunk_index is None:
-            chunk_index = state['current_index']
+            chunk_index = import_file.current_index
         
-        if chunk_index >= state['total_chunks']:
+        if chunk_index >= import_file.total_chunks:
+            # If all chunks are processed, clean up all flashcards to free up space
+            cleanup_all_flashcards(file_key)
+            
             return jsonify({
                 'message': 'All chunks processed',
                 'is_complete': True,
-                'total_saved_cards': state.get('total_saved_cards', 0)
+                'total_saved_cards': import_file.total_saved_cards
             })
         
         # Use the processor for generating and auto-saving flashcards from chunks
@@ -102,6 +125,7 @@ def generate_chunk():
         return jsonify({'error': str(e)}), 500
 
 @import_bp.route('/file-state', methods=['GET'])
+@login_required
 def file_state():
     """Get current processing state for a file"""
     file_key = request.args.get('file_key')
@@ -109,17 +133,27 @@ def file_state():
     if not file_key:
         return jsonify({'error': 'File key is required'}), 400
     
-    result = get_file_state(file_key)
-
-    # Add the count of saved cards to the response
-    state = ProcessingState.get_state(file_key)
-    if state:
-        result['total_saved_cards'] = state.get('total_saved_cards', 0)
-        result['saved_chunks'] = state.get('saved_chunks', [])
+    # Verify the file belongs to the current user
+    import_file = ImportFile.query.filter_by(file_key=file_key, user_id=current_user.id).first()
+    if not import_file:
+        return jsonify({'error': 'Import file not found or access denied'}), 403
+    
+    # Get file state info
+    result = {
+        'total_chunks': import_file.total_chunks,
+        'processed_chunks': import_file.processed_chunks_count,
+        'current_index': import_file.current_index,
+        'flashcard_count': ImportFlashcard.query.filter_by(file_id=import_file.id).count(),
+        'is_complete': import_file.is_complete,
+        'next_chunk': import_file.current_index if import_file.current_index < import_file.total_chunks else None,
+        'total_saved_cards': import_file.total_saved_cards,
+        'saved_chunks': import_file.saved_chunks
+    }
     
     return jsonify(result)
 
 @import_bp.route('/all-file-flashcards', methods=['GET'])
+@login_required
 def all_file_flashcards():
     """Get all flashcards for a file"""
     file_key = request.args.get('file_key')
@@ -128,33 +162,47 @@ def all_file_flashcards():
     if not file_key:
         return jsonify({'error': 'File key is required'}), 400
     
-    # Get saved cards count
-    state = ProcessingState.get_state(file_key)
-    total_saved_cards = state.get('total_saved_cards', 0) if state else 0
+    # Verify the file belongs to the current user
+    import_file = ImportFile.query.filter_by(file_key=file_key, user_id=current_user.id).first()
+    if not import_file:
+        return jsonify({'error': 'Import file not found or access denied'}), 403
     
     if format_type == 'mc':
-        # Return multiple-choice format if requested
-        mc_flashcards = ProcessingState.get_mc_flashcards(file_key)
+        # Return multiple-choice format for the frontend
+        flashcards = ImportFlashcard.query.filter_by(file_id=import_file.id).all()
+        
+        mc_flashcards = [{
+            'q': card.question,
+            'ca': card.correct_answer,
+            'ia': card.incorrect_answers
+        } for card in flashcards]
+        
+        # Also include simple format for backward compatibility
+        simple_format = [f"Q: {card.question} | A: {card.correct_answer}" for card in flashcards]
+        
         return jsonify({
-            'flashcards': ProcessingState.get_all_flashcards(file_key),  # For backward compatibility
+            'flashcards': simple_format,
             'mc_flashcards': mc_flashcards,
-            'count': len(mc_flashcards),
-            'total_saved_cards': total_saved_cards
+            'count': len(flashcards),
+            'total_saved_cards': import_file.total_saved_cards
         })
     else:
         # Return standard format by default
-        all_flashcards = ProcessingState.get_all_flashcards(file_key)
+        flashcards = ImportFlashcard.query.filter_by(file_id=import_file.id).all()
+        simple_format = [f"Q: {card.question} | A: {card.correct_answer}" for card in flashcards]
+        
         return jsonify({
-            'flashcards': all_flashcards,
-            'count': len(all_flashcards),
-            'total_saved_cards': total_saved_cards
+            'flashcards': simple_format,
+            'count': len(flashcards),
+            'total_saved_cards': import_file.total_saved_cards
         })
 
 @import_bp.route('/save-to-deck', methods=['POST'])
+@login_required
 def save_to_deck():
     """
-    Manual save endpoint - only used for backward compatibility or 
-    if auto-save fails for some reason
+    Manual save endpoint for backward compatibility
+    Used if auto-save fails for some reason
     """
     try:
         data = request.get_json()
@@ -168,19 +216,35 @@ def save_to_deck():
         if not deck_id:
             return jsonify({'error': 'Deck ID is required'}), 400
             
-        # No flashcards provided, try to use all from file
+        # Verify the file belongs to the current user
+        import_file = ImportFile.query.filter_by(file_key=file_key, user_id=current_user.id).first()
+        if not import_file:
+            return jsonify({'error': 'Import file not found or access denied'}), 403
+            
+        # Verify the deck belongs to the current user
+        deck = FlashcardDecks.query.filter_by(
+            flashcard_deck_id=deck_id, 
+            user_id=current_user.id
+        ).first()
+        
+        if not deck:
+            return jsonify({'error': 'Invalid deck ID'}), 403
+        
+        # No flashcards provided, get unsaved ones from database
         if not flashcards:
-            flashcards = ProcessingState.get_mc_flashcards(file_key)
+            unsaved_cards = ImportFlashcard.query.filter_by(
+                file_id=import_file.id,
+                is_saved=False
+            ).all()
+            
+            flashcards = [{
+                'q': card.question,
+                'ca': card.correct_answer,
+                'ia': card.incorrect_answers
+            } for card in unsaved_cards]
         
         if not flashcards:
             return jsonify({'error': 'No flashcards found for this file'}), 400
-            
-        # Get state to check if we've already saved cards
-        state = ProcessingState.get_state(file_key)
-        existing_count = state.get('total_saved_cards', 0) if state else 0
-        
-        if existing_count > 0:
-            current_app.logger.info(f"Already saved {existing_count} cards, adding only additional cards")
         
         # Save each flashcard to the database
         cards_added = 0
@@ -224,21 +288,37 @@ def save_to_deck():
             # Add to session
             db.session.add(new_card)
             cards_added += 1
+            
+            # Mark as saved in the import flashcards table
+            if import_file:
+                import_card = ImportFlashcard.query.filter_by(
+                    file_id=import_file.id,
+                    question=question,
+                    correct_answer=correct_answer
+                ).first()
+                
+                if import_card:
+                    import_card.is_saved = True
         
         # Commit all changes at once
         db.session.commit()
         current_app.logger.info(f"Added {cards_added} flashcards to deck {deck_id}")
         
-        # Update total saved count in state
-        if state:
-            state['total_saved_cards'] = existing_count + cards_added
-            ProcessingState.update_state(file_key, state)
+        # Update total saved count in import file
+        if import_file:
+            import_file.total_saved_cards += cards_added
+            
+            # If this was the last batch of cards, clean up all flashcards
+            if import_file.is_complete:
+                cleanup_all_flashcards(file_key)
+            
+            db.session.commit()
         
         return jsonify({
             'success': True,
             'message': f'Added {cards_added} flashcards to deck',
             'count': cards_added,
-            'total_saved_cards': existing_count + cards_added
+            'total_saved_cards': import_file.total_saved_cards if import_file else cards_added
         })
         
     except Exception as e:
@@ -246,8 +326,8 @@ def save_to_deck():
         db.session.rollback()
         return jsonify({'error': f'Failed to save flashcards to deck: {str(e)}'}), 500
 
-# Add a new route to check saved status
 @import_bp.route('/saved-status', methods=['GET'])
+@login_required
 def get_saved_status():
     """Get the saved status for a file processing job"""
     file_key = request.args.get('file_key')
@@ -255,29 +335,30 @@ def get_saved_status():
     if not file_key:
         return jsonify({'error': 'File key is required'}), 400
     
-    state = ProcessingState.get_state(file_key)
-    if not state:
-        return jsonify({'error': 'Invalid file key'}), 400
+    # Verify the file belongs to the current user
+    import_file = ImportFile.query.filter_by(file_key=file_key, user_id=current_user.id).first()
+    if not import_file:
+        return jsonify({'error': 'Import file not found or access denied'}), 403
     
-    # Check if all chunks have been processed and saved
-    total_chunks = state.get('total_chunks', 0)
-    saved_chunks = state.get('saved_chunks', [])
-    is_complete = state.get('is_complete', False)
-    total_saved_cards = state.get('total_saved_cards', 0)
+    # Get saved chunks
+    saved_chunks = [chunk.index for chunk in ImportChunk.query.filter_by(
+        file_id=import_file.id,
+        is_saved=True
+    ).all()]
     
     # Calculate percentage complete for saving
     save_progress = 0
-    if total_chunks > 0:
-        save_progress = int(len(saved_chunks) / total_chunks * 100)
+    if import_file.total_chunks > 0:
+        save_progress = int(len(saved_chunks) / import_file.total_chunks * 100)
     
     return jsonify({
         'file_key': file_key,
-        'total_chunks': total_chunks,
+        'total_chunks': import_file.total_chunks,
         'saved_chunks': len(saved_chunks),
         'saved_chunks_list': saved_chunks,
         'save_progress': save_progress,
-        'is_complete': is_complete,
-        'total_saved_cards': total_saved_cards,
-        'fully_saved': len(saved_chunks) == total_chunks and is_complete,
-        'deck_id': state.get('deck_id')
+        'is_complete': import_file.is_complete,
+        'total_saved_cards': import_file.total_saved_cards,
+        'fully_saved': len(saved_chunks) == import_file.total_chunks and import_file.is_complete,
+        'deck_id': import_file.deck_id
     })

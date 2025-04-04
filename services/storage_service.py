@@ -1,18 +1,15 @@
-import os
 import hashlib
 import time
-import pickle
-import shutil
-from flask import session, has_request_context
+from flask import session, has_request_context, current_app, g
+from flask_login import current_user
 
 from config import Config
 from services.file_service import FileProcessor
 from utils import chunk_text
+from models import db, ImportFile, ImportChunk, ImportFlashcard
 
 class ProcessingState:
-    """Store processing state between requests"""
-    # Class-level dictionary to store states in memory when Flask session is not available
-    _memory_states = {}
+    """Store processing state in database between requests"""
     
     @staticmethod
     def get_file_key(filepath):
@@ -21,287 +18,244 @@ class ProcessingState:
     
     @staticmethod
     def init_file_state(filepath):
-        """Initialize processing state for a file"""
+        """Initialize processing state for a file in the database"""
         try:
-            # Create a unique directory for this file processing
+            # Create a unique key for this file
             file_key = ProcessingState.get_file_key(filepath)
-            state_dir = os.path.join(Config.UPLOAD_FOLDER, file_key)
-            os.makedirs(state_dir, exist_ok=True)
+            
+            # Check if this file is already being processed
+            existing_file = ImportFile.query.filter_by(file_key=file_key).first()
+            if existing_file:
+                # Delete the existing file and its chunks to start fresh
+                db.session.delete(existing_file)
+                db.session.commit()
             
             # Read content and divide into chunks
             content = FileProcessor.read_content(filepath)
             chunks = chunk_text(content)
             
-            # Store chunks in separate files
-            chunks_dir = os.path.join(state_dir, "chunks")
-            os.makedirs(chunks_dir, exist_ok=True)
+            # Create a new import file record
+            import_file = ImportFile(
+                file_key=file_key,
+                filename=filepath.split('/')[-1],
+                user_id=current_user.id,
+                total_chunks=len(chunks),
+                current_index=0,
+                is_complete=False
+            )
             
-            for i, chunk in enumerate(chunks):
-                chunk_file = os.path.join(chunks_dir, f"chunk_{i}.txt")
-                with open(chunk_file, 'w', encoding='utf-8') as f:
-                    f.write(chunk)
+            db.session.add(import_file)
+            db.session.flush()  # Get the id without committing
             
-            # Create a state object
-            state = {
-                'file_key': file_key,
-                'state_dir': state_dir,
-                'total_chunks': len(chunks),
-                'processed_chunks': [],
-                'saved_chunks': [],  # NEW: Track which chunks have been saved to the database
-                'total_saved_cards': 0,  # NEW: Track total number of saved flashcards
-                'current_index': 0,
-                'is_complete': False,
-                'last_updated': time.time()
-            }
+            # Store all chunks in the database
+            for i, chunk_content in enumerate(chunks):
+                chunk = ImportChunk(
+                    file_id=import_file.id,
+                    index=i,
+                    content=chunk_content,
+                    is_processed=False,
+                    is_saved=False
+                )
+                db.session.add(chunk)
             
-            # Store state - either in Flask session or in memory
-            if has_request_context():
-                try:
-                    session[file_key] = state
-                except RuntimeError:
-                    # No secret key or session not available - use memory storage instead
-                    ProcessingState._memory_states[file_key] = state
-            else:
-                # We're not in a Flask request context (e.g., desktop app)
-                ProcessingState._memory_states[file_key] = state
-            
-            # Also save state to disk for persistence
-            state_file = os.path.join(state_dir, "state.pkl")
-            with open(state_file, 'wb') as f:
-                pickle.dump(state, f)
+            # Commit all changes
+            db.session.commit()
             
             return file_key
+            
         except Exception as e:
-            print(f"Error in init_file_state: {str(e)}")
-            # Clean up any partial files
-            if 'state_dir' in locals() and os.path.exists(state_dir):
-                shutil.rmtree(state_dir, ignore_errors=True)
+            current_app.logger.error(f"Error in init_file_state: {str(e)}")
+            db.session.rollback()
             raise
     
     @staticmethod
     def get_state(file_key):
-        """Get processing state for a file"""
-        # Try getting state from session, memory, or disk
+        """Get processing state for a file from the database"""
+        import_file = ImportFile.query.filter_by(file_key=file_key).first()
         
-        # First try Flask session if in a request context
-        if has_request_context():
-            try:
-                state = session.get(file_key)
-                if state:
-                    return state
-            except RuntimeError:
-                # Session not available
-                pass
-                
-        # Next try in-memory dictionary
-        if file_key in ProcessingState._memory_states:
-            return ProcessingState._memory_states[file_key]
+        if not import_file:
+            return None
             
-        # Finally try loading from disk
-        try:
-            state_file = os.path.join(Config.UPLOAD_FOLDER, file_key, "state.pkl")
-            if os.path.exists(state_file):
-                with open(state_file, 'rb') as f:
-                    return pickle.load(f)
-        except:
-            pass
-            
-        return None
+        # Convert to dictionary format for backward compatibility
+        state = {
+            'file_key': import_file.file_key,
+            'total_chunks': import_file.total_chunks,
+            'processed_chunks': [c.index for c in import_file.chunks if c.is_processed],
+            'saved_chunks': [c.index for c in import_file.chunks if c.is_saved],
+            'total_saved_cards': import_file.total_saved_cards,
+            'current_index': import_file.current_index,
+            'is_complete': import_file.is_complete,
+            'last_updated': import_file.updated_at.timestamp() if import_file.updated_at else time.time(),
+            'deck_id': import_file.deck_id
+        }
+        
+        return state
     
     @staticmethod
     def get_chunk(file_key, chunk_index):
-        """Get a specific chunk content"""
-        state = ProcessingState.get_state(file_key)
-        if not state:
+        """Get a specific chunk content from the database"""
+        import_file = ImportFile.query.filter_by(file_key=file_key).first()
+        if not import_file:
             return None
         
-        chunk_file = os.path.join(state['state_dir'], "chunks", f"chunk_{chunk_index}.txt")
-        if not os.path.exists(chunk_file):
+        chunk = ImportChunk.query.filter_by(file_id=import_file.id, index=chunk_index).first()
+        if not chunk:
             return None
             
-        with open(chunk_file, 'r', encoding='utf-8') as f:
-            return f.read()
+        return chunk.content
     
     @staticmethod
     def update_state(file_key, updates):
-        """Update processing state for a file"""
-        state = ProcessingState.get_state(file_key)
-        if not state:
+        """Update processing state for a file in the database"""
+        import_file = ImportFile.query.filter_by(file_key=file_key).first()
+        if not import_file:
             return False
             
-        # Handle flashcards separately to prevent session bloat
-        if 'all_flashcards' in updates:
-            flashcards = updates.pop('all_flashcards')
-            # Save flashcards to file
-            flashcards_file = os.path.join(state['state_dir'], "flashcards.pkl")
-            with open(flashcards_file, 'wb') as f:
-                pickle.dump(flashcards, f)
-                
-        # Update other state properties
+        # Update import file record
         for key, value in updates.items():
-            state[key] = value
-            
-        state['last_updated'] = time.time()
-        
-        # Update state in all storage locations
-        if has_request_context():
-            try:
-                session[file_key] = state
-            except RuntimeError:
-                ProcessingState._memory_states[file_key] = state
-        else:
-            ProcessingState._memory_states[file_key] = state
-            
-        # Always save to disk for persistence
-        try:
-            state_file = os.path.join(state['state_dir'], "state.pkl")
-            with open(state_file, 'wb') as f:
-                pickle.dump(state, f)
-        except:
-            pass
+            if key == 'processed_chunks':
+                # Skip this, it's tracked at the chunk level
+                continue
+            elif key == 'saved_chunks':
+                # Skip this, it's tracked at the chunk level
+                continue
+            elif key == 'current_index':
+                import_file.current_index = value
+            elif key == 'is_complete':
+                import_file.is_complete = value
+            elif key == 'deck_id':
+                import_file.deck_id = value
+            elif key == 'total_saved_cards':
+                import_file.total_saved_cards = value
+                
+        # Commit changes
+        db.session.commit()
             
         return True
     
     @staticmethod
     def get_all_flashcards(file_key):
-        """Get all flashcards for a file"""
-        state = ProcessingState.get_state(file_key)
-        if not state:
+        """Get all flashcards for a file in simple format"""
+        import_file = ImportFile.query.filter_by(file_key=file_key).first()
+        if not import_file:
             return []
             
-        flashcards_file = os.path.join(state['state_dir'], "flashcards.pkl")
-        if os.path.exists(flashcards_file):
-            with open(flashcards_file, 'rb') as f:
-                return pickle.load(f)
-        return []
+        # Get all flashcards for this file and format them as strings
+        flashcards = ImportFlashcard.query.filter_by(file_id=import_file.id).all()
+        
+        # Format as "Q: question | A: answer"
+        formatted_cards = [f"Q: {card.question} | A: {card.correct_answer}" for card in flashcards]
+            
+        return formatted_cards
     
     @staticmethod
     def append_flashcards(file_key, new_flashcards):
-        """Append new flashcards to existing ones"""
-        state = ProcessingState.get_state(file_key)
-        if not state:
-            return False
-            
-        current = ProcessingState.get_all_flashcards(file_key)
-        updated = current + new_flashcards
-        
-        flashcards_file = os.path.join(state['state_dir'], "flashcards.pkl")
-        with open(flashcards_file, 'wb') as f:
-            pickle.dump(updated, f)
-        
-        return True
-    
-    @staticmethod
-    def append_mc_flashcards(file_key, new_mc_flashcards):
-        """Append multiple-choice flashcards to existing ones"""
-        state = ProcessingState.get_state(file_key)
-        if not state:
-            return False
-            
-        mc_file = os.path.join(state['state_dir'], "mc_flashcards.pkl")
-        
-        current = []
-        if os.path.exists(mc_file):
-            with open(mc_file, 'rb') as f:
-                current = pickle.load(f)
-                
-        updated = current + new_mc_flashcards
-        
-        with open(mc_file, 'wb') as f:
-            pickle.dump(updated, f)
-        
+        """
+        Append text-formatted flashcards - this is kept for backward compatibility
+        but doesn't actually store the data since we now use the MC format
+        """
+        # This is now a no-op since we use the MC format exclusively
         return True
     
     @staticmethod
     def get_mc_flashcards(file_key):
         """Get all multiple-choice flashcards for a file"""
-        state = ProcessingState.get_state(file_key)
-        if not state:
+        import_file = ImportFile.query.filter_by(file_key=file_key).first()
+        if not import_file:
             return []
             
-        mc_file = os.path.join(state['state_dir'], "mc_flashcards.pkl")
-        if os.path.exists(mc_file):
-            with open(mc_file, 'rb') as f:
-                return pickle.load(f)
-        return []
+        # Get all flashcards for this file
+        flashcards = ImportFlashcard.query.filter_by(file_id=import_file.id).all()
+        
+        # Format in the MC format
+        mc_cards = []
+        for card in flashcards:
+            mc_cards.append({
+                'q': card.question,
+                'ca': card.correct_answer,
+                'ia': card.incorrect_answers or []
+            })
+            
+        return mc_cards
+    
+    @staticmethod
+    def append_mc_flashcards(file_key, new_mc_flashcards):
+        """Append multiple-choice flashcards to the database"""
+        import_file = ImportFile.query.filter_by(file_key=file_key).first()
+        if not import_file:
+            return False
+            
+        # Get the current chunk being processed
+        chunk = ImportChunk.query.filter_by(
+            file_id=import_file.id, 
+            index=import_file.current_index
+        ).first()
+        
+        if not chunk:
+            return False
+            
+        # Add each flashcard to the database
+        for card_data in new_mc_flashcards:
+            flashcard = ImportFlashcard(
+                file_id=import_file.id,
+                chunk_id=chunk.id,
+                question=card_data.get('q', ''),
+                correct_answer=card_data.get('ca', ''),
+                incorrect_answers=card_data.get('ia', []),
+                is_saved=False
+            )
+            db.session.add(flashcard)
+            
+        # Commit changes
+        db.session.commit()
+        
+        return True
     
     @staticmethod
     def get_saved_flashcards_count(file_key):
         """Get count of flashcards already saved to the database"""
-        state = ProcessingState.get_state(file_key)
-        if not state:
+        import_file = ImportFile.query.filter_by(file_key=file_key).first()
+        if not import_file:
             return 0
         
-        return state.get('total_saved_cards', 0)
+        return import_file.total_saved_cards
     
     @staticmethod
     def mark_chunk_saved(file_key, chunk_index, cards_saved):
         """Mark a chunk as saved to the database"""
-        state = ProcessingState.get_state(file_key)
-        if not state:
+        import_file = ImportFile.query.filter_by(file_key=file_key).first()
+        if not import_file:
             return False
+            
+        # Get the chunk and mark it as saved
+        chunk = ImportChunk.query.filter_by(file_id=import_file.id, index=chunk_index).first()
+        if not chunk:
+            return False
+            
+        chunk.is_saved = True
+        chunk.cards_saved = cards_saved
         
-        if 'saved_chunks' not in state:
-            state['saved_chunks'] = []
-            
-        if chunk_index not in state['saved_chunks']:
-            state['saved_chunks'].append(chunk_index)
-            
-        if 'total_saved_cards' not in state:
-            state['total_saved_cards'] = 0
-            
-        state['total_saved_cards'] += cards_saved
+        # Update the total saved cards count
+        import_file.total_saved_cards += cards_saved
         
-        return ProcessingState.update_state(file_key, state)
+        # Commit changes
+        db.session.commit()
+        
+        return True
     
     @staticmethod
     def cleanup_old_states(max_age=3600):  # 1 hour
         """Remove old processing states"""
-        now = time.time()
+        from datetime import datetime, timedelta
         
-        # Clean up memory states
-        keys_to_remove = []
-        for key, state in ProcessingState._memory_states.items():
-            if now - state.get('last_updated', 0) > max_age:
-                keys_to_remove.append(key)
-                
-        for key in keys_to_remove:
-            if key in ProcessingState._memory_states:
-                del ProcessingState._memory_states[key]
+        cutoff_time = datetime.utcnow() - timedelta(seconds=max_age)
         
-        # Clean up Flask session if available
-        if has_request_context():
-            try:
-                session_keys = list(session.keys())
-                for key in session_keys:
-                    if isinstance(session.get(key), dict) and 'last_updated' in session[key]:
-                        if now - session[key]['last_updated'] > max_age:
-                            del session[key]
-            except RuntimeError:
-                pass
-                
-        # Clean up disk storage
-        if not os.path.exists(Config.UPLOAD_FOLDER):
-            return
+        # Find old import files
+        old_files = ImportFile.query.filter(ImportFile.updated_at < cutoff_time).all()
+        
+        # Delete them
+        for file in old_files:
+            db.session.delete(file)  # This should cascade to chunks and flashcards
             
-        for file_key in os.listdir(Config.UPLOAD_FOLDER):
-            state_dir = os.path.join(Config.UPLOAD_FOLDER, file_key)
-            if not os.path.isdir(state_dir):
-                continue
-                
-            state_file = os.path.join(state_dir, "state.pkl")
-            if not os.path.exists(state_file):
-                # No state file, remove directory
-                shutil.rmtree(state_dir, ignore_errors=True)
-                continue
-                
-            try:
-                with open(state_file, 'rb') as f:
-                    state = pickle.load(f)
-                    
-                if now - state.get('last_updated', 0) > max_age:
-                    # Too old, remove directory
-                    shutil.rmtree(state_dir, ignore_errors=True)
-            except:
-                # Can't read state, remove directory
-                shutil.rmtree(state_dir, ignore_errors=True)
+        # Commit changes
+        db.session.commit()
