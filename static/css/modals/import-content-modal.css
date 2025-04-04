@@ -235,3 +235,25 @@
     height: 0.8rem;
     border-width: 0.1em;
 }
+
+/* Cards saved counter styles */
+.badge.bg-success {
+    font-size: 0.85rem;
+    font-weight: normal;
+    padding: 0.35rem 0.65rem;
+}
+
+.badge.bg-success strong {
+    font-weight: bold;
+}
+
+/* Add a subtle animation when count changes */
+@keyframes badge-pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+.badge-pulse {
+    animation: badge-pulse 0.3s ease-in-out;
+}

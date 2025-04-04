@@ -334,6 +334,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 statusMessage = `Processing file... (${data.chunk_index + 1}/${data.total_chunks} chunks)`;
             }
             
+            // Improved styling for the cards saved counter
             processingStatus.innerHTML = `
                 <div class="d-flex align-items-center">
                     <div class="chunk-spinner me-2">
@@ -341,7 +342,15 @@ document.addEventListener('DOMContentLoaded', function() {
                             <span class="visually-hidden">Processing...</span>
                         </div>
                     </div>
-                    <span>${statusMessage}<span class="text-success ms-2">${totalSavedCards} cards saved</span></span>
+                    <div class="flex-grow-1">
+                        <span>${statusMessage}</span>
+                    </div>
+                    <div class="ms-2">
+                        <span class="badge bg-success rounded-pill d-flex align-items-center">
+                            <i class="bi bi-card-list me-1"></i>
+                            <strong>${totalSavedCards}</strong>&nbsp;cards saved
+                        </span>
+                    </div>
                 </div>
             `;
             
@@ -361,7 +370,11 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div>
                                         <i class="bi bi-check-circle me-2"></i>
-                                        <strong>Generation Complete!</strong> Saved ${totalSavedCards} flashcards successfully!
+                                        <strong>Generation Complete!</strong> 
+                                        <span class="badge bg-success rounded-pill ms-2 px-3 py-2">
+                                            <i class="bi bi-card-list me-1"></i>
+                                            <strong>${totalSavedCards}</strong> flashcards saved
+                                        </span>
                                     </div>
                                     <button class="btn btn-sm btn-primary" id="viewGeneratedCardsBtn">
                                         <i class="bi bi-eye me-1"></i> View Cards
