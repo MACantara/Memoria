@@ -280,20 +280,68 @@ document.addEventListener('DOMContentLoaded', function() {
             
             fileKey = data.file_key;
             
-            // Show "preparing to process" message with animated spinner
-            processingStatus.innerHTML = `
-                <div class="d-flex align-items-center">
-                    <div class="chunk-spinner me-2">
-                        <div class="spinner-grow spinner-grow-sm text-primary" role="status">
-                            <span class="visually-hidden">Preparing...</span>
+            // Start background processing instead of doing it in the browser
+            return fetch('/import/start-background-import', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    file_key: fileKey,
+                    deck_id: importDeckSelect.value
+                })
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Failed to start background processing');
+                return response.json();
+            })
+            .then(result => {
+                if (result.error) throw new Error(result.error);
+                
+                // Show message that processing has started in the background
+                processingStatus.innerHTML = `
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <strong>Processing Started!</strong> Your import is now running in the background.
                         </div>
                     </div>
-                    <span>Preparing to process file ${data.filename}<span class="status-text"></span></span>
-                </div>
-            `;
-            
-            // Start processing chunks
-            return processNextChunk(fileKey);
+                `;
+                
+                // Update progress bar to show indeterminate state
+                processingProgress.style.width = '100%';
+                processingProgress.textContent = 'Running in background';
+                
+                // Set refresh flag so the page refreshes when modal is closed
+                shouldRefreshOnClose = true;
+                
+                // Show status info
+                processingInfo.innerHTML = `
+                    <div class="alert alert-info">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <i class="bi bi-arrow-repeat me-2"></i>
+                                <strong>Import Started!</strong> This process will continue in the background.
+                                You can close this modal and continue using the app.
+                            </div>
+                            <button class="btn btn-sm btn-primary" onclick="window.location.href='/imports'">
+                                <i class="bi bi-eye me-1"></i> View All Imports
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                // Show view results button
+                if (viewResultsBtn) {
+                    viewResultsBtn.classList.remove('d-none');
+                    viewResultsBtn.innerHTML = '<i class="bi bi-arrow-left me-1"></i> Close & View Dashboard';
+                    
+                    // Navigate to imports dashboard
+                    viewResultsBtn.onclick = () => {
+                        window.location.href = '/imports';
+                    };
+                }
+            });
         })
         .catch(error => {
             // Remove animation classes on error
