@@ -9,76 +9,17 @@ import { loadDeckList, populateDeckDropdown, setupDeckSearch } from "../deck/dec
 // Bulk move flashcards modal handling
 class BulkFlashcardMover {
     constructor() {
-        this.modal = null;
+        this.modal = document.getElementById('bulkMoveFlashcardsModal');
         this.selectedIds = [];
-        this.destDeckSelect = null;
-        this.moveButton = null;
-        this.statusElement = null;
+        this.destDeckSelect = document.getElementById('bulkDestDeckSelect');
+        this.moveButton = document.getElementById('bulkMoveButton');
+        this.statusElement = document.getElementById('bulkMoveStatus');
         this.sourceDeckId = null;
         
         this.initModal();
     }
     
     initModal() {
-        // Check if modal already exists
-        let modal = document.getElementById('bulkMoveFlashcardsModal');
-        
-        if (!modal) {
-            // Create modal
-            modal = document.createElement('div');
-            modal.id = 'bulkMoveFlashcardsModal';
-            modal.className = 'modal fade';
-            modal.setAttribute('tabindex', '-1');
-            modal.setAttribute('aria-hidden', 'true');
-            
-            // Set modal content HTML with search functionality
-            modal.innerHTML = `
-                <div class="modal-dialog">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title">Move Flashcards</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </div>
-                        <div class="modal-body">
-                            <p>Move <span class="selected-count fw-bold">0</span> flashcards to:</p>
-                            
-                            <div class="mb-3">
-                                <label for="bulkDestDeckSelect" class="form-label">Destination Deck</label>
-                                <div class="input-group mb-2">
-                                    <span class="input-group-text"><i class="bi bi-search"></i></span>
-                                    <input type="text" class="form-control" id="bulkDestDeckSearchInput" 
-                                           placeholder="Search decks...">
-                                </div>
-                                <select class="form-select" id="bulkDestDeckSelect">
-                                    <option value="" disabled selected>Select destination deck...</option>
-                                </select>
-                            </div>
-                            
-                            <div id="bulkMoveStatus"></div>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                            <button type="button" class="btn btn-primary" id="bulkMoveButton">
-                                <span class="normal-state">Move Flashcards</span>
-                                <span class="loading-state d-none">
-                                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                                    Moving...
-                                </span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            // Add to body
-            document.body.appendChild(modal);
-        }
-        
-        this.modal = modal;
-        this.destDeckSelect = document.getElementById('bulkDestDeckSelect');
-        this.moveButton = document.getElementById('bulkMoveButton');
-        this.statusElement = document.getElementById('bulkMoveStatus');
-        
         // Set up event handlers
         if (this.moveButton) {
             this.moveButton.addEventListener('click', () => this.performMove());
@@ -226,91 +167,16 @@ class BulkFlashcardMover {
 // Bulk move decks modal handling
 class BulkDeckMover {
     constructor() {
-        this.modal = null;
+        this.modal = document.getElementById('bulkMoveDecksModal');
         this.selectedIds = [];
-        this.destSelect = null;
-        this.moveButton = null;
-        this.statusElement = null;
+        this.destSelect = document.getElementById('bulkParentDeckSelect');
+        this.moveButton = document.getElementById('bulkMoveDeckButton');
+        this.statusElement = document.getElementById('bulkMoveDeckStatus');
         
         this.initModal();
     }
     
     initModal() {
-        // Check if modal already exists
-        let modal = document.getElementById('bulkMoveDecksModal');
-        
-        if (!modal) {
-            // Create modal
-            modal = document.createElement('div');
-            modal.id = 'bulkMoveDecksModal';
-            modal.className = 'modal fade';
-            modal.setAttribute('tabindex', '-1');
-            modal.setAttribute('aria-hidden', 'true');
-            
-            // Set modal content HTML with search functionality
-            modal.innerHTML = `
-                <div class="modal-dialog">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title">Move Decks</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </div>
-                        <div class="modal-body">
-                            <p>Move <span class="selected-count fw-bold">0</span> decks to:</p>
-                            
-                            <div class="mb-3">
-                                <div class="form-check mb-3">
-                                    <input class="form-check-input" type="radio" name="bulkDestDeck" id="bulkRootDeck" value="" checked>
-                                    <label class="form-check-label" for="bulkRootDeck">
-                                        <i class="bi bi-house"></i> Root Level (No Parent)
-                                    </label>
-                                </div>
-                                
-                                <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="bulkDestDeck" id="bulkSubdeckOption" value="subdeck">
-                                    <label class="form-check-label" for="bulkSubdeckOption">
-                                        <i class="bi bi-folder-symlink"></i> Move as Sub-decks
-                                    </label>
-                                </div>
-                                
-                                <div id="bulkParentDeckSelectContainer" class="mt-3 d-none">
-                                    <label for="bulkParentDeckSelect" class="form-label">Choose a parent deck:</label>
-                                    <div class="input-group mb-2">
-                                        <span class="input-group-text"><i class="bi bi-search"></i></span>
-                                        <input type="text" class="form-control" id="bulkParentDeckSearchInput" 
-                                               placeholder="Search decks...">
-                                    </div>
-                                    <select class="form-select" id="bulkParentDeckSelect" disabled>
-                                        <option value="" disabled selected>Select a parent deck...</option>
-                                    </select>
-                                </div>
-                            </div>
-                            
-                            <div id="bulkMoveDeckStatus"></div>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                            <button type="button" class="btn btn-primary" id="bulkMoveDeckButton">
-                                <span class="normal-state">Move Decks</span>
-                                <span class="loading-state d-none">
-                                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                                    Moving...
-                                </span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            // Add to body
-            document.body.appendChild(modal);
-        }
-        
-        this.modal = modal;
-        this.destSelect = document.getElementById('bulkParentDeckSelect');
-        this.moveButton = document.getElementById('bulkMoveDeckButton');
-        this.statusElement = document.getElementById('bulkMoveDeckStatus');
-        
         // Set up event handlers
         document.querySelectorAll('input[name="bulkDestDeck"]').forEach(radio => {
             radio.addEventListener('change', () => {
