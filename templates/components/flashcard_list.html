@@ -1,5 +1,27 @@
 <div class="flashcards-container mt-4">
     {% if flashcards %}
+    <!-- Bulk Actions Bar -->
+    <div class="bulk-action-bar" id="flashcardBulkActionBar">
+      <div class="select-all-container">
+        <input type="checkbox" class="form-check-input" id="selectAllFlashcards">
+        <label for="selectAllFlashcards">Select All</label>
+      </div>
+      <div class="selection-info">
+        <span><span id="selectedFlashcardCount">0</span> flashcards selected</span>
+      </div>
+      <div class="bulk-actions">
+        <button type="button" class="bulk-action-btn bulk-action-move">
+          <i class="bi bi-arrows-move"></i> Move
+        </button>
+        <button type="button" class="bulk-action-btn bulk-action-delete">
+          <i class="bi bi-trash"></i> Delete
+        </button>
+        <button type="button" class="bulk-action-btn bulk-action-cancel">
+          <i class="bi bi-x-lg"></i> Cancel
+        </button>
+      </div>
+    </div>
+
     <!-- Display total flashcards count prominently at the top -->
     <div class="d-flex justify-content-between align-items-center mb-3">
         <div class="deck-stats">
