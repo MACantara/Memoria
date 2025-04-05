@@ -61,8 +61,8 @@
     <!-- Flashcards List -->
     <div class="row g-3" id="flashcardsContainer">
         {% for card in flashcards %}
-        <div class="col-md-6 col-lg-4">
-            <div class="card h-100 shadow-sm {% if card.state == 2 %}card-mastered{% elif card.state == 3 %}card-forgotten{% endif %} selectable-item" 
+        <div class="col-md-6 col-lg-4 d-flex">
+            <div class="card w-100 shadow-sm {% if card.state == 2 %}card-mastered{% elif card.state == 3 %}card-forgotten{% endif %} selectable-item" 
                  data-id="{{ card.flashcard_id }}" 
                  data-flashcard-id="{{ card.flashcard_id }}"
                  data-state="{{ card.state }}">
@@ -116,12 +116,12 @@
                         </ul>
                     </div>
                     
-                    <!-- Card content -->
-                    <div class="flashcard-content">
+                    <!-- Card content with flex-grow to fill space -->
+                    <div class="flashcard-content flex-grow-1 d-flex flex-column">
                         <!-- Question -->
                         <h3 class="h5 card-title mb-3">
                             <span class="small text-muted">Question</span><br>
-                            {{ card.question }}
+                            <div class="question-content">{{ card.question }}</div>
                         </h3>
                         
                         <!-- Answer -->
@@ -132,20 +132,23 @@
                             </div>
                         </div>
                         
-                        <!-- Incorrect Answers -->
-                        {% if card.incorrect_answers and card.incorrect_answers|length > 0 %}
-                        <div class="mt-2">
+                        <!-- Incorrect Answers - with flex-grow to push footer to bottom -->
+                        <div class="mt-2 {% if not card.incorrect_answers or card.incorrect_answers|length == 0 %}flex-grow-1{% endif %}">
+                            {% if card.incorrect_answers and card.incorrect_answers|length > 0 %}
                             <span class="small text-muted">Incorrect Answers</span>
-                            <ul class="list-group mt-1">
+                            <ul class="list-group mt-1 incorrect-answers-list">
                                 {% for incorrect in card.incorrect_answers %}
                                 <li class="list-group-item py-1 px-2 bg-light-subtle border-0 mb-1 rounded">{{ incorrect }}</li>
                                 {% endfor %}
                             </ul>
+                            {% endif %}
                         </div>
-                        {% endif %}
+                        
+                        <!-- Spacer to push footer to bottom when needed -->
+                        <div class="flex-grow-1"></div>
                     </div>
                     
-                    <!-- Card footer with state and review history - displayed for all cards -->
+                    <!-- Card footer always at the bottom -->
                     <div class="card-footer bg-transparent p-0 mt-3">
                         <div class="d-flex justify-content-between text-muted small">
                             <span>
@@ -270,6 +273,56 @@
 </script>
 
 <script src="{{ url_for('static', filename='modules/bulk/bulk-move-handler.js') }}" type="module"></script>
+
+<style>
+/* Additional styles for equal height cards */
+.flashcards-container .card {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.flashcards-container .card-body {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.flashcards-container .question-content {
+    min-height: 3em;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+}
+
+.flashcards-container .correct-answer {
+    min-height: 3em;
+    max-height: 6em;
+    overflow-y: auto;
+}
+
+.flashcards-container .incorrect-answers-list {
+    max-height: 7em;
+    overflow-y: auto;
+}
+
+/* Equal height grid items */
+.flashcards-container .row {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.flashcards-container .col-md-6,
+.flashcards-container .col-lg-4 {
+    display: flex;
+    margin-bottom: 1rem;
+}
+
+.flashcards-container .card-footer {
+    margin-top: auto;
+}
+</style>
 
 {% include 'components/add_flashcard_modal.html' %}
 {% include 'components/edit_flashcard_modal.html' %}
