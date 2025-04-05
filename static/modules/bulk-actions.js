@@ -261,11 +261,63 @@ class BulkActionManager {
         const ids = this.getSelectedIds();
         if (ids.length === 0) return;
         
-        const entityName = this.options.entityType === 'deck' ? 'deck' : 'flashcard';
-        const confirmMessage = `Are you sure you want to delete ${ids.length} ${entityName}${ids.length !== 1 ? 's' : ''}? This action cannot be undone.`;
-        
-        if (confirm(confirmMessage)) {
-            this.executeBulkDelete(ids);
+        if (this.options.entityType === 'deck') {
+            // Use custom modal for decks
+            const modal = document.getElementById('bulkDeleteDecksModal');
+            if (modal) {
+                // Update the count in the modal
+                const countElement = modal.querySelector('#bulkDeleteDecksCount');
+                if (countElement) {
+                    countElement.textContent = ids.length;
+                }
+                
+                // Set up the confirm button handler
+                const confirmBtn = modal.querySelector('#confirmBulkDeleteDecksBtn');
+                if (confirmBtn) {
+                    // Remove any existing listeners to prevent duplicates
+                    const newBtn = confirmBtn.cloneNode(true);
+                    confirmBtn.parentNode.replaceChild(newBtn, confirmBtn);
+                    
+                    newBtn.addEventListener('click', () => {
+                        // Update button state
+                        newBtn.disabled = true;
+                        const normalState = newBtn.querySelector('.normal-state');
+                        const loadingState = newBtn.querySelector('.loading-state');
+                        
+                        if (normalState) normalState.classList.add('d-none');
+                        if (loadingState) loadingState.classList.remove('d-none');
+                        
+                        // Execute the deletion
+                        this.executeBulkDelete(ids);
+                    });
+                }
+                
+                // Reset status
+                const statusElement = modal.querySelector('#bulkDeleteDecksStatus');
+                if (statusElement) {
+                    statusElement.innerHTML = '';
+                }
+                
+                // Show the modal
+                const bsModal = new bootstrap.Modal(modal);
+                bsModal.show();
+            } else {
+                // Fallback to confirm if modal not found
+                const entityName = 'deck';
+                const confirmMessage = `Are you sure you want to delete ${ids.length} ${entityName}${ids.length !== 1 ? 's' : ''}? This action cannot be undone.`;
+                
+                if (confirm(confirmMessage)) {
+                    this.executeBulkDelete(ids);
+                }
+            }
+        } else {
+            // For flashcards, use the standard confirmation for now
+            const entityName = 'flashcard';
+            const confirmMessage = `Are you sure you want to delete ${ids.length} ${entityName}${ids.length !== 1 ? 's' : ''}? This action cannot be undone.`;
+            
+            if (confirm(confirmMessage)) {
+                this.executeBulkDelete(ids);
+            }
         }
     }
     

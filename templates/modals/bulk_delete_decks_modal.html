@@ -1,0 +1,37 @@
+<div class="modal fade" id="bulkDeleteDecksModal" tabindex="-1" aria-labelledby="bulkDeleteDecksModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="bulkDeleteDecksModalLabel">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    Delete Multiple Decks
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2">
+                    You are about to delete <span id="bulkDeleteDecksCount" class="fw-bold">0</span> decks.
+                </p>
+                
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    <strong>Warning:</strong> This action cannot be undone. All flashcards within these decks will be permanently deleted.
+                </div>
+                
+                <div id="bulkDeleteDecksStatus"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmBulkDeleteDecksBtn">
+                    <span class="normal-state">
+                        <i class="bi bi-trash me-1"></i> Delete Decks
+                    </span>
+                    <span class="loading-state d-none">
+                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                        Deleting...
+                    </span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
