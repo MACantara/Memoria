@@ -1,6 +1,10 @@
 /**
  * Handle bulk move operations for flashcards and decks
+ * Leverages existing deck operations functionality
  */
+
+// Import the functions from deck-operations.js
+import { loadDeckList, populateDeckDropdown, setupDeckSearch } from "../deck/deck-operations.js";
 
 // Bulk move flashcards modal handling
 class BulkFlashcardMover {
@@ -27,7 +31,7 @@ class BulkFlashcardMover {
             modal.setAttribute('tabindex', '-1');
             modal.setAttribute('aria-hidden', 'true');
             
-            // Set modal content HTML
+            // Set modal content HTML with search functionality
             modal.innerHTML = `
                 <div class="modal-dialog">
                     <div class="modal-content">
@@ -39,7 +43,12 @@ class BulkFlashcardMover {
                             <p>Move <span class="selected-count fw-bold">0</span> flashcards to:</p>
                             
                             <div class="mb-3">
-                                <label for="destDeckSelect" class="form-label">Destination Deck</label>
+                                <label for="bulkDestDeckSelect" class="form-label">Destination Deck</label>
+                                <div class="input-group mb-2">
+                                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                    <input type="text" class="form-control" id="bulkDestDeckSearchInput" 
+                                           placeholder="Search decks...">
+                                </div>
                                 <select class="form-select" id="bulkDestDeckSelect">
                                     <option value="" disabled selected>Select destination deck...</option>
                                 </select>
@@ -74,6 +83,12 @@ class BulkFlashcardMover {
         if (this.moveButton) {
             this.moveButton.addEventListener('click', () => this.performMove());
         }
+        
+        // Set up search functionality
+        const searchInput = document.getElementById('bulkDestDeckSearchInput');
+        if (searchInput && this.destDeckSelect) {
+            setupDeckSearch(searchInput, this.destDeckSelect);
+        }
     }
     
     async loadDecks(excludeDeckId = null) {
@@ -81,21 +96,18 @@ class BulkFlashcardMover {
         this.sourceDeckId = excludeDeckId;
         
         try {
-            // Updated API path to include /deck prefix
-            const response = await fetch('/deck/api/decks/list');
-            const decks = await response.json();
+            // Use the existing loadDeckList function from deck-operations.js
+            const decks = await loadDeckList();
             
             // Clear existing options
             this.destDeckSelect.innerHTML = '<option value="" disabled selected>Select destination deck...</option>';
             
-            // Add options for each deck, excluding the current deck
-            decks.forEach(deck => {
-                if (deck.id != excludeDeckId) {
-                    const option = document.createElement('option');
-                    option.value = deck.id;
-                    option.textContent = deck.name;
-                    this.destDeckSelect.appendChild(option);
-                }
+            // Use the shared populateDeckDropdown function
+            populateDeckDropdown(this.destDeckSelect, decks, {
+                excludeDeckIds: [excludeDeckId], // Exclude the source deck
+                flatList: true, // Use flat list instead of hierarchical for flashcard moves
+                valueProperty: 'id',
+                textProperty: 'name'
             });
         } catch (error) {
             console.error('Error loading decks:', error);
@@ -158,7 +170,7 @@ class BulkFlashcardMover {
         if (loadingState) loadingState.classList.remove('d-none');
         
         try {
-            // Updated API path to include /deck prefix
+            // Call API to move flashcards
             const response = await fetch('/deck/api/flashcards/bulk-move', {
                 method: 'POST',
                 headers: {
@@ -235,7 +247,7 @@ class BulkDeckMover {
             modal.setAttribute('tabindex', '-1');
             modal.setAttribute('aria-hidden', 'true');
             
-            // Set modal content HTML
+            // Set modal content HTML with search functionality
             modal.innerHTML = `
                 <div class="modal-dialog">
                     <div class="modal-content">
@@ -263,6 +275,11 @@ class BulkDeckMover {
                                 
                                 <div id="bulkParentDeckSelectContainer" class="mt-3 d-none">
                                     <label for="bulkParentDeckSelect" class="form-label">Choose a parent deck:</label>
+                                    <div class="input-group mb-2">
+                                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                        <input type="text" class="form-control" id="bulkParentDeckSearchInput" 
+                                               placeholder="Search decks...">
+                                    </div>
                                     <select class="form-select" id="bulkParentDeckSelect" disabled>
                                         <option value="" disabled selected>Select a parent deck...</option>
                                     </select>
@@ -311,38 +328,30 @@ class BulkDeckMover {
         if (this.moveButton) {
             this.moveButton.addEventListener('click', () => this.performMove());
         }
+        
+        // Set up search functionality
+        const searchInput = document.getElementById('bulkParentDeckSearchInput');
+        if (searchInput && this.destSelect) {
+            setupDeckSearch(searchInput, this.destSelect);
+        }
     }
     
     async loadDecks() {
         try {
-            // Updated API paths to include /deck prefix for both primary and fallback endpoints
-            let response = await fetch('/deck/api/decks/tree');
-            
-            // If tree endpoint fails, fall back to the list endpoint
-            if (!response.ok) {
-                console.warn(`Tree endpoint returned ${response.status}, falling back to list endpoint`);
-                // Use the correct path with /deck prefix
-                response = await fetch('/deck/api/decks/list');
-                
-                if (!response.ok) {
-                    throw new Error(`API endpoints failed: ${response.status} ${response.statusText}`);
-                }
-                
-                // Convert flat list to tree structure for display
-                const flatDecks = await response.json();
-                
-                // Update UI with the decks
-                this.populateDecksFromFlatList(flatDecks);
-                return;
-            }
-            
-            const decks = await response.json();
+            // Use the existing loadDeckList function from deck-operations.js
+            const decks = await loadDeckList({ hierarchical: true });
             
             // Clear existing options
             this.destSelect.innerHTML = '<option value="" disabled selected>Select parent deck...</option>';
             
-            // Process decks recursively
-            this.populateDeckOptions(decks, 0, this.selectedIds);
+            // Use the shared populateDeckDropdown function
+            populateDeckDropdown(this.destSelect, decks, {
+                excludeDeckIds: this.selectedIds, // Exclude selected decks
+                hierarchical: true, // Use hierarchical format for deck moves
+                valueProperty: 'flashcard_deck_id',
+                textProperty: 'name',
+                childrenProperty: 'child_decks'
+            });
         } catch (error) {
             console.error('Error loading decks:', error);
             this.statusElement.innerHTML = `
@@ -362,80 +371,7 @@ class BulkDeckMover {
         }
     }
     
-    // New helper method to convert flat list to hierarchical structure
-    convertFlatToTree(flatDecks) {
-        // Create a map to quickly find decks by ID
-        const deckMap = new Map();
-        
-        // First pass: create deck objects without children
-        flatDecks.forEach(deck => {
-            deckMap.set(deck.id, {
-                flashcard_deck_id: deck.id,
-                name: deck.name,
-                description: deck.description || '',
-                child_decks: []
-            });
-        });
-        
-        // Second pass: build hierarchy by adding children
-        const rootDecks = [];
-        flatDecks.forEach(deck => {
-            const deckObj = deckMap.get(deck.id);
-            
-            if (deck.parent_id) {
-                // This is a child deck, add to parent's children
-                const parent = deckMap.get(deck.parent_id);
-                if (parent) {
-                    parent.child_decks.push(deckObj);
-                } else {
-                    // Parent not found, add to root level
-                    rootDecks.push(deckObj);
-                }
-            } else {
-                // This is a root deck
-                rootDecks.push(deckObj);
-            }
-        });
-        
-        return rootDecks;
-    }
-    
-    // New helper method for populating deck options from flat list
-    populateDecksFromFlatList(flatDecks) {
-        // Clear existing options
-        this.destSelect.innerHTML = '<option value="" disabled selected>Select parent deck...</option>';
-        
-        // First add root decks (no parent)
-        const rootDecks = flatDecks.filter(deck => !deck.parent_id && !this.selectedIds.includes(deck.id));
-        rootDecks.forEach(deck => {
-            const option = document.createElement('option');
-            option.value = deck.id;
-            option.textContent = deck.name;
-            this.destSelect.appendChild(option);
-            
-            // Then recursively add children with indentation
-            this.addChildrenToSelect(flatDecks, deck.id, 1);
-        });
-    }
-    
-    // Helper to recursively add children with proper indentation
-    addChildrenToSelect(allDecks, parentId, level) {
-        const children = allDecks.filter(deck => 
-            deck.parent_id === parentId && !this.selectedIds.includes(deck.id)
-        );
-        
-        children.forEach(deck => {
-            const option = document.createElement('option');
-            option.value = deck.id;
-            option.textContent = '  '.repeat(level) + '└ ' + deck.name;
-            this.destSelect.appendChild(option);
-            
-            // Add this deck's children
-            this.addChildrenToSelect(allDecks, deck.id, level + 1);
-        });
-    }
-    
-    // Add the missing populateDeckOptions method
+    // Helper function to populate the deck options with proper indentation
     populateDeckOptions(decks, level, excludedIds = []) {
         // Process each deck in the tree structure
         decks.forEach(deck => {
@@ -465,7 +401,7 @@ class BulkDeckMover {
         this.selectedIds = deckIds;
         
         // Load deck options, excluding selected decks
-        this.loadDecks(deckIds);
+        this.loadDecks();
         
         // Update UI
         const countElement = this.modal.querySelector('.selected-count');
@@ -531,7 +467,7 @@ class BulkDeckMover {
         if (loadingState) loadingState.classList.remove('d-none');
         
         try {
-            // Updated API path to include /deck prefix
+            // Call API to move decks
             const response = await fetch('/deck/api/decks/bulk-move', {
                 method: 'POST',
                 headers: {
