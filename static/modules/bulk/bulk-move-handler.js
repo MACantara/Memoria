@@ -1,10 +1,7 @@
 /**
  * Handle bulk move operations for flashcards and decks
- * Leverages existing deck operations functionality
+ * Self-contained module with no external dependencies
  */
-
-// Fix import to only include functions that actually exist in deck-operations.js
-import { loadDeckTree } from "../deck/deck-operations.js";
 
 // Define global functions at module scope so they can be exported and used elsewhere
 export function showBulkMoveFlashcardModal(flashcardIds, sourceDeckId) {
@@ -21,6 +18,135 @@ export function showBulkMoveDeckModal(deckIds) {
         initMovers();
     }
     deckMover.show(deckIds);
+}
+
+/**
+ * Fetch deck list from the API
+ * @param {Object} options - Options for fetching decks
+ * @returns {Promise<Array>} Array of deck objects
+ */
+async function loadDeckTree(options = {}) {
+    const defaults = {
+        hierarchical: false
+    };
+    
+    const config = { ...defaults, ...options };
+    
+    try {
+        // Choose the appropriate API endpoint based on hierarchical option
+        const endpoint = config.hierarchical 
+            ? '/deck/api/decks/tree'  // Hierarchical structure with parent-child relationships
+            : '/deck/api/list';       // Flat list of all decks
+            
+        const response = await fetch(endpoint);
+        
+        if (!response.ok) {
+            // If the endpoint fails, try the alternate endpoint
+            console.warn(`${endpoint} returned ${response.status}, falling back to alternate endpoint`);
+            const fallbackEndpoint = config.hierarchical 
+                ? '/deck/api/list'       // Fallback for tree
+                : '/deck/api/decks/tree'; // Fallback for list
+                
+            const fallbackResponse = await fetch(fallbackEndpoint);
+            
+            if (!fallbackResponse.ok) {
+                throw new Error(`API endpoints failed: ${fallbackResponse.status} ${fallbackResponse.statusText}`);
+            }
+            
+            const fallbackData = await fallbackResponse.json();
+            
+            // If we needed hierarchical but got flat, convert it
+            if (config.hierarchical && fallbackEndpoint === '/deck/api/list') {
+                return convertFlatToTree(fallbackData);
+            }
+            
+            // If we needed flat but got hierarchical, flatten it
+            if (!config.hierarchical && fallbackEndpoint === '/deck/api/decks/tree') {
+                return flattenTree(fallbackData);
+            }
+            
+            return fallbackData;
+        }
+        
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error loading decks:', error);
+        throw error;
+    }
+}
+
+/**
+ * Convert flat deck list to hierarchical tree
+ * @param {Array} flatDecks - Flat array of deck objects
+ * @returns {Array} Hierarchical tree of deck objects
+ */
+function convertFlatToTree(flatDecks) {
+    // Create a map to quickly find decks by ID
+    const deckMap = new Map();
+    const rootDecks = [];
+    
+    // First pass: Create deck objects and store in map
+    flatDecks.forEach(deck => {
+        const deckObj = {
+            flashcard_deck_id: deck.id,
+            name: deck.name,
+            description: deck.description || '',
+            parent_id: deck.parent_id,
+            child_decks: []
+        };
+        deckMap.set(deck.id, deckObj);
+    });
+    
+    // Second pass: Build hierarchy by adding children
+    flatDecks.forEach(deck => {
+        const deckObj = deckMap.get(deck.id);
+        
+        if (deck.parent_id) {
+            // Add to parent's children
+            const parent = deckMap.get(deck.parent_id);
+            if (parent) {
+                parent.child_decks.push(deckObj);
+            } else {
+                // Parent not found, add to root level
+                rootDecks.push(deckObj);
+            }
+        } else {
+            // No parent, add to root level
+            rootDecks.push(deckObj);
+        }
+    });
+    
+    return rootDecks;
+}
+
+/**
+ * Flatten hierarchical tree into a list
+ * @param {Array} tree - Hierarchical tree of deck objects
+ * @returns {Array} Flat array of deck objects
+ */
+function flattenTree(tree) {
+    const flatList = [];
+    
+    function traverse(deck) {
+        // Convert deck format if needed
+        const flatDeck = {
+            id: deck.flashcard_deck_id,
+            name: deck.name,
+            description: deck.description,
+            parent_id: deck.parent_deck_id
+        };
+        
+        flatList.push(flatDeck);
+        
+        // Traverse children if any
+        if (deck.child_decks && deck.child_decks.length > 0) {
+            deck.child_decks.forEach(traverse);
+        }
+    }
+    
+    tree.forEach(traverse);
+    return flatList;
 }
 
 /**
@@ -160,7 +286,7 @@ class BulkFlashcardMover {
         this.sourceDeckId = excludeDeckId;
         
         try {
-            // Use the existing loadDeckTree function from deck-operations.js
+            // Use our local loadDeckTree function
             const decks = await loadDeckTree();
             
             // Clear existing options
@@ -327,7 +453,7 @@ class BulkDeckMover {
     
     async loadDecks() {
         try {
-            // Use the existing loadDeckTree function from deck-operations.js
+            // Use our local loadDeckTree function
             const decks = await loadDeckTree({ hierarchical: true });
             
             // Clear existing options
