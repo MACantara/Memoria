@@ -78,6 +78,7 @@
         {% include 'modals/bulk_move_flashcards_modal.html' %}
         {% include 'modals/bulk_move_decks_modal.html' %}
         {% include 'modals/bulk_delete_decks_modal.html' %}
+        {% include 'modals/bulk_delete_flashcards_modal.html' %}
         
         <!-- Context-specific modals -->
         {% if request.path.startswith('/deck/') and request.path.split('/')[-1].isdigit() %}
