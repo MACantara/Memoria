@@ -1,0 +1,37 @@
+<div class="modal fade" id="bulkMoveFlashcardsModal" tabindex="-1" aria-labelledby="bulkMoveFlashcardsModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="bulkMoveFlashcardsModalLabel">Move Flashcards</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Move <span class="selected-count fw-bold">0</span> flashcards to:</p>
+                
+                <div class="mb-3">
+                    <label for="bulkDestDeckSelect" class="form-label">Destination Deck</label>
+                    <div class="input-group mb-2">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="text" class="form-control" id="bulkDestDeckSearchInput" 
+                               placeholder="Search decks...">
+                    </div>
+                    <select class="form-select" id="bulkDestDeckSelect">
+                        <option value="" disabled selected>Select destination deck...</option>
+                    </select>
+                </div>
+                
+                <div id="bulkMoveStatus"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="bulkMoveButton">
+                    <span class="normal-state">Move Flashcards</span>
+                    <span class="loading-state d-none">
+                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                        Moving...
+                    </span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
