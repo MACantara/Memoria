@@ -784,3 +784,116 @@ body.loading-next-segment form {
         padding: 0.5rem 0.75rem;
     }
 }
+
+/* Flashcard styling */
+
+/* Card state indicators */
+.card-status-indicator {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 24px 24px 0 0;
+    border-color: var(--bs-secondary) transparent transparent transparent;
+    z-index: 1;
+}
+
+.card-status-indicator.new {
+    border-color: var(--bs-secondary) transparent transparent transparent;
+}
+
+.card-status-indicator.learning {
+    border-color: var(--bs-info) transparent transparent transparent;
+}
+
+.card-status-indicator.mastered {
+    border-color: var(--bs-success) transparent transparent transparent;
+}
+
+.card-status-indicator.forgotten {
+    border-color: var(--bs-warning) transparent transparent transparent;
+}
+
+.card-status-indicator i {
+    position: absolute;
+    top: -20px;
+    left: 2px;
+    font-size: 12px;
+    color: white;
+}
+
+/* Card border styles based on state */
+.card-mastered {
+    border-color: var(--bs-success);
+}
+
+.card-forgotten {
+    border-color: var(--bs-warning);
+}
+
+/* Edit modal styling */
+#editFlashcardModal .modal-body, 
+#addFlashcardModal .modal-body {
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+/* Making the cards more visually appealing */
+.card {
+    overflow: hidden;
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Flashcard customizations for better readability */
+.correct-answer {
+    position: relative;
+    line-height: 1.5;
+}
+
+/* Animation for showing answers */
+.answer-section {
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.answer-section:not(.d-none) {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Flashcard grid responsiveness */
+@media (max-width: 768px) {
+    .col-md-6 {
+        padding: 0 0.5rem;
+    }
+}
+
+/* Checkbox positioning for bulk selection */
+.selectable-item {
+    position: relative;
+}
+
+.item-checkbox-wrapper {
+    position: absolute;
+    top: 0.5rem;
+    left: 0.5rem;
+    z-index: 10;
+}
+
+/* Support bulk selection mode UI */
+body.bulk-selection-mode .card:not(.selected) {
+    opacity: 0.7;
+}
+
+body.bulk-selection-mode .card.selected {
+    border: 2px solid var(--bs-primary);
+    box-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb), 0.25);
+}
