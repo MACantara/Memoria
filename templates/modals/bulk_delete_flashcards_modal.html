@@ -1,0 +1,37 @@
+<div class="modal fade" id="bulkDeleteFlashcardsModal" tabindex="-1" aria-labelledby="bulkDeleteFlashcardsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="bulkDeleteFlashcardsModalLabel">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    Delete Multiple Flashcards
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2">
+                    You are about to delete <span id="bulkDeleteFlashcardsCount" class="fw-bold">0</span> flashcards.
+                </p>
+                
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    <strong>Warning:</strong> This action cannot be undone. All selected flashcards will be permanently deleted.
+                </div>
+                
+                <div id="bulkDeleteFlashcardsStatus"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmBulkDeleteFlashcardsBtn">
+                    <span class="normal-state">
+                        <i class="bi bi-trash me-1"></i> Delete Flashcards
+                    </span>
+                    <span class="loading-state d-none">
+                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                        Deleting...
+                    </span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

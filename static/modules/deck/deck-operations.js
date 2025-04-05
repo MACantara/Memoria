@@ -256,7 +256,7 @@ function initializeMoveDeck() {
     }
 }
 
-async function loadDeckTree(currentDeckId) {
+export async function loadDeckTree(currentDeckId) {
     try {
         const response = await fetch('/deck/api/decks/tree');
         const decks = await response.json();

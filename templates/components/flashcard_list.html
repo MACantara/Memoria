@@ -1,5 +1,27 @@
 <div class="flashcards-container mt-4">
     {% if flashcards %}
+    <!-- Bulk Actions Bar -->
+    <div class="bulk-action-bar" id="flashcardBulkActionBar">
+      <div class="select-all-container">
+        <input type="checkbox" class="form-check-input" id="selectAllFlashcards">
+        <label for="selectAllFlashcards">Select All</label>
+      </div>
+      <div class="selection-info">
+        <span><span id="selectedFlashcardCount">0</span> flashcards selected</span>
+      </div>
+      <div class="bulk-actions">
+        <button type="button" class="bulk-action-btn bulk-action-move">
+          <i class="bi bi-arrows-move"></i> Move
+        </button>
+        <button type="button" class="bulk-action-btn bulk-action-delete">
+          <i class="bi bi-trash"></i> Delete
+        </button>
+        <button type="button" class="bulk-action-btn bulk-action-cancel">
+          <i class="bi bi-x-lg"></i> Cancel
+        </button>
+      </div>
+    </div>
+
     <!-- Display total flashcards count prominently at the top -->
     <div class="d-flex justify-content-between align-items-center mb-3">
         <div class="deck-stats">
@@ -35,86 +57,112 @@
             </div>
         </div>
     </div>
-    
-    <div class="row row-cols-1 row-cols-md-2 g-4">
-        {% for flashcard in flashcards %}
-        <div class="col">
-            <div class="card h-100 flashcard-item" data-flashcard-id="{{ flashcard.flashcard_id }}">
-                <div class="card-header bg-transparent d-flex justify-content-between align-items-center py-2">
-                    <span class="badge 
-                        {% if flashcard.get_state_name() == 'new' %}bg-secondary
-                        {% elif flashcard.get_state_name() == 'learning' %}bg-warning
-                        {% elif flashcard.get_state_name() == 'mastered' %}bg-success
-                        {% elif flashcard.get_state_name() == 'forgotten' %}bg-danger
-                        {% endif %}">
-                        {{ flashcard.get_state_name().capitalize() }}
-                    </span>
-                    
-                    <!-- Flashcard actions dropdown -->
-                    <div class="dropdown">
-                        <button class="btn btn-sm btn-link text-secondary p-0" type="button" data-bs-toggle="dropdown">
+
+    <!-- Flashcards List -->
+    <div class="row g-3" id="flashcardsContainer">
+        {% for card in flashcards %}
+        <div class="col-md-6 col-lg-4 d-flex">
+            <div class="card w-100 shadow-sm {% if card.state == 2 %}card-mastered{% elif card.state == 3 %}card-forgotten{% endif %} selectable-item" 
+                 data-id="{{ card.flashcard_id }}" 
+                 data-flashcard-id="{{ card.flashcard_id }}"
+                 data-state="{{ card.state }}">
+                
+                <!-- Add checkbox for selection -->
+                <div class="item-checkbox-wrapper">
+                    <input type="checkbox" class="form-check-input item-checkbox" 
+                           id="flashcardCheck{{ card.flashcard_id }}">
+                </div>
+                
+                <!-- Card Status Indicator -->
+                {% if card.state > 0 %}
+                <div class="card-status-indicator {{ card.get_state_name() }}">
+                    <i class="bi {% if card.state == 1 %}bi-hourglass-split{% elif card.state == 2 %}bi-check-circle-fill{% elif card.state == 3 %}bi-arrow-counterclockwise{% else %}bi-circle{% endif %}"></i>
+                </div>
+                {% endif %}
+                
+                <div class="card-body position-relative d-flex flex-column">
+                    <!-- Dropdown Menu for Actions -->
+                    <div class="dropdown position-absolute top-0 end-0 mt-2 me-2">
+                        <button class="btn btn-link text-secondary p-0" type="button" data-bs-toggle="dropdown">
                             <i class="bi bi-three-dots-vertical"></i>
                         </button>
-                        <ul class="dropdown-menu dropdown-menu-end">
+                        <ul class="dropdown-menu dropdown-menu-start">
                             <li>
                                 <button class="dropdown-item edit-flashcard-btn" 
-                                        data-flashcard-id="{{ flashcard.flashcard_id }}"
-                                        data-question="{{ flashcard.question }}"
-                                        data-correct-answer="{{ flashcard.correct_answer }}"
-                                        data-incorrect-answers="{{ flashcard.incorrect_answers|tojson|forceescape }}">
-                                    <i class="bi bi-pencil me-2"></i> Edit Flashcard
+                                        data-flashcard-id="{{ card.flashcard_id }}"
+                                        data-question="{{ card.question|e }}"
+                                        data-answer="{{ card.correct_answer|e }}"
+                                        data-incorrect-answers="{{ card.incorrect_answers|tojson|e }}">
+                                    <i class="bi bi-pencil me-2"></i>Edit
                                 </button>
                             </li>
                             <li>
-                                <button class="dropdown-item text-danger delete-flashcard-btn" 
-                                        data-flashcard-id="{{ flashcard.flashcard_id }}"
-                                        data-question="{{ flashcard.question }}">
-                                    <i class="bi bi-trash me-2"></i> Delete Flashcard
+                                <button class="dropdown-item text-danger delete-flashcard-btn"
+                                        data-flashcard-id="{{ card.flashcard_id }}"
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#deleteFlashcardModal">
+                                    <i class="bi bi-trash me-2"></i>Delete
                                 </button>
                             </li>
+                            {% if card.state > 0 %}
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <button class="dropdown-item reset-flashcard-btn" 
+                                        data-flashcard-id="{{ card.flashcard_id }}">
+                                    <i class="bi bi-arrow-repeat me-2"></i>Reset Progress
+                                </button>
+                            </li>
+                            {% endif %}
                         </ul>
                     </div>
-                </div>
-                <div class="card-body">
-                    <!-- Question -->
-                    <h5 class="card-title">{{ flashcard.question }}</h5>
-                    <hr>
                     
-                    <!-- Answers section -->
-                    <div class="answers-container">
-                        <!-- Correct Answer -->
-                        <div class="mb-3">
-                            <h6 class="text-success"><i class="bi bi-check-circle-fill me-1"></i> Correct Answer:</h6>
-                            <p class="ps-4">{{ flashcard.correct_answer }}</p>
+                    <!-- Card content with flex-grow to fill space -->
+                    <div class="flashcard-content flex-grow-1 d-flex flex-column">
+                        <!-- Question -->
+                        <h3 class="h5 card-title mb-3">
+                            <span class="small text-muted">Question</span><br>
+                            <div class="question-content">{{ card.question }}</div>
+                        </h3>
+                        
+                        <!-- Answer -->
+                        <div class="answer-section mb-3">
+                            <span class="small text-muted">Correct Answer</span><br>
+                            <div class="correct-answer bg-success-subtle p-2 rounded mt-1 border-start border-success border-2">
+                                {{ card.correct_answer }}
+                            </div>
                         </div>
                         
-                        <!-- Incorrect Answers -->
-                        <div>
-                            <h6 class="text-secondary"><i class="bi bi-x-circle-fill me-1"></i> Incorrect Answers:</h6>
-                            <ul class="ps-4">
-                                <!-- Handle both list and JSON string formats for incorrect_answers -->
-                                {% if flashcard.incorrect_answers is string %}
-                                    {% for answer in flashcard.incorrect_answers|fromjson %}
-                                        <li>{{ answer }}</li>
-                                    {% endfor %}
-                                {% else %}
-                                    {% for answer in flashcard.incorrect_answers %}
-                                        <li>{{ answer }}</li>
-                                    {% endfor %}
-                                {% endif %}
+                        <!-- Incorrect Answers - with flex-grow to push footer to bottom -->
+                        <div class="mt-2 {% if not card.incorrect_answers or card.incorrect_answers|length == 0 %}flex-grow-1{% endif %}">
+                            {% if card.incorrect_answers and card.incorrect_answers|length > 0 %}
+                            <span class="small text-muted">Incorrect Answers</span>
+                            <ul class="list-group mt-1 incorrect-answers-list">
+                                {% for incorrect in card.incorrect_answers %}
+                                <li class="list-group-item py-1 px-2 bg-light-subtle border-0 mb-1 rounded">{{ incorrect }}</li>
+                                {% endfor %}
                             </ul>
+                            {% endif %}
                         </div>
+                        
+                        <!-- Spacer to push footer to bottom when needed -->
+                        <div class="flex-grow-1"></div>
                     </div>
-                </div>
-                <div class="card-footer bg-transparent mt-3 p-0">
-                    <div class="row text-muted small">
-                        <div class="col-6">
-                            <i class="bi bi-clock"></i> Last Reviewed: 
-                            <span>{{ flashcard.last_reviewed.strftime('%Y-%m-%d') if flashcard.last_reviewed else 'Never' }}</span>
-                        </div>
-                        <div class="col-6 text-end">
-                            <i class="bi bi-calendar"></i> Due: 
-                            <span>{{ flashcard.due_date.strftime('%Y-%m-%d') if flashcard.due_date else 'Not scheduled' }}</span>
+                    
+                    <!-- Card footer always at the bottom -->
+                    <div class="card-footer bg-transparent p-0 mt-3">
+                        <div class="d-flex justify-content-between text-muted small">
+                            <span>
+                                <i class="bi bi-calendar-check me-1"></i>
+                                {% if card.last_reviewed %}
+                                    Last reviewed: {{ card.last_reviewed.strftime('%b %d, %Y') }}
+                                {% else %}
+                                    Not reviewed yet
+                                {% endif %}
+                            </span>
+                            <span class="state-badge">
+                                <i class="bi {% if card.state == 1 %}bi-hourglass-split{% elif card.state == 2 %}bi-check-circle-fill text-success{% elif card.state == 3 %}bi-arrow-counterclockwise text-warning{% else %}bi-circle{% endif %} me-1"></i>
+                                {{ card.get_state_name()|capitalize }}
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -122,8 +170,8 @@
         </div>
         {% endfor %}
     </div>
-    
-    <!-- Use the shared pagination component -->
+
+    <!-- Pagination component -->
     {% with 
         items_name='flashcards',
         entity_params={'deck_id': deck.flashcard_deck_id},
@@ -134,30 +182,147 @@
         {% include 'components/pagination.html' %}
     {% endwith %}
     
-    <script>
-        // Function to apply sorting
-        function applyFlashcardSort(sortOption) {
-            // Get current URL and parameters
-            const url = new URL(window.location);
-            
-            // Set the sort parameter
-            url.searchParams.set('sort', sortOption);
-            
-            // Reset to first page when changing sort
-            url.searchParams.set('page', 1);
-            
-            // Navigate to the new URL
-            window.location = url.toString();
-        }
-    </script>
-    
     {% else %}
-        <div class="alert alert-info">
-            <i class="bi bi-info-circle me-2"></i>No flashcards found in this deck.
-            <!-- Remove the Add Flashcard button here too -->
+    <div class="alert alert-info">
+        <div class="d-flex">
+            <div class="flex-shrink-0">
+                <i class="bi bi-info-circle-fill fs-4"></i>
+            </div>
+            <div class="flex-grow-1 ms-3">
+                <h4 class="alert-heading">No flashcards yet</h4>
+                <p>This deck doesn't have any flashcards yet. You can add flashcards manually or import them.</p>
+                <hr>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addFlashcardModal">
+                        <i class="bi bi-plus-lg me-1"></i> Add Flashcard
+                    </button>
+                    
+                    <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#importContentModal">
+                        <i class="bi bi-cloud-arrow-up me-1"></i> Import Content
+                    </button>
+                    
+                    <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#generateModalDeck">
+                        <i class="bi bi-magic me-1"></i> Generate Cards with AI
+                    </button>
+                </div>
+            </div>
         </div>
+    </div>
     {% endif %}
 </div>
+
+<script>
+    // Toggle showing answers
+    document.addEventListener('DOMContentLoaded', function() {
+        const showAnswerBtns = document.querySelectorAll('.show-answer-btn');
+        showAnswerBtns.forEach(btn => {
+            btn.addEventListener('click', function() {
+                const cardId = this.getAttribute('data-card-id');
+                const answerSection = document.getElementById(`answer-${cardId}`);
+                
+                // Toggle visibility
+                if (answerSection.classList.contains('d-none')) {
+                    answerSection.classList.remove('d-none');
+                    this.innerHTML = '<i class="bi bi-eye-slash me-1"></i> Hide Answer';
+                } else {
+                    answerSection.classList.add('d-none');
+                    this.innerHTML = '<i class="bi bi-eye me-1"></i> Show Answer';
+                }
+            });
+        });
+        
+        // Function to apply sorting
+        window.applyFlashcardSort = function(sortOption) {
+            const url = new URL(window.location);
+            url.searchParams.set('sort', sortOption);
+            url.searchParams.set('page', 1);
+            window.location = url.toString();
+        };
+    });
+</script>
+
+<link rel="stylesheet" href="{{ url_for('static', filename='css/bulk-actions.css') }}">
+<script type="module">
+    import { initBulkActions } from "{{ url_for('static', filename='modules/bulk-actions.js') }}";
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize bulk actions for flashcards
+        const flashcardBulkActions = initBulkActions({
+            container: '#flashcardsContainer',
+            itemSelector: '.selectable-item',
+            checkboxSelector: '.item-checkbox',
+            bulkActionsBar: '#flashcardBulkActionBar',
+            selectAllCheckbox: '#selectAllFlashcards',
+            countElement: '#selectedFlashcardCount',
+            entityType: 'flashcard',
+            selectionKey: 'bulk-flashcard-selection'
+        });
+        
+        // Get current deck ID for move operations
+        const currentDeckId = "{{ deck.flashcard_deck_id }}";
+        
+        // Override the showMoveDialog method to pass current deck ID
+        const originalShowMoveDialog = flashcardBulkActions.showMoveDialog;
+        flashcardBulkActions.showMoveDialog = function() {
+            const ids = this.getSelectedIds();
+            if (ids.length === 0) return;
+            
+            window.showBulkMoveFlashcardModal(ids, currentDeckId);
+        };
+    });
+</script>
+
+<script src="{{ url_for('static', filename='modules/bulk/bulk-move-handler.js') }}" type="module"></script>
+
+<style>
+/* Additional styles for equal height cards */
+.flashcards-container .card {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.flashcards-container .card-body {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.flashcards-container .question-content {
+    min-height: 3em;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+}
+
+.flashcards-container .correct-answer {
+    min-height: 3em;
+    max-height: 6em;
+    overflow-y: auto;
+}
+
+.flashcards-container .incorrect-answers-list {
+    max-height: 7em;
+    overflow-y: auto;
+}
+
+/* Equal height grid items */
+.flashcards-container .row {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.flashcards-container .col-md-6,
+.flashcards-container .col-lg-4 {
+    display: flex;
+    margin-bottom: 1rem;
+}
+
+.flashcards-container .card-footer {
+    margin-top: auto;
+}
+</style>
 
 {% include 'components/add_flashcard_modal.html' %}
 {% include 'components/edit_flashcard_modal.html' %}
