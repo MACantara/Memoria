@@ -1,5 +1,5 @@
 <div class="modal fade" id="bulkMoveDecksModal" tabindex="-1" aria-labelledby="bulkMoveDecksModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="bulkMoveDecksModalLabel">Move Decks</h5>
@@ -23,16 +23,51 @@
                         </label>
                     </div>
                     
-                    <div id="bulkParentDeckSelectContainer" class="mt-3 d-none">
+                    <div id="bulkParentDeckSelectContainer" class="mb-3 d-none">
                         <label for="bulkParentDeckSelect" class="form-label">Choose a parent deck:</label>
-                        <div class="input-group mb-2">
-                            <span class="input-group-text"><i class="bi bi-search"></i></span>
-                            <input type="text" class="form-control" id="bulkParentDeckSearchInput" 
-                                   placeholder="Search decks...">
-                        </div>
-                        <select class="form-select" id="bulkParentDeckSelect" disabled>
+                        <select class="form-select deck-search-select" id="bulkParentDeckSelect" disabled>
                             <option value="" disabled selected>Select a parent deck...</option>
+                            
+                            <!-- Root level decks -->
+                            {% for deck in g.all_decks %}
+                                {% if not deck.parent_deck_id %}
+                                    <option value="{{ deck.flashcard_deck_id }}" 
+                                            data-parent=""
+                                            data-level="0">{{ deck.name }}</option>
+                                    
+                                    <!-- Render all child decks recursively using macro -->
+                                    {% macro render_child_decks(deck, level, parent_path) -%}
+                                        {% for child in deck.child_decks %}
+                                            <option value="{{ child.flashcard_deck_id }}" 
+                                                    data-parent="{{ parent_path }}" 
+                                                    data-level="{{ level }}">
+                                                {{'└ ' * level}}{{ child.name }}
+                                            </option>
+                                            
+                                            <!-- Recursive call to render this child's children -->
+                                            {% if child.child_decks %}
+                                                {{ render_child_decks(child, level + 1, 
+                                                   parent_path + ' > ' + child.name) }}
+                                            {% endif %}
+                                        {% endfor %}
+                                    {%- endmacro %}
+                                    
+                                    <!-- Call the recursive macro for each root deck's children -->
+                                    {{ render_child_decks(deck, 1, deck.name) }}
+                                {% endif %}
+                            {% endfor %}
                         </select>
+                    </div>
+                    
+                    <!-- Display information about the selected parent deck -->
+                    <div id="bulkParentDeckInfo" class="small text-muted mt-2 d-none">
+                        <i class="bi bi-info-circle"></i> 
+                        <span id="bulkParentDeckPath"></span>
+                    </div>
+                    
+                    <div class="alert alert-warning mt-2 d-none" id="bulkCircularReferenceWarning">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                        Cannot move decks into one of their own subdecks.
                     </div>
                 </div>
                 
@@ -51,3 +86,101 @@
         </div>
     </div>
 </div>
+
+<style>
+/* Styling for integrated search dropdown */
+.deck-select-dropdown .dropdown-menu {
+    padding: 0;
+}
+
+.deck-options-container {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.deck-option {
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.deck-option:hover {
+    background-color: var(--bs-light);
+}
+
+.deck-option.selected {
+    background-color: var(--bs-primary-bg-subtle);
+}
+
+/* Prevent dropdown from closing when clicking in search field */
+.deck-select-dropdown .dropdown-menu .input-group {
+    cursor: auto;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle radio button changes for bulk move decks
+    const bulkSubdeckOption = document.getElementById('bulkSubdeckOption');
+    const bulkRootDeck = document.getElementById('bulkRootDeck');
+    const bulkParentDeckSelect = document.getElementById('bulkParentDeckSelect');
+    const bulkParentDeckSelectContainer = document.getElementById('bulkParentDeckSelectContainer');
+    const bulkParentDeckInfo = document.getElementById('bulkParentDeckInfo');
+    const bulkParentDeckPath = document.getElementById('bulkParentDeckPath');
+    
+    // Toggle parent deck select visibility based on radio selection
+    document.querySelectorAll('input[name="bulkDestDeck"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.value === 'subdeck') {
+                bulkParentDeckSelectContainer.classList.remove('d-none');
+                bulkParentDeckSelect.disabled = false;
+            } else {
+                bulkParentDeckSelectContainer.classList.add('d-none');
+                bulkParentDeckSelect.disabled = true;
+                
+                // Hide the path info
+                bulkParentDeckInfo.classList.add('d-none');
+            }
+        });
+    });
+    
+    // Show path information when a parent is selected
+    if (bulkParentDeckSelect) {
+        bulkParentDeckSelect.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            if (selectedOption && selectedOption.value) {
+                const parentPath = selectedOption.getAttribute('data-parent');
+                if (parentPath) {
+                    bulkParentDeckPath.textContent = 'Path: ' + parentPath + ' > ' + selectedOption.text;
+                    bulkParentDeckInfo.classList.remove('d-none');
+                } else {
+                    bulkParentDeckPath.textContent = 'Path: ' + selectedOption.text;
+                    bulkParentDeckInfo.classList.remove('d-none');
+                }
+            } else {
+                bulkParentDeckInfo.classList.add('d-none');
+            }
+        });
+    }
+    
+    // Filter deck options in the select
+    const bulkParentDeckSearchInput = document.getElementById('bulkParentDeckSearchInput');
+    if (bulkParentDeckSearchInput && bulkParentDeckSelect) {
+        bulkParentDeckSearchInput.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            const options = bulkParentDeckSelect.querySelectorAll('option');
+            
+            options.forEach(option => {
+                const text = option.textContent.toLowerCase();
+                if (option.value === '' || text.includes(searchTerm)) {
+                    option.style.display = '';
+                } else {
+                    option.style.display = 'none';
+                }
+            });
+        });
+    }
+});
+</script>
