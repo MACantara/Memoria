@@ -145,20 +145,15 @@
                         {% endif %}
                     </div>
                     
-                    <!-- Card footer with state and due date info -->
-                    {% if card.state > 0 %}
+                    <!-- Card footer with state and review history - displayed for all cards -->
                     <div class="card-footer bg-transparent p-0 mt-3">
                         <div class="d-flex justify-content-between text-muted small">
                             <span>
-                                <i class="bi bi-clock me-1"></i>
-                                {% if card.due_date %}
-                                    {% if card.due_date <= current_time %}
-                                        <span class="text-success">Due now</span>
-                                    {% else %}
-                                        Due {{ card.due_date.strftime('%b %d') }}
-                                    {% endif %}
+                                <i class="bi bi-calendar-check me-1"></i>
+                                {% if card.last_reviewed %}
+                                    Last reviewed: {{ card.last_reviewed.strftime('%b %d, %Y') }}
                                 {% else %}
-                                    No due date
+                                    Not reviewed yet
                                 {% endif %}
                             </span>
                             <span class="state-badge">
@@ -167,7 +162,6 @@
                             </span>
                         </div>
                     </div>
-                    {% endif %}
                 </div>
             </div>
         </div>
