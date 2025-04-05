@@ -3,6 +3,8 @@ from models import db, FlashcardDecks, Flashcards
 from flask_login import login_required, current_user
 from sqlalchemy.exc import SQLAlchemyError
 
+from utils import is_descendant
+
 bulk_api_bp = Blueprint('bulk_api', __name__)
 
 @bulk_api_bp.route("/flashcards/bulk-delete", methods=["POST"])
@@ -211,21 +213,3 @@ def bulk_move_decks():
         db.session.rollback()
         current_app.logger.error(f"Error in bulk move decks: {str(e)}")
         return jsonify({"success": False, "error": str(e)}), 500
-
-def is_descendant(deck_id, potential_ancestor_id):
-    """Check if a deck is a descendant of another deck"""
-    # Get the candidate deck
-    deck = FlashcardDecks.query.get(deck_id)
-    if not deck:
-        return False
-    
-    # If this is a root deck, it can't be a descendant
-    if deck.parent_deck_id is None:
-        return False
-    
-    # Check if the immediate parent matches the ancestor
-    if deck.parent_deck_id == potential_ancestor_id:
-        return True
-    
-    # Recursively check the parent
-    return is_descendant(deck.parent_deck_id, potential_ancestor_id)
