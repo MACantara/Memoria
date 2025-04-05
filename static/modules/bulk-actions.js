@@ -327,8 +327,8 @@ class BulkActionManager {
     async executeBulkDelete(ids) {
         try {
             const apiEndpoint = this.options.entityType === 'deck' 
-                ? '/api/decks/bulk-delete' 
-                : '/api/flashcards/bulk-delete';
+                ? '/deck/api/decks/bulk-delete'
+                : '/deck/api/flashcards/bulk-delete';
                 
             const response = await fetch(apiEndpoint, {
                 method: 'POST',
