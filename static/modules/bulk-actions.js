@@ -3,6 +3,9 @@
  * Allows selecting multiple decks or flashcards and performing bulk operations
  */
 
+// Import the bulk move modal handlers
+import { showBulkMoveFlashcardModal, showBulkMoveDeckModal } from "./bulk/bulk-move-handler.js";
+
 class BulkActionManager {
     constructor(options = {}) {
         // Set default options
@@ -309,11 +312,11 @@ class BulkActionManager {
         if (ids.length === 0) return;
         
         if (this.options.entityType === 'deck') {
-            // Show move deck modal
-            window.showBulkMoveDeckModal(ids);
+            // Use the imported function directly
+            showBulkMoveDeckModal(ids);
         } else {
             // Show move flashcard modal
-            window.showBulkMoveFlashcardModal(ids);
+            showBulkMoveFlashcardModal(ids);
         }
     }
     
