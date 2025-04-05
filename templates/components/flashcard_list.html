@@ -120,22 +120,22 @@
                     <div class="flashcard-content">
                         <!-- Question -->
                         <h3 class="h5 card-title mb-3">
-                            <span class="small text-muted">QUESTION</span><br>
+                            <span class="small text-muted">Question</span><br>
                             {{ card.question }}
                         </h3>
                         
                         <!-- Answer -->
                         <div class="answer-section mb-3">
-                            <span class="small text-muted">ANSWER</span><br>
+                            <span class="small text-muted">Correct Answer</span><br>
                             <div class="correct-answer bg-success-subtle p-2 rounded mt-1 border-start border-success border-2">
                                 {{ card.correct_answer }}
                             </div>
                         </div>
                         
-                        <!-- Incorrect Answers/Distractors -->
+                        <!-- Incorrect Answers -->
                         {% if card.incorrect_answers and card.incorrect_answers|length > 0 %}
                         <div class="mt-2">
-                            <span class="small text-muted">DISTRACTORS</span>
+                            <span class="small text-muted">Incorrect Answers</span>
                             <ul class="list-group mt-1">
                                 {% for incorrect in card.incorrect_answers %}
                                 <li class="list-group-item py-1 px-2 bg-light-subtle border-0 mb-1 rounded">{{ incorrect }}</li>
