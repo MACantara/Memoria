@@ -74,6 +74,10 @@
         {% include 'components/move_deck_modal.html' %}
         {% include 'components/create_empty_deck_modal.html' %}
         
+        <!-- Bulk action modals -->
+        {% include 'modals/bulk_move_flashcards_modal.html' %}
+        {% include 'modals/bulk_move_decks_modal.html' %}
+        
         <!-- Context-specific modals -->
         {% if request.path.startswith('/deck/') and request.path.split('/')[-1].isdigit() %}
             <!-- Deck-specific modals - only when viewing a deck -->
