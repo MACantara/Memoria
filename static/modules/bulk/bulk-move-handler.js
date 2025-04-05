@@ -3,8 +3,131 @@
  * Leverages existing deck operations functionality
  */
 
-// Import the functions from deck-operations.js
-import { loadDeckList, populateDeckDropdown, setupDeckSearch } from "../deck/deck-operations.js";
+// Fix import to only include functions that actually exist in deck-operations.js
+import { loadDeckTree } from "../deck/deck-operations.js";
+
+// Define global functions at module scope so they can be exported and used elsewhere
+export function showBulkMoveFlashcardModal(flashcardIds, sourceDeckId) {
+    // Initialize if necessary
+    if (!flashcardMover) {
+        initMovers();
+    }
+    flashcardMover.show(flashcardIds, sourceDeckId);
+}
+
+export function showBulkMoveDeckModal(deckIds) {
+    // Initialize if necessary
+    if (!deckMover) {
+        initMovers();
+    }
+    deckMover.show(deckIds);
+}
+
+/**
+ * Populate a select dropdown with deck options
+ * @param {HTMLSelectElement} selectElement - The select element to populate
+ * @param {Array} decks - Array of deck objects
+ * @param {Object} options - Configuration options
+ */
+function populateDeckDropdown(selectElement, decks, options = {}) {
+    const defaults = {
+        excludeDeckIds: [],
+        hierarchical: false,
+        flatList: false,
+        valueProperty: 'id',
+        textProperty: 'name',
+        childrenProperty: 'child_decks'
+    };
+    
+    const config = { ...defaults, ...options };
+    
+    // If hierarchical and not flat list, populate recursively with indentation
+    if (config.hierarchical && !config.flatList) {
+        populateDeckOptionsHierarchical(
+            selectElement, 
+            decks, 
+            0, 
+            config.excludeDeckIds, 
+            config.valueProperty, 
+            config.textProperty, 
+            config.childrenProperty
+        );
+    } else {
+        // Flat list, just add all decks directly
+        decks.forEach(deck => {
+            // Skip if this deck is in the excluded list
+            if (!config.excludeDeckIds.includes(deck[config.valueProperty])) {
+                const option = document.createElement('option');
+                option.value = deck[config.valueProperty];
+                option.textContent = deck[config.textProperty];
+                selectElement.appendChild(option);
+            }
+        });
+    }
+}
+
+/**
+ * Populate select with hierarchical deck options (with indentation)
+ */
+function populateDeckOptionsHierarchical(
+    selectElement, 
+    decks, 
+    level, 
+    excludedIds = [], 
+    valueProperty = 'flashcard_deck_id', 
+    textProperty = 'name', 
+    childrenProperty = 'child_decks'
+) {
+    // Process each deck in the tree structure
+    decks.forEach(deck => {
+        // Skip if this deck is in the excluded list
+        if (!excludedIds.includes(deck[valueProperty])) {
+            // Create option with proper indentation based on level
+            const option = document.createElement('option');
+            option.value = deck[valueProperty];
+            
+            // Add indentation based on level
+            const indent = '  '.repeat(level);
+            const prefix = level > 0 ? '└ ' : '';
+            option.textContent = indent + prefix + deck[textProperty];
+            
+            // Add to select element
+            selectElement.appendChild(option);
+            
+            // Process child decks recursively
+            if (deck[childrenProperty] && deck[childrenProperty].length > 0) {
+                populateDeckOptionsHierarchical(
+                    selectElement, 
+                    deck[childrenProperty], 
+                    level + 1, 
+                    excludedIds,
+                    valueProperty,
+                    textProperty,
+                    childrenProperty
+                );
+            }
+        }
+    });
+}
+
+/**
+ * Set up search functionality for a deck select dropdown
+ */
+function setupDeckSearch(searchInput, selectElement) {
+    searchInput.addEventListener('input', function() {
+        const searchTerm = this.value.toLowerCase();
+        const options = selectElement.querySelectorAll('option:not([disabled])');
+        
+        options.forEach(option => {
+            const text = option.textContent.toLowerCase();
+            if (text.includes(searchTerm)) {
+                option.style.display = '';
+            } else {
+                option.style.display = 'none';
+            }
+        });
+    });
+}
 
 // Bulk move flashcards modal handling
 class BulkFlashcardMover {
@@ -37,13 +160,13 @@ class BulkFlashcardMover {
         this.sourceDeckId = excludeDeckId;
         
         try {
-            // Use the existing loadDeckList function from deck-operations.js
-            const decks = await loadDeckList();
+            // Use the existing loadDeckTree function from deck-operations.js
+            const decks = await loadDeckTree();
             
             // Clear existing options
             this.destDeckSelect.innerHTML = '<option value="" disabled selected>Select destination deck...</option>';
             
-            // Use the shared populateDeckDropdown function
+            // Use our local populateDeckDropdown function
             populateDeckDropdown(this.destDeckSelect, decks, {
                 excludeDeckIds: [excludeDeckId], // Exclude the source deck
                 flatList: true, // Use flat list instead of hierarchical for flashcard moves
@@ -204,13 +327,13 @@ class BulkDeckMover {
     
     async loadDecks() {
         try {
-            // Use the existing loadDeckList function from deck-operations.js
-            const decks = await loadDeckList({ hierarchical: true });
+            // Use the existing loadDeckTree function from deck-operations.js
+            const decks = await loadDeckTree({ hierarchical: true });
             
             // Clear existing options
             this.destSelect.innerHTML = '<option value="" disabled selected>Select parent deck...</option>';
             
-            // Use the shared populateDeckDropdown function
+            // Use our local populateDeckDropdown function
             populateDeckDropdown(this.destSelect, decks, {
                 excludeDeckIds: this.selectedIds, // Exclude selected decks
                 hierarchical: true, // Use hierarchical format for deck moves
@@ -235,32 +358,6 @@ class BulkDeckMover {
                 this.moveButton.disabled = true;
             }
         }
-    }
-    
-    // Helper function to populate the deck options with proper indentation
-    populateDeckOptions(decks, level, excludedIds = []) {
-        // Process each deck in the tree structure
-        decks.forEach(deck => {
-            // Skip if this deck is in the excluded list
-            if (!excludedIds.includes(deck.flashcard_deck_id)) {
-                // Create option with proper indentation based on level
-                const option = document.createElement('option');
-                option.value = deck.flashcard_deck_id;
-                
-                // Add indentation based on level
-                const indent = '  '.repeat(level);
-                const prefix = level > 0 ? '└ ' : '';
-                option.textContent = indent + prefix + deck.name;
-                
-                // Add to select element
-                this.destSelect.appendChild(option);
-                
-                // Process child decks recursively
-                if (deck.child_decks && deck.child_decks.length > 0) {
-                    this.populateDeckOptions(deck.child_decks, level + 1, excludedIds);
-                }
-            }
-        });
     }
     
     show(deckIds) {
@@ -394,14 +491,9 @@ function initMovers() {
     flashcardMover = new BulkFlashcardMover();
     deckMover = new BulkDeckMover();
     
-    // Add global functions
-    window.showBulkMoveFlashcardModal = (flashcardIds, sourceDeckId) => {
-        flashcardMover.show(flashcardIds, sourceDeckId);
-    };
-    
-    window.showBulkMoveDeckModal = (deckIds) => {
-        deckMover.show(deckIds);
-    };
+    // Also make functions available globally on window for non-module contexts
+    window.showBulkMoveFlashcardModal = showBulkMoveFlashcardModal;
+    window.showBulkMoveDeckModal = showBulkMoveDeckModal;
 }
 
 // Initialize on DOM ready
