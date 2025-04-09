@@ -34,7 +34,7 @@ logger = logging.getLogger("db_sync")
 class DatabaseSync:
     """Database synchronization between SQLite and PostgreSQL"""
     
-    def __init__(self, source_uri, target_uri, tables=None, batch_size=100):
+    def __init__(self, source_uri, target_uri, tables=None, batch_size=1000):
         """
         Initialize the database sync utility
         
@@ -331,9 +331,10 @@ class DatabaseSync:
                                     
                                 total_synced += 1
                                 
-                                # Commit every 100 records to avoid long transactions
-                                if total_synced % 100 == 0:
+                                # Commit based on batch size parameter instead of hardcoded 1000
+                                if total_synced % self.batch_size == 0:
                                     target_session.commit()
+                                    logger.info(f"Committed batch of {self.batch_size} records for {table_name}")
                                 
                             except Exception as e:
                                 errors += 1

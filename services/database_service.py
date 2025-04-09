@@ -149,7 +149,7 @@ class DatabaseService:
 class DatabaseSyncHelper:
     """Helper class for database synchronization between SQLite and PostgreSQL"""
     
-    def __init__(self, source_uri, target_uri, tables=None, batch_size=100):
+    def __init__(self, source_uri, target_uri, tables=None, batch_size=1000):
         """
         Initialize the database sync utility
         
@@ -469,8 +469,8 @@ class DatabaseSyncHelper:
                                     
                                 total_synced += 1
                                 
-                                # Commit every 100 records to avoid long transactions
-                                if total_synced % 100 == 0:
+                                # Commit every 1000 records to avoid long transactions
+                                if total_synced % self.batch_size == 0:
                                     target_session.commit()
                                 
                             except Exception as e:
