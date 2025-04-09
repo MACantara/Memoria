@@ -228,6 +228,30 @@ class DatabaseSyncHelper:
         finally:
             session.close()
     
+    def _disable_foreign_keys(self, session):
+        """Disable foreign key constraints in a database-specific way"""
+        try:
+            if 'sqlite' in self.target_uri.lower():
+                session.execute(text("PRAGMA foreign_keys = OFF"))
+            elif 'postgresql' in self.target_uri.lower() or 'postgres' in self.target_uri.lower():
+                # In PostgreSQL, we can't disable constraints for a session
+                # We could use ALTER TABLE ... DISABLE TRIGGER ALL for each table
+                # but that requires superuser privileges, so we'll just skip this
+                pass
+        except Exception as e:
+            logger.warning(f"Could not disable foreign keys: {str(e)}")
+    
+    def _enable_foreign_keys(self, session):
+        """Re-enable foreign key constraints in a database-specific way"""
+        try:
+            if 'sqlite' in self.target_uri.lower():
+                session.execute(text("PRAGMA foreign_keys = ON"))
+            elif 'postgresql' in self.target_uri.lower() or 'postgres' in self.target_uri.lower():
+                # Nothing to do for PostgreSQL as we didn't disable constraints
+                pass
+        except Exception as e:
+            logger.warning(f"Could not re-enable foreign keys: {str(e)}")
+    
     def get_all_table_names(self):
         """Get all table names from the source database"""
         inspector = inspect(self.source_engine)
@@ -393,7 +417,8 @@ class DatabaseSyncHelper:
                     
                     # Process records
                     with self.target_session() as target_session:
-                        target_session.execute(text("PRAGMA foreign_keys = OFF"))  # Disable FK constraints temporarily
+                        # Use database-specific method to disable foreign keys
+                        self._disable_foreign_keys(target_session)
                         
                         for record in records:
                             try:
@@ -452,7 +477,8 @@ class DatabaseSyncHelper:
                                 errors += 1
                                 logger.error(f"Error processing record in {table_name}: {str(e)}")
                         
-                        target_session.execute(text("PRAGMA foreign_keys = ON"))  # Re-enable FK constraints
+                        # Use database-specific method to re-enable foreign keys
+                        self._enable_foreign_keys(target_session)
                     
                     offset += len(records)
                     logger.info(f"Synced {total_synced} records from {table_name}, skipped {skipped}, errors {errors}")
