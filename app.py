@@ -6,6 +6,7 @@ from config import Config
 from routes import register_blueprints
 from google import genai
 from flask_login import LoginManager, login_required
+from services.database_service import DatabaseService
 
 def create_app(config_class=Config):
     # Ensure SQLite database directory exists before initializing the app
@@ -17,8 +18,8 @@ def create_app(config_class=Config):
     # Set the database URI from the Config property method
     app.config['SQLALCHEMY_DATABASE_URI'] = config_class().SQLALCHEMY_DATABASE_URI
     
-    # Initialize database
-    db.init_app(app)
+    # Initialize database using the service
+    DatabaseService.init_db(app)
     
     # Initialize Flask-Login
     login_manager = LoginManager()
@@ -53,8 +54,6 @@ def create_app(config_class=Config):
     def sync_databases_route():
         """API endpoint to trigger database synchronization"""
         try:
-            from db_sync import sync_databases
-            
             # Only allow sync if both database types are configured
             config = Config()
             if not config.POSTGRES_URL:
@@ -63,8 +62,8 @@ def create_app(config_class=Config):
                     'message': 'PostgreSQL database not configured'
                 }), 400
                 
-            # Run synchronization
-            results = sync_databases()
+            # Run synchronization using the service
+            results = DatabaseService.sync_databases()
             return jsonify({
                 'status': 'success',
                 'results': results
@@ -81,20 +80,6 @@ def create_app(config_class=Config):
     return app
 
 app = create_app()
-
-# Create tables if they don't exist
-with app.app_context():
-    try:
-        db.create_all()
-        print("Database tables created successfully.")
-    except Exception as e:
-        print(f"Error creating database tables: {e}")
-        # Try to provide more helpful error information
-        if "sqlite3.OperationalError" in str(e) and "unable to open database file" in str(e):
-            db_path = app.config.get('SQLALCHEMY_DATABASE_URI', '').replace('sqlite:///', '')
-            print(f"SQLite database path: {db_path}")
-            print(f"Directory exists: {os.path.exists(os.path.dirname(db_path) if os.path.dirname(db_path) else '.')}")
-            print(f"Directory is writable: {os.access(os.path.dirname(db_path) if os.path.dirname(db_path) else '.', os.W_OK)}")
 
 if __name__ == "__main__":
     try:
