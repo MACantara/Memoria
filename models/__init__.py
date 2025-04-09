@@ -1,7 +1,10 @@
 from flask_sqlalchemy import SQLAlchemy
+import os
 
+# Configure SQLAlchemy for both PostgreSQL and SQLite compatibility
 db = SQLAlchemy()
 
+# Import models after db initialization
 from .flashcard_deck import FlashcardDecks
 from .flashcard import Flashcards, FlashcardSet, FlashcardGenerator
 from .user import User
@@ -9,6 +12,28 @@ from .learning import LearningSession, LearningSection, LearningQuestion
 
 # Import new models
 from models.import_models import ImportFile, ImportChunk, ImportFlashcard, ImportTask
+
+# Setup for database compatibility
+def setup_db_compatibility():
+    """Configure database engine options based on database type"""
+    db_type = os.getenv('DB_TYPE', 'sqlite').lower()
+    
+    # Set SQLite-specific configurations if needed
+    if db_type == 'sqlite':
+        # Enable SQLite foreign key constraints
+        from sqlalchemy import event
+        from sqlalchemy.engine import Engine
+        from sqlite3 import Connection as SQLite3Connection
+        
+        @event.listens_for(Engine, "connect")
+        def set_sqlite_pragma(dbapi_connection, connection_record):
+            if isinstance(dbapi_connection, SQLite3Connection):
+                cursor = dbapi_connection.cursor()
+                cursor.execute("PRAGMA foreign_keys=ON")
+                cursor.close()
+
+# Call the setup function
+setup_db_compatibility()
 
 __all__ = ['db', 'FlashcardDecks', 'Flashcards']
 
