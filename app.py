@@ -1,15 +1,21 @@
-from flask import Flask
+from flask import Flask, jsonify
 import json
+import os
 from models import db
 from config import Config
 from routes import register_blueprints
 from google import genai
-import os
-from flask_login import LoginManager
+from flask_login import LoginManager, login_required
 
 def create_app(config_class=Config):
+    # Ensure SQLite database directory exists before initializing the app
+    config_class.ensure_sqlite_directory_exists()
+    
     app = Flask(__name__)
     app.config.from_object(config_class)
+    
+    # Set the database URI from the Config property method
+    app.config['SQLALCHEMY_DATABASE_URI'] = config_class().SQLALCHEMY_DATABASE_URI
     
     # Initialize database
     db.init_app(app)
@@ -41,6 +47,34 @@ def create_app(config_class=Config):
             # Return empty list as fallback if parsing fails
             return []
     
+    # Route for database synchronization
+    @app.route('/api/sync-databases', methods=['POST'])
+    @login_required
+    def sync_databases_route():
+        """API endpoint to trigger database synchronization"""
+        try:
+            from db_sync import sync_databases
+            
+            # Only allow sync if both database types are configured
+            config = Config()
+            if not config.POSTGRES_URL:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'PostgreSQL database not configured'
+                }), 400
+                
+            # Run synchronization
+            results = sync_databases()
+            return jsonify({
+                'status': 'success',
+                'results': results
+            })
+        except Exception as e:
+            return jsonify({
+                'status': 'error',
+                'message': str(e)
+            }), 500
+    
     # Register blueprints using the centralized function
     register_blueprints(app)
     
@@ -50,7 +84,17 @@ app = create_app()
 
 # Create tables if they don't exist
 with app.app_context():
-    db.create_all()
+    try:
+        db.create_all()
+        print("Database tables created successfully.")
+    except Exception as e:
+        print(f"Error creating database tables: {e}")
+        # Try to provide more helpful error information
+        if "sqlite3.OperationalError" in str(e) and "unable to open database file" in str(e):
+            db_path = app.config.get('SQLALCHEMY_DATABASE_URI', '').replace('sqlite:///', '')
+            print(f"SQLite database path: {db_path}")
+            print(f"Directory exists: {os.path.exists(os.path.dirname(db_path) if os.path.dirname(db_path) else '.')}")
+            print(f"Directory is writable: {os.access(os.path.dirname(db_path) if os.path.dirname(db_path) else '.', os.W_OK)}")
 
 if __name__ == "__main__":
     try:
