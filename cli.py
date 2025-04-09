@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
 from app import create_app
 from models import db
+from services.database_service import DatabaseService
 from config import Config
 
 app = create_app()
@@ -59,50 +60,41 @@ def db_sync(direction, tables, output, create_db):
                     click.echo("Aborting sync operation.")
                     return
     
-    # Import DB sync function only after ensuring directories exist
-    try:
-        from db_sync import sync_databases
-    except Exception as e:
-        click.echo(f"Error importing sync module: {e}", err=True)
-        sys.exit(1)
+    # Run sync operation using the service
+    results = DatabaseService.sync_databases(direction=direction, tables=tables if tables else None)
     
-    click.echo(f"\nStarting database synchronization ({direction})...")
+    # Print results summary
+    click.echo(f"\nSync completed: {datetime.now().isoformat()}")
+    click.echo(f"Direction: {direction}")
     
-    tables_list = list(tables) if tables else None
+    if "database_info" in results:
+        click.echo("\nDatabase Information:")
+        for key, value in results["database_info"].items():
+            click.echo(f"  {key}: {value}")
     
-    try:
-        results = sync_databases(direction=direction, tables=tables_list)
-        
-        # Print results summary
-        click.echo(f"\nSync completed: {datetime.now().isoformat()}")
-        
-        if "sqlite_to_postgres" in results:
-            click.echo("\nSQLite to PostgreSQL:")
-            for table, info in results["sqlite_to_postgres"].items():
-                status = info.get("status", "unknown")
-                if status == "success":
-                    click.echo(f"  - {table}: {info.get('records', 0)} records in {info.get('time', '?')}")
-                else:
-                    click.echo(f"  - {table}: {status} - {info.get('message', '')}")
-        
-        if "postgres_to_sqlite" in results:
-            click.echo("\nPostgreSQL to SQLite:")
-            for table, info in results["postgres_to_sqlite"].items():
-                status = info.get("status", "unknown")
-                if status == "success":
-                    click.echo(f"  - {table}: {info.get('records', 0)} records in {info.get('time', '?')}")
-                else:
-                    click.echo(f"  - {table}: {status} - {info.get('message', '')}")
-        
-        # Save results to file if requested
-        if output:
-            with open(output, 'w') as f:
-                json.dump(results, f, indent=2)
-            click.echo(f"\nResults saved to {output}")
-            
-    except Exception as e:
-        click.echo(f"Error: {str(e)}", err=True)
-        sys.exit(1)
+    if "sqlite_to_postgres" in results:
+        click.echo("\nSQLite to PostgreSQL:")
+        for table, info in results["sqlite_to_postgres"].items():
+            status = info.get("status", "unknown")
+            if status == "success":
+                click.echo(f"  - {table}: {info.get('records', 0)} records in {info.get('time', '?')}")
+            else:
+                click.echo(f"  - {table}: {status} - {info.get('message', '')}")
+    
+    if "postgres_to_sqlite" in results:
+        click.echo("\nPostgreSQL to SQLite:")
+        for table, info in results["postgres_to_sqlite"].items():
+            status = info.get("status", "unknown")
+            if status == "success":
+                click.echo(f"  - {table}: {info.get('records', 0)} records in {info.get('time', '?')}")
+            else:
+                click.echo(f"  - {table}: {status} - {info.get('message', '')}")
+    
+    # Save results to file if requested
+    if output:
+        with open(output, 'w') as f:
+            json.dump(results, f, indent=2)
+        click.echo(f"\nResults saved to {output}")
 
 @cli.command('init-db')
 @click.option('--force/--no-force', default=False, help='Force recreation of database tables')
