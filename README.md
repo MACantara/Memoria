@@ -78,8 +78,11 @@ The application includes functionality to synchronize data between SQLite and Po
 # Synchronize databases (both directions)
 python cli.py db-sync
 
-# Synchronize from Postgres to SQLite only
+# Synchronize from Postgres to SQLite
 python cli.py db-sync --direction postgres_to_sqlite
+
+# Synchronize from SQLite to Postgres
+python cli.py db-sync --direction sqlite_to_postgres
 
 # Synchronize specific tables
 python cli.py db-sync --tables users flashcard_decks
