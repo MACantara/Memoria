@@ -149,7 +149,7 @@ class DatabaseService:
 class DatabaseSyncHelper:
     """Helper class for database synchronization between SQLite and PostgreSQL"""
     
-    def __init__(self, source_uri, target_uri, tables=None, batch_size=100):
+    def __init__(self, source_uri, target_uri, tables=None, batch_size=1000):
         """
         Initialize the database sync utility
         
