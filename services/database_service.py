@@ -9,7 +9,7 @@ import json
 import time
 from datetime import datetime
 from contextlib import contextmanager
-from sqlalchemy import create_engine, text, inspect
+from sqlalchemy import create_engine, text, inspect, exc
 from sqlalchemy.orm import sessionmaker, scoped_session
 from config import Config
 from models import db
@@ -61,13 +61,15 @@ class DatabaseService:
         Config.ensure_sqlite_directory_exists()
     
     @staticmethod
-    def sync_databases(direction="both", tables=None):
+    def sync_databases(direction="both", tables=None, batch_size=None, optimize=True):
         """
         Synchronize data between SQLite and PostgreSQL databases
         
         Args:
             direction: 'sqlite_to_postgres', 'postgres_to_sqlite', or 'both'
             tables: List of table names to sync (None for all mappable tables)
+            batch_size: Override the default batch size for operations
+            optimize: Whether to use optimized sync methods (bulk operations)
         
         Returns:
             Dictionary with sync results
@@ -83,6 +85,7 @@ class DatabaseService:
             "timestamp": datetime.now().isoformat(),
             "direction": direction,
             "tables": tables,
+            "optimize": optimize
         }
         
         if not postgres_uri:
@@ -111,7 +114,9 @@ class DatabaseService:
                 sqlite_to_postgres = DatabaseSyncHelper(
                     source_uri=sqlite_uri,
                     target_uri=postgres_uri,
-                    tables=tables
+                    tables=tables,
+                    batch_size=batch_size,
+                    optimize=optimize
                 )
                 results["sqlite_to_postgres"] = sqlite_to_postgres.sync_all_tables()
             
@@ -120,7 +125,9 @@ class DatabaseService:
                 postgres_to_sqlite = DatabaseSyncHelper(
                     source_uri=postgres_uri,
                     target_uri=sqlite_uri,
-                    tables=tables
+                    tables=tables,
+                    batch_size=batch_size,
+                    optimize=optimize
                 )
                 results["postgres_to_sqlite"] = postgres_to_sqlite.sync_all_tables()
             
@@ -132,24 +139,31 @@ class DatabaseService:
             return results
     
     @staticmethod
-    def sync_from_supabase_to_sqlite(tables=None):
+    def sync_from_supabase_to_sqlite(tables=None, batch_size=None, optimize=True):
         """
         Synchronize data from Supabase/PostgreSQL to SQLite
         
         Args:
             tables: List of table names to sync (None for all mappable tables)
+            batch_size: Override the default batch size for operations
+            optimize: Whether to use optimized sync methods
         
         Returns:
             Dictionary with sync results
         """
         logger.info("Starting sync from Supabase to SQLite...")
-        return DatabaseService.sync_databases(direction="postgres_to_sqlite", tables=tables)
+        return DatabaseService.sync_databases(
+            direction="postgres_to_sqlite", 
+            tables=tables,
+            batch_size=batch_size,
+            optimize=optimize
+        )
 
 
 class DatabaseSyncHelper:
     """Helper class for database synchronization between SQLite and PostgreSQL"""
     
-    def __init__(self, source_uri, target_uri, tables=None, batch_size=1000):
+    def __init__(self, source_uri, target_uri, tables=None, batch_size=None, optimize=True):
         """
         Initialize the database sync utility
         
@@ -157,14 +171,45 @@ class DatabaseSyncHelper:
             source_uri: SQLAlchemy URI for the source database
             target_uri: SQLAlchemy URI for the target database  
             tables: List of table names to sync (None for all tables)
-            batch_size: Number of records to process in each batch
+            batch_size: Number of records to process in each batch (None = auto)
+            optimize: Whether to use optimized sync methods
         """
         self.source_uri = source_uri
         self.target_uri = target_uri
         self.tables = tables
-        self.batch_size = batch_size
-        self.source_engine = create_engine(source_uri)
-        self.target_engine = create_engine(target_uri)
+        self.optimize = optimize
+        
+        # Determine if this is SQLite to Postgres or vice versa
+        self.sqlite_to_postgres = 'sqlite' in source_uri.lower() and ('postgres' in target_uri.lower() or 'postgresql' in target_uri.lower())
+        self.postgres_to_sqlite = ('postgres' in source_uri.lower() or 'postgresql' in source_uri.lower()) and 'sqlite' in target_uri.lower()
+        
+        # Set appropriate batch sizes based on direction and override if provided
+        if batch_size is not None:
+            self.batch_size = batch_size
+        elif self.sqlite_to_postgres:
+            self.batch_size = 200  # Smaller batches for SQLite to Postgres (network bound)
+        elif self.postgres_to_sqlite:
+            self.batch_size = 1000  # Larger batches for Postgres to SQLite (local)
+        else:
+            self.batch_size = 500  # Default batch size
+        
+        # Configure engines with optimized parameters
+        if self.sqlite_to_postgres and optimize:
+            # For SQLite to Postgres, optimize connection pooling
+            engine_options = {
+                'pool_size': 5,
+                'max_overflow': 10, 
+                'pool_timeout': 30,
+                'pool_recycle': 1800,
+                'pool_pre_ping': True,
+                'connect_args': {'connect_timeout': 10}
+            }
+            self.source_engine = create_engine(source_uri)
+            self.target_engine = create_engine(target_uri, **engine_options)
+            logger.info(f"Using optimized connection pooling for PostgreSQL target")
+        else:
+            self.source_engine = create_engine(source_uri)
+            self.target_engine = create_engine(target_uri)
         
         # Create session factories
         self.SourceSession = scoped_session(sessionmaker(bind=self.source_engine))
@@ -205,6 +250,9 @@ class DatabaseSyncHelper:
         
         # Track failed records to avoid repetitive errors
         self.failed_ids_by_table = {}
+        
+        # Track tables with large text fields that need special handling
+        self.tables_with_large_text = {'import_chunks', 'import_files', 'flashcards'}
     
     @contextmanager
     def source_session(self):
@@ -425,6 +473,79 @@ class DatabaseSyncHelper:
             return self.failed_ids_by_table[table_name][record_id]
         return "Unknown reason"
     
+    def _perform_bulk_insert(self, table_name, model_class, records):
+        """Perform bulk insert operation for better performance"""
+        if not records:
+            return 0
+            
+        try:
+            with self.target_session() as target_session:
+                # Use SQLAlchemy bulk insert
+                target_session.bulk_insert_mappings(model_class, records)
+                target_session.commit()
+                logger.info(f"Bulk inserted {len(records)} records into {table_name}")
+                return len(records)
+        except Exception as e:
+            logger.error(f"Bulk insert error for {table_name}: {str(e)}")
+            
+            # Fall back to individual inserts if bulk fails
+            success_count = 0
+            for record in records:
+                try:
+                    with self.target_session() as ts:
+                        new_record = model_class(**record)
+                        ts.add(new_record)
+                        ts.commit()
+                        success_count += 1
+                except Exception as inner_e:
+                    logger.error(f"Individual insert error: {str(inner_e)}")
+            
+            return success_count
+    
+    def _perform_bulk_update(self, table_name, model_class, records, pk_cols):
+        """Perform efficient bulk update operation"""
+        if not records:
+            return 0
+            
+        success_count = 0
+        try:
+            with self.target_session() as target_session:
+                # Use SQLAlchemy bulk update
+                target_session.bulk_update_mappings(model_class, records)
+                target_session.commit()
+                success_count = len(records)
+                logger.info(f"Bulk updated {success_count} records in {table_name}")
+        except Exception as e:
+            logger.error(f"Bulk update error for {table_name}: {str(e)}")
+            
+            # Fall back to individual updates
+            success_count = 0
+            for record in records:
+                try:
+                    with self.target_session() as ts:
+                        pk_filter = {pk: record[pk] for pk in pk_cols if pk in record}
+                        existing = ts.query(model_class).filter_by(**pk_filter).first()
+                        if existing:
+                            for key, value in record.items():
+                                setattr(existing, key, value)
+                            ts.commit()
+                            success_count += 1
+                except Exception as inner_e:
+                    logger.error(f"Individual update error: {str(inner_e)}")
+        
+        return success_count
+    
+    def _is_large_data_table(self, table_name):
+        """Check if this table typically contains large text fields"""
+        return table_name in self.tables_with_large_text
+    
+    def _optimize_batch_size(self, table_name):
+        """Return an optimized batch size for the given table"""
+        if self._is_large_data_table(table_name):
+            # Use smaller batches for tables with large text fields
+            return min(100, self.batch_size)
+        return self.batch_size
+    
     def sync_table(self, table_name):
         """Synchronize a single table from source to target"""
         logger.info(f"Syncing table: {table_name}")
@@ -473,13 +594,51 @@ class DatabaseSyncHelper:
         batch_errors = 0
         skip_reasons = {}
         
+        # Determine appropriate batch size for this table
+        adjusted_batch_size = self._optimize_batch_size(table_name)
+        logger.info(f"Using batch size of {adjusted_batch_size} for table {table_name}")
+        
+        # Prepare for bulk operations if optimization is enabled
+        use_bulk_operations = self.optimize and not self._is_large_data_table(table_name)
+        
+        # For bulk operations, prefetch all target PKs to more efficiently determine if each record exists
+        pk_values_in_target = set()
+        if use_bulk_operations and pk_cols:
+            logger.info(f"Prefetching primary keys for {table_name}")
+            try:
+                with self.target_session() as target_session:
+                    primary_key_col = getattr(model_class, pk_cols[0])
+                    pk_results = target_session.query(primary_key_col).all()
+                    pk_values_in_target = {row[0] for row in pk_results if row[0] is not None}
+                    logger.info(f"Cached {len(pk_values_in_target)} primary keys for {table_name}")
+            except Exception as e:
+                logger.warning(f"Failed to prefetch primary keys: {e}")
+                use_bulk_operations = False
+        
+        # If syncing to PostgreSQL, try to optimize the session
+        if self.sqlite_to_postgres and self.optimize:
+            try:
+                with self.target_session() as session:
+                    # In PostgreSQL, setting this reduces overhead for bulk operations
+                    # This only works if you have appropriate permissions
+                    try:
+                        session.execute(text("SET session_replication_role = 'replica';"))
+                        logger.info("Disabled PostgreSQL triggers and constraints for faster sync")
+                    except exc.SQLAlchemyError as e:
+                        logger.warning(f"Could not set session_replication_role: {e}")
+            except Exception as e:
+                logger.warning(f"Error configuring PostgreSQL session: {e}")
+        
         while True:
             try:
                 batch_errors = 0  # Reset batch error counter
+                records_to_create = []
+                records_to_update = []
+                
                 with self.source_session() as source_session:
                     # Get batch of records from source
                     query = source_session.query(model_class)
-                    records = query.limit(self.batch_size).offset(offset).all()
+                    records = query.limit(adjusted_batch_size).offset(offset).all()
                     
                     if not records:
                         break
@@ -487,106 +646,155 @@ class DatabaseSyncHelper:
                     batch_size = len(records)
                     logger.debug(f"Processing batch of {batch_size} records from offset {offset}")
                     
-                    # Process records with a clean session for each record to prevent cascading failures
-                    for record_idx, record in enumerate(records):
-                        # Create a dictionary of the record's attributes
-                        data = {c.name: getattr(record, c.name) 
-                                for c in record.__table__.columns}
+                    # Process records differently based on optimization settings
+                    if use_bulk_operations:
+                        # Process records for bulk operations
+                        for record in records:
+                            # Create a dictionary of the record's attributes
+                            data = {c.name: getattr(record, c.name) 
+                                    for c in record.__table__.columns}
+                                    
+                            # Get primary key for tracking failures
+                            record_id = None
+                            if pk_cols:
+                                record_id = data.get(pk_cols[0])
+                            
+                            # Skip if this record has failed before
+                            if record_id is not None and self._is_failed_record(table_name, record_id):
+                                reason = self._get_failed_reason(table_name, record_id)
+                                logger.debug(f"Skipping previously failed record {table_name} (id={record_id}): {reason}")
+                                skipped += 1
+                                skip_reasons[reason] = skip_reasons.get(reason, 0) + 1
+                                continue
                                 
-                        # Get primary key for tracking failures
-                        record_id = None
-                        if pk_cols:
-                            record_id = data.get(pk_cols[0])
+                            # Check foreign key constraints
+                            checked_data, skip_reason = self._check_foreign_keys(data, table_name)
+                            if checked_data is None:
+                                # Skip this record due to FK constraint issues
+                                if record_id is not None:
+                                    self._track_failed_record(table_name, record_id, skip_reason)
+                                skipped += 1
+                                skip_reasons[skip_reason] = skip_reasons.get(skip_reason, 0) + 1
+                                continue
+                            
+                            # Categorize for bulk operation based on if it exists in target
+                            if record_id in pk_values_in_target:
+                                records_to_update.append(checked_data)
+                            else:
+                                records_to_create.append(checked_data)
+                                # Add to the cache so we don't try to create it again
+                                pk_values_in_target.add(record_id)
                         
-                        # Skip if this record has failed before
-                        if record_id is not None and self._is_failed_record(table_name, record_id):
-                            reason = self._get_failed_reason(table_name, record_id)
-                            logger.debug(f"Skipping previously failed record {table_name} (id={record_id}): {reason}")
-                            skipped += 1
-                            skip_reasons[reason] = skip_reasons.get(reason, 0) + 1
-                            continue
+                        # Perform bulk operations
+                        if records_to_create:
+                            created += self._perform_bulk_insert(table_name, model_class, records_to_create)
                             
-                        try:
-                            # Start a fresh session for each record to avoid transaction failures affecting multiple records
-                            with self.target_session() as target_session:
-                                # Use database-specific method to disable foreign keys
-                                self._disable_foreign_keys(target_session)
+                        if records_to_update:
+                            updated += self._perform_bulk_update(table_name, model_class, records_to_update, pk_cols)
+                            
+                        total_synced += created + updated
+                        
+                    else:
+                        # Use the original single-record processing method
+                        for record_idx, record in enumerate(records):
+                            # Create a dictionary of the record's attributes
+                            data = {c.name: getattr(record, c.name) 
+                                    for c in record.__table__.columns}
+                                    
+                            # Get primary key for tracking failures
+                            record_id = None
+                            if pk_cols:
+                                record_id = data.get(pk_cols[0])
+                            
+                            # Skip if this record has failed before
+                            if record_id is not None and self._is_failed_record(table_name, record_id):
+                                reason = self._get_failed_reason(table_name, record_id)
+                                logger.debug(f"Skipping previously failed record {table_name} (id={record_id}): {reason}")
+                                skipped += 1
+                                skip_reasons[reason] = skip_reasons.get(reason, 0) + 1
+                                continue
+                                
+                            try:
+                                # Start a fresh session for each record to avoid transaction failures affecting multiple records
+                                with self.target_session() as target_session:
+                                    # Use database-specific method to disable foreign keys
+                                    self._disable_foreign_keys(target_session)
 
-                                # Check foreign key constraints
-                                checked_data, skip_reason = self._check_foreign_keys(data, table_name)
-                                if checked_data is None:
-                                    # Skip this record due to FK constraint issues
-                                    if record_id is not None:
-                                        self._track_failed_record(table_name, record_id, skip_reason)
-                                    skipped += 1
-                                    skip_reasons[skip_reason] = skip_reasons.get(skip_reason, 0) + 1
-                                    continue
-                                
-                                # Check if record exists in target
-                                pk_filter = {}
-                                for pk in pk_cols:
-                                    if pk in checked_data:
-                                        pk_filter[pk] = checked_data[pk]
-                                    else:
-                                        logger.warning(f"Primary key {pk} not found in record data for {table_name}")
+                                    # Check foreign key constraints
+                                    checked_data, skip_reason = self._check_foreign_keys(data, table_name)
+                                    if checked_data is None:
+                                        # Skip this record due to FK constraint issues
+                                        if record_id is not None:
+                                            self._track_failed_record(table_name, record_id, skip_reason)
+                                        skipped += 1
+                                        skip_reasons[skip_reason] = skip_reasons.get(skip_reason, 0) + 1
+                                        continue
+                                    
+                                    # Check if record exists in target
+                                    pk_filter = {}
+                                    for pk in pk_cols:
+                                        if pk in checked_data:
+                                            pk_filter[pk] = checked_data[pk]
+                                        else:
+                                            logger.warning(f"Primary key {pk} not found in record data for {table_name}")
+                                            
+                                    if not pk_filter:
+                                        skip_reason = "Missing primary key values"
+                                        logger.warning(f"No primary key values found for record in {table_name}, skipping")
+                                        skipped += 1
+                                        skip_reasons[skip_reason] = skip_reasons.get(skip_reason, 0) + 1
+                                        if record_id is not None:
+                                            self._track_failed_record(table_name, record_id, skip_reason)
+                                        continue
                                         
-                                if not pk_filter:
-                                    skip_reason = "Missing primary key values"
-                                    logger.warning(f"No primary key values found for record in {table_name}, skipping")
-                                    skipped += 1
-                                    skip_reasons[skip_reason] = skip_reasons.get(skip_reason, 0) + 1
-                                    if record_id is not None:
-                                        self._track_failed_record(table_name, record_id, skip_reason)
-                                    continue
+                                    existing = target_session.query(model_class).filter_by(**pk_filter).first()
                                     
-                                existing = target_session.query(model_class).filter_by(**pk_filter).first()
+                                    if existing:
+                                        # Update existing record
+                                        for key, value in checked_data.items():
+                                            setattr(existing, key, value)
+                                        
+                                        # Update the primary key cache
+                                        for pk in pk_cols:
+                                            if pk in checked_data and checked_data[pk] is not None:
+                                                self.primary_key_cache.setdefault(table_name, set()).add(checked_data[pk])
+                                        
+                                        updated += 1
+                                        logger.debug(f"Updated {table_name} record (id={record_id})")
+                                    else:
+                                        # Create new record
+                                        new_record = model_class(**checked_data)
+                                        target_session.add(new_record)
+                                        
+                                        # Update the primary key cache
+                                        for pk in pk_cols:
+                                            if pk in checked_data and checked_data[pk] is not None:
+                                                self.primary_key_cache.setdefault(table_name, set()).add(checked_data[pk])
+                                        
+                                        created += 1
+                                        logger.debug(f"Created new {table_name} record (id={record_id})")
+                                    
+                                    # Use database-specific method to re-enable foreign keys
+                                    self._enable_foreign_keys(target_session)
+                                    
+                                    # Commit this record's transaction
+                                    target_session.commit()
+                                    total_synced += 1
+                                    logger.debug(f"Transaction successful for {table_name} record (id={record_id})")
+                                    
+                            except Exception as e:
+                                # Log the error but continue with next record
+                                errors += 1
+                                batch_errors += 1
+                                error_msg = str(e)
+                                if record_id is not None:
+                                    self._track_failed_record(table_name, record_id, f"Error: {error_msg}")
+                                logger.error(f"Error processing record in {table_name} (id={record_id}): {error_msg}")
                                 
-                                if existing:
-                                    # Update existing record
-                                    for key, value in checked_data.items():
-                                        setattr(existing, key, value)
-                                    
-                                    # Update the primary key cache
-                                    for pk in pk_cols:
-                                        if pk in checked_data and checked_data[pk] is not None:
-                                            self.primary_key_cache.setdefault(table_name, set()).add(checked_data[pk])
-                                    
-                                    updated += 1
-                                    logger.debug(f"Updated {table_name} record (id={record_id})")
-                                else:
-                                    # Create new record
-                                    new_record = model_class(**checked_data)
-                                    target_session.add(new_record)
-                                    
-                                    # Update the primary key cache
-                                    for pk in pk_cols:
-                                        if pk in checked_data and checked_data[pk] is not None:
-                                            self.primary_key_cache.setdefault(table_name, set()).add(checked_data[pk])
-                                    
-                                    created += 1
-                                    logger.debug(f"Created new {table_name} record (id={record_id})")
-                                
-                                # Use database-specific method to re-enable foreign keys
-                                self._enable_foreign_keys(target_session)
-                                
-                                # Commit this record's transaction
-                                target_session.commit()
-                                total_synced += 1
-                                logger.debug(f"Transaction successful for {table_name} record (id={record_id})")
-                                
-                        except Exception as e:
-                            # Log the error but continue with next record
-                            errors += 1
-                            batch_errors += 1
-                            error_msg = str(e)
-                            if record_id is not None:
-                                self._track_failed_record(table_name, record_id, f"Error: {error_msg}")
-                            logger.error(f"Error processing record in {table_name} (id={record_id}): {error_msg}")
-                            
-                            # If we have too many errors in this batch, break out
-                            if batch_errors > batch_size / 2:  # If more than 50% of batch failed
-                                logger.error(f"Too many errors in this batch ({batch_errors}/{batch_size}), skipping remaining records")
-                                break
+                                # If we have too many errors in this batch, break out
+                                if batch_errors > batch_size / 2:  # If more than 50% of batch failed
+                                    logger.error(f"Too many errors in this batch ({batch_errors}/{batch_size}), skipping remaining records")
+                                    break
                     
                     # Move to next batch
                     offset += batch_size
@@ -594,7 +802,7 @@ class DatabaseSyncHelper:
                     
             except Exception as e:
                 logger.error(f"Error processing batch for {table_name} at offset {offset}: {str(e)}")
-                offset += self.batch_size  # Skip this batch and try the next one
+                offset += adjusted_batch_size  # Skip this batch and try the next one
                 errors += 1
                 
                 # If there are too many consecutive errors, stop processing
@@ -602,6 +810,18 @@ class DatabaseSyncHelper:
                     logger.error(f"Too many errors while syncing {table_name}, stopping")
                     break
         
+        # Restore normal PostgreSQL settings if needed
+        if self.sqlite_to_postgres and self.optimize:
+            try:
+                with self.target_session() as session:
+                    try:
+                        session.execute(text("SET session_replication_role = 'origin';"))
+                        logger.info("Re-enabled PostgreSQL triggers and constraints")
+                    except exc.SQLAlchemyError as e:
+                        logger.warning(f"Could not reset session_replication_role: {e}")
+            except Exception as e:
+                logger.warning(f"Error restoring PostgreSQL session: {e}")
+                
         # Log skip reasons summary
         if skipped > 0:
             logger.info(f"Skip reasons for {table_name}:")
@@ -616,7 +836,9 @@ class DatabaseSyncHelper:
             "time": f"{time.time() - self._start_time:.2f}s",
             "skipped": skipped,
             "skip_reasons": skip_reasons,
-            "errors": errors
+            "errors": errors,
+            "batch_size": adjusted_batch_size,
+            "bulk_operations": use_bulk_operations
         }
     
     def sync_all_tables(self):
@@ -625,6 +847,14 @@ class DatabaseSyncHelper:
         ordered_tables = self._build_dependency_order()
         results = {}
         self._start_time = time.time()
+        
+        # Log optimization settings
+        if self.optimize:
+            logger.info(f"Using optimized sync with batch size {self.batch_size}")
+            if self.sqlite_to_postgres:
+                logger.info("Optimizing for SQLite to PostgreSQL transfer")
+            elif self.postgres_to_sqlite:
+                logger.info("Optimizing for PostgreSQL to SQLite transfer")
         
         for table_name in ordered_tables:
             if table_name in self.model_map:
@@ -651,5 +881,19 @@ class DatabaseSyncHelper:
                     }
             else:
                 results[table_name] = {"status": "skipped", "message": "No model mapping"}
+        
+        # Add summary information
+        total_time = time.time() - self._start_time
+        total_records = sum(info.get("records", 0) for info in results.values() if isinstance(info, dict))
+        total_created = sum(info.get("created", 0) for info in results.values() if isinstance(info, dict))
+        total_updated = sum(info.get("updated", 0) for info in results.values() if isinstance(info, dict))
+        
+        results["_summary"] = {
+            "total_time": f"{total_time:.2f}s",
+            "total_records": total_records,
+            "total_created": total_created,
+            "total_updated": total_updated,
+            "records_per_second": int(total_records / total_time) if total_time > 0 else 0
+        }
         
         return results
