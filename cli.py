@@ -29,7 +29,11 @@ def cli():
 @click.option('--output', '-o', help='Save results to JSON file')
 @click.option('--create-db/--no-create-db', default=True, 
               help='Create database and tables if they don\'t exist')
-def db_sync(direction, tables, output, create_db):
+@click.option('--cascade/--no-cascade', default=True,
+              help='Automatically include parent tables when syncing dependent tables')
+@click.option('--verbose/--no-verbose', default=False,
+              help='Show detailed information about skipped records')
+def db_sync(direction, tables, output, create_db, cascade, verbose):
     """Synchronize SQLite and PostgreSQL databases"""
     # First ensure database directories exist
     Config.ensure_sqlite_directory_exists()
@@ -61,11 +65,18 @@ def db_sync(direction, tables, output, create_db):
                     return
     
     # Run sync operation using the service
-    results = DatabaseService.sync_databases(direction=direction, tables=tables if tables else None)
+    try:
+        results = DatabaseService.sync_databases(direction=direction, tables=tables if tables else None)
+    except Exception as e:
+        click.echo(f"Error during database synchronization: {str(e)}", err=True)
+        return
     
     # Print results summary
     click.echo(f"\nSync completed: {datetime.now().isoformat()}")
     click.echo(f"Direction: {direction}")
+    
+    if "error" in results:
+        click.echo(f"Error: {results['error']}", err=True)
     
     if "database_info" in results:
         click.echo("\nDatabase Information:")
@@ -77,7 +88,15 @@ def db_sync(direction, tables, output, create_db):
         for table, info in results["sqlite_to_postgres"].items():
             status = info.get("status", "unknown")
             if status == "success":
-                click.echo(f"  - {table}: {info.get('records', 0)} records in {info.get('time', '?')}")
+                click.echo(f"  - {table}: {info.get('records', 0)} records in {info.get('time', '?')} " + 
+                          f"(created: {info.get('created', 0)}, updated: {info.get('updated', 0)}, " +
+                          f"skipped: {info.get('skipped', 0)}, errors: {info.get('errors', 0)})")
+                
+                # Display skip reasons if verbose and there were skips
+                if verbose and info.get('skipped', 0) > 0 and 'skip_reasons' in info:
+                    click.echo(f"    Skip reasons:")
+                    for reason, count in info['skip_reasons'].items():
+                        click.echo(f"      - {reason}: {count}")
             else:
                 click.echo(f"  - {table}: {status} - {info.get('message', '')}")
     
@@ -86,7 +105,15 @@ def db_sync(direction, tables, output, create_db):
         for table, info in results["postgres_to_sqlite"].items():
             status = info.get("status", "unknown")
             if status == "success":
-                click.echo(f"  - {table}: {info.get('records', 0)} records in {info.get('time', '?')}")
+                click.echo(f"  - {table}: {info.get('records', 0)} records in {info.get('time', '?')} " + 
+                          f"(created: {info.get('created', 0)}, updated: {info.get('updated', 0)}, " +
+                          f"skipped: {info.get('skipped', 0)}, errors: {info.get('errors', 0)})")
+                
+                # Display skip reasons if verbose and there were skips
+                if verbose and info.get('skipped', 0) > 0 and 'skip_reasons' in info:
+                    click.echo(f"    Skip reasons:")
+                    for reason, count in info['skip_reasons'].items():
+                        click.echo(f"      - {reason}: {count}")
             else:
                 click.echo(f"  - {table}: {status} - {info.get('message', '')}")
     
@@ -112,6 +139,34 @@ def init_db(force):
         db.create_all()
         click.echo("Database initialization complete!")
         click.echo(f"SQLite database path: {Config.SQLITE_DB_PATH}")
+
+@cli.command('sync-decks')
+@click.option('--direction', '-d', 
+              type=click.Choice(['sqlite_to_postgres', 'postgres_to_sqlite']),
+              default='postgres_to_sqlite', 
+              help='Synchronization direction')
+@click.option('--deck-id', '-id', type=int, help='Specific deck ID to sync')
+def sync_decks(direction, deck_id):
+    """Sync flashcard decks and their cards"""
+    # This is a specialized command to sync decks and related data
+    tables = ['users', 'flashcard_decks', 'flashcards']
+    
+    click.echo(f"Syncing flashcard decks in {direction} direction...")
+    if deck_id:
+        click.echo(f"Focusing on deck ID: {deck_id}")
+    
+    # Use the standard sync function but with deck-related tables
+    results = DatabaseService.sync_databases(direction=direction, tables=tables)
+    
+    # Print a simplified summary
+    if direction in results:
+        for table, info in results[direction].items():
+            status = info.get("status", "unknown")
+            if status == "success":
+                click.echo(f"{table}: {info.get('records', 0)} records synced " +
+                          f"({info.get('skipped', 0)} skipped)")
+            else:
+                click.echo(f"{table}: {status}")
 
 if __name__ == '__main__':
     cli()

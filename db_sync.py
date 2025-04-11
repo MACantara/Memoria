@@ -34,7 +34,7 @@ logger = logging.getLogger("db_sync")
 class DatabaseSync:
     """Database synchronization between SQLite and PostgreSQL"""
     
-    def __init__(self, source_uri, target_uri, tables=None, batch_size=5000):
+    def __init__(self, source_uri, target_uri, tables=None, batch_size=100):
         """
         Initialize the database sync utility
         
@@ -213,6 +213,10 @@ class DatabaseSync:
         fixed_data = data.copy()
         dependencies = self.table_dependencies.get(table_name, [])
         
+        # Get record ID for better logging
+        pk_cols = self._get_primary_key_columns(table_name)
+        record_id = data.get(pk_cols[0]) if pk_cols else None
+        
         for dep_table in dependencies:
             # Find foreign key column (usually dep_table_id)
             fk_column = f"{dep_table[:-1]}_id"  # Remove trailing 's' and add '_id'
@@ -220,10 +224,10 @@ class DatabaseSync:
             if fk_column in fixed_data and fixed_data[fk_column] is not None:
                 # Check if the foreign key exists in the target database
                 if dep_table in self.primary_key_cache and fixed_data[fk_column] not in self.primary_key_cache[dep_table]:
-                    logger.warning(f"Foreign key violation in {table_name}: {fk_column}={fixed_data[fk_column]} not found in {dep_table}")
-                    return None  # Skip this record as its dependency doesn't exist
+                    logger.warning(f"Skipping {table_name} (id={record_id}): Foreign key violation - {fk_column}={fixed_data[fk_column]} not found in {dep_table}")
+                    return None, f"Missing dependency: {dep_table} with id={fixed_data[fk_column]}"
                     
-        return fixed_data
+        return fixed_data, None
     
     def sync_table(self, table_name):
         """Synchronize a single table from source to target"""
@@ -267,6 +271,9 @@ class DatabaseSync:
         total_synced = 0
         errors = 0
         skipped = 0
+        created = 0
+        updated = 0
+        skip_reasons = {}
         
         while True:
             try:
@@ -288,11 +295,17 @@ class DatabaseSync:
                                 data = {c.name: getattr(record, c.name) 
                                         for c in record.__table__.columns}
                                 
+                                # Get record ID for better logging
+                                record_id = None
+                                if pk_cols:
+                                    record_id = data.get(pk_cols[0])
+                                
                                 # Check foreign key constraints
-                                checked_data = self._check_foreign_keys(data, table_name)
+                                checked_data, skip_reason = self._check_foreign_keys(data, table_name)
                                 if checked_data is None:
                                     # Skip this record due to FK constraint issues
                                     skipped += 1
+                                    skip_reasons[skip_reason] = skip_reasons.get(skip_reason, 0) + 1
                                     continue
                                 
                                 # Check if record exists in target
@@ -319,6 +332,8 @@ class DatabaseSync:
                                     for pk in pk_cols:
                                         if pk in checked_data and checked_data[pk] is not None:
                                             self.primary_key_cache.setdefault(table_name, set()).add(checked_data[pk])
+                                    updated += 1
+                                    logger.debug(f"Updated {table_name} record (id={record_id})")
                                 else:
                                     # Create new record
                                     new_record = model_class(**checked_data)
@@ -328,7 +343,9 @@ class DatabaseSync:
                                     for pk in pk_cols:
                                         if pk in checked_data and checked_data[pk] is not None:
                                             self.primary_key_cache.setdefault(table_name, set()).add(checked_data[pk])
-                                    
+                                    created += 1
+                                    logger.debug(f"Created new {table_name} record (id={record_id})")
+                                
                                 total_synced += 1
                                 
                                 # Commit every 5000 records to avoid long transactions
@@ -338,12 +355,12 @@ class DatabaseSync:
                                 
                             except Exception as e:
                                 errors += 1
-                                logger.error(f"Error processing record in {table_name}: {str(e)}")
+                                logger.error(f"Error processing record in {table_name} (id={record_id if 'record_id' in locals() else 'unknown'}): {str(e)}")
                         
                         target_session.execute(text("PRAGMA foreign_keys = ON"))  # Re-enable FK constraints
                     
                     offset += len(records)
-                    logger.info(f"Synced {total_synced} records from {table_name}, skipped {skipped}, errors {errors}")
+                    logger.info(f"Synced {total_synced} records from {table_name}, created: {created}, updated: {updated}, skipped: {skipped}, errors: {errors}")
             except Exception as e:
                 logger.error(f"Error processing batch for {table_name} at offset {offset}: {str(e)}")
                 offset += self.batch_size  # Skip this batch and try the next one
@@ -354,7 +371,22 @@ class DatabaseSync:
                     logger.error(f"Too many errors while syncing {table_name}, stopping")
                     break
         
-        return total_synced
+        # Log skip reasons summary
+        if skipped > 0:
+            logger.info(f"Skip reasons for {table_name}:")
+            for reason, count in skip_reasons.items():
+                logger.info(f"  - {reason}: {count} records")
+        
+        return {
+            "status": "success",
+            "records": total_synced,
+            "created": created,
+            "updated": updated,
+            "time": f"{time.time() - start_time:.2f}s",
+            "skipped": skipped,
+            "skip_reasons": skip_reasons,
+            "errors": errors
+        }
     
     def sync_all_tables(self):
         """Synchronize all tables from source to target"""
