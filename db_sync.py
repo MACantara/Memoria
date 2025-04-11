@@ -34,7 +34,7 @@ logger = logging.getLogger("db_sync")
 class DatabaseSync:
     """Database synchronization between SQLite and PostgreSQL"""
     
-    def __init__(self, source_uri, target_uri, tables=None, batch_size=1000):
+    def __init__(self, source_uri, target_uri, tables=None, batch_size=None, optimize=True):
         """
         Initialize the database sync utility
         
@@ -42,14 +42,38 @@ class DatabaseSync:
             source_uri: SQLAlchemy URI for the source database
             target_uri: SQLAlchemy URI for the target database  
             tables: List of table names to sync (None for all tables)
-            batch_size: Number of records to process in each batch
+            batch_size: Number of records to process in each batch (None = auto)
+            optimize: Whether to use optimized sync methods
         """
         self.source_uri = source_uri
         self.target_uri = target_uri
         self.tables = tables
-        self.batch_size = batch_size
-        self.source_engine = create_engine(source_uri)
-        self.target_engine = create_engine(target_uri)
+        self.optimize = optimize
+        
+        # Set appropriate batch sizes based on direction and override
+        if batch_size:
+            self.batch_size = batch_size
+        elif 'sqlite' in source_uri.lower() and ('postgres' in target_uri.lower() or 'postgresql' in target_uri.lower()):
+            self.batch_size = 200  # Smaller batches for SQLite to Postgres
+        elif ('postgres' in source_uri.lower() or 'postgresql' in source_uri.lower()) and 'sqlite' in target_uri.lower():
+            self.batch_size = 1000  # Larger batches for Postgres to SQLite
+        else:
+            self.batch_size = 500  # Default
+        
+        # Configure optimized connection pooling for PostgreSQL
+        if 'postgres' in target_uri.lower() and self.optimize:
+            engine_options = {
+                'pool_size': 5,
+                'max_overflow': 10,
+                'pool_timeout': 30,
+                'pool_recycle': 1800
+            }
+            self.source_engine = create_engine(source_uri)
+            self.target_engine = create_engine(target_uri, **engine_options)
+            logger.info("Using optimized connection pool for PostgreSQL")
+        else:
+            self.source_engine = create_engine(source_uri)
+            self.target_engine = create_engine(target_uri)
         
         # Create session factories
         self.SourceSession = scoped_session(sessionmaker(bind=self.source_engine))
@@ -71,7 +95,6 @@ class DatabaseSync:
         }
         
         # Define table dependencies for foreign key constraints
-        # Format: 'table_name': ['dependent_table1', 'dependent_table2', ...]
         self.table_dependencies = {
             'users': [],  # users have no dependencies
             'flashcard_decks': ['users'],  # decks depend on users
@@ -86,8 +109,12 @@ class DatabaseSync:
             'import_tasks': ['users']
         }
         
-        # Cache of primary keys for each table to ensure foreign keys exist
+        # Cache of primary keys and track tables with large data
         self.primary_key_cache = {}
+        self.large_data_tables = {'import_chunks', 'import_files', 'flashcards'}
+        
+        # Track failed records to avoid repetitive errors
+        self.failed_ids = {}
     
     @contextmanager
     def source_session(self):
@@ -229,6 +256,35 @@ class DatabaseSync:
                     
         return fixed_data, None
     
+    def _perform_bulk_insert(self, table_name, model_class, records):
+        """Perform bulk insert operation for better performance"""
+        if not records:
+            return 0
+        
+        try:
+            with self.target_session() as target_session:
+                # Use SQLAlchemy bulk insert for better performance
+                target_session.bulk_insert_mappings(model_class, records)
+                target_session.commit()
+                logger.info(f"Bulk inserted {len(records)} records into {table_name}")
+                return len(records)
+        except Exception as e:
+            logger.error(f"Bulk insert error for {table_name}: {str(e)}")
+            
+            # Fall back to individual inserts if bulk operation fails
+            count = 0
+            for record in records:
+                try:
+                    with self.target_session() as ts:
+                        new_record = model_class(**record)
+                        ts.add(new_record)
+                        ts.commit()
+                        count += 1
+                except Exception as inner_e:
+                    logger.error(f"Individual insert error: {str(inner_e)}")
+            
+            return count
+    
     def sync_table(self, table_name):
         """Synchronize a single table from source to target"""
         logger.info(f"Syncing table: {table_name}")
@@ -236,15 +292,22 @@ class DatabaseSync:
         
         if not model_class:
             logger.warning(f"No model class found for table '{table_name}', skipping")
-            return
+            return {"status": "skipped", "reason": "No model mapping"}
 
         # Get primary key columns
         pk_cols = self._get_primary_key_columns(table_name)
         if not pk_cols:
             logger.warning(f"No primary key found for table '{table_name}', skipping")
-            return
+            return {"status": "skipped", "reason": "No primary key"}
             
-        logger.debug(f"Primary key columns for {table_name}: {pk_cols}")
+        # Adjust batch size for tables with large text fields
+        adjusted_batch_size = self.batch_size
+        if table_name in self.large_data_tables:
+            adjusted_batch_size = min(100, self.batch_size)
+            logger.info(f"Using reduced batch size {adjusted_batch_size} for large data table {table_name}")
+        
+        # Use bulk operations for appropriate tables if optimization enabled
+        use_bulk = self.optimize and table_name not in self.large_data_tables
         
         try:
             # Create target table if it doesn't exist
@@ -263,8 +326,21 @@ class DatabaseSync:
                         with self.target_session() as target_session:
                             self._cache_primary_keys(target_session, dep_model, dep_table)
                     
+            # Prefetch all primary keys for efficiency if using bulk operations
+            pk_values_in_target = set()
+            if use_bulk:
+                try:
+                    with self.target_session() as target_session:
+                        primary_key_col = getattr(model_class, pk_cols[0])
+                        pk_results = target_session.query(primary_key_col).all()
+                        pk_values_in_target = {r[0] for r in pk_results if r[0] is not None}
+                        logger.info(f"Prefetched {len(pk_values_in_target)} primary keys for {table_name}")
+                except Exception as e:
+                    logger.warning(f"Failed to prefetch keys: {e}")
+                    use_bulk = False
         except Exception as e:
             logger.warning(f"Error preparing table '{table_name}': {str(e)}")
+            return {"status": "error", "message": str(e)}
             
         # Process records in batches
         offset = 0
@@ -273,119 +349,204 @@ class DatabaseSync:
         skipped = 0
         created = 0
         updated = 0
+        start_time = time.time()
         skip_reasons = {}
+        
+        # If syncing to PostgreSQL, attempt to temporarily disable triggers for performance
+        if 'postgres' in self.target_uri.lower() and self.optimize:
+            try:
+                with self.target_session() as session:
+                    try:
+                        session.execute(text("SET session_replication_role = 'replica';"))
+                        logger.info("Disabled PostgreSQL triggers for faster sync")
+                    except Exception:
+                        logger.warning("Could not set session_replication_role (requires superuser)")
+            except Exception as e:
+                logger.warning(f"Error configuring PostgreSQL: {e}")
         
         while True:
             try:
+                records_to_insert = []
+                
                 with self.source_session() as source_session:
                     # Get batch of records from source
                     query = source_session.query(model_class)
-                    records = query.limit(self.batch_size).offset(offset).all()
+                    records = query.limit(adjusted_batch_size).offset(offset).all()
                     
                     if not records:
                         break
                     
-                    # Process records
-                    with self.target_session() as target_session:
-                        target_session.execute(text("PRAGMA foreign_keys = OFF"))  # Disable FK constraints temporarily
-                        
-                        for record in records:
-                            try:
-                                # Create a dictionary of the record's attributes
-                                data = {c.name: getattr(record, c.name) 
-                                        for c in record.__table__.columns}
-                                
-                                # Get record ID for better logging
-                                record_id = None
-                                if pk_cols:
-                                    record_id = data.get(pk_cols[0])
-                                
-                                # Check foreign key constraints
-                                checked_data, skip_reason = self._check_foreign_keys(data, table_name)
-                                if checked_data is None:
-                                    # Skip this record due to FK constraint issues
-                                    skipped += 1
-                                    skip_reasons[skip_reason] = skip_reasons.get(skip_reason, 0) + 1
-                                    continue
-                                
-                                # Check if record exists in target
-                                pk_filter = {}
-                                for pk in pk_cols:
-                                    if pk in checked_data:
-                                        pk_filter[pk] = checked_data[pk]
-                                    else:
-                                        logger.warning(f"Primary key {pk} not found in record data for {table_name}")
-                                        
-                                if not pk_filter:
-                                    logger.warning(f"No primary key values found for record in {table_name}, skipping")
-                                    skipped += 1
-                                    continue
-                                    
-                                existing = target_session.query(model_class).filter_by(**pk_filter).first()
-                                
-                                if existing:
-                                    # Update existing record
-                                    for key, value in checked_data.items():
-                                        setattr(existing, key, value)
-                                    
-                                    # Update the primary key cache
-                                    for pk in pk_cols:
-                                        if pk in checked_data and checked_data[pk] is not None:
-                                            self.primary_key_cache.setdefault(table_name, set()).add(checked_data[pk])
-                                    updated += 1
-                                    logger.debug(f"Updated {table_name} record (id={record_id})")
-                                else:
-                                    # Create new record
-                                    new_record = model_class(**checked_data)
-                                    target_session.add(new_record)
-                                    
-                                    # Update the primary key cache
-                                    for pk in pk_cols:
-                                        if pk in checked_data and checked_data[pk] is not None:
-                                            self.primary_key_cache.setdefault(table_name, set()).add(checked_data[pk])
-                                    created += 1
-                                    logger.debug(f"Created new {table_name} record (id={record_id})")
-                                
-                                total_synced += 1
-                                
-                                # Commit every 5000 records to avoid long transactions
-                                if total_synced % self.batch_size == 0:
-                                    target_session.commit()
-                                    logger.info(f"Committed batch of {self.batch_size} records for {table_name}")
-                                
-                            except Exception as e:
-                                errors += 1
-                                logger.error(f"Error processing record in {table_name} (id={record_id if 'record_id' in locals() else 'unknown'}): {str(e)}")
-                        
-                        target_session.execute(text("PRAGMA foreign_keys = ON"))  # Re-enable FK constraints
+                    batch_size = len(records)
+                    logger.info(f"Processing batch of {batch_size} records from offset {offset}")
                     
-                    offset += len(records)
-                    logger.info(f"Synced {total_synced} records from {table_name}, created: {created}, updated: {updated}, skipped: {skipped}, errors: {errors}")
+                    # Process records differently based on bulk or individual approach
+                    if use_bulk:
+                        # Process for bulk insert
+                        for record in records:
+                            # Create a dictionary of record attributes
+                            data = {c.name: getattr(record, c.name) 
+                                    for c in record.__table__.columns}
+                            
+                            # Get primary key
+                            record_id = data.get(pk_cols[0]) if pk_cols else None
+                            
+                            # Skip records with issues
+                            if record_id in self.failed_ids:
+                                skipped += 1
+                                reason = self.failed_ids[record_id]
+                                skip_reasons[reason] = skip_reasons.get(reason, 0) + 1
+                                continue
+                            
+                            # Check foreign keys
+                            checked_data, skip_reason = self._check_foreign_keys(data, table_name)
+                            if checked_data is None:
+                                skipped += 1
+                                if record_id:
+                                    self.failed_ids[record_id] = skip_reason
+                                skip_reasons[skip_reason] = skip_reasons.get(skip_reason, 0) + 1
+                                continue
+                            
+                            # Add to bulk insert collection if record doesn't exist in target
+                            if record_id is not None and record_id not in pk_values_in_target:
+                                records_to_insert.append(checked_data)
+                                # Add to set to prevent duplicates
+                                pk_values_in_target.add(record_id)
+                            else:
+                                # Handle update (currently just increments count)
+                                updated += 1
+                        
+                        # Perform bulk insert
+                        if records_to_insert:
+                            created += self._perform_bulk_insert(table_name, model_class, records_to_insert)
+                            logger.info(f"Bulk inserted {created} records")
+                    else:
+                        # Use individual record processing with target_session
+                        with self.target_session() as target_session:
+                            # Disable foreign keys for SQLite
+                            if 'sqlite' in self.target_uri.lower():
+                                target_session.execute(text("PRAGMA foreign_keys = OFF"))
+                            
+                            # Process each record individually
+                            for record in records:
+                                try:
+                                    # Create a dictionary of the record's attributes
+                                    data = {c.name: getattr(record, c.name) 
+                                            for c in record.__table__.columns}
+                                    
+                                    # Get record ID for better logging
+                                    record_id = None
+                                    if pk_cols:
+                                        record_id = data.get(pk_cols[0])
+                                    
+                                    # Check foreign key constraints
+                                    checked_data, skip_reason = self._check_foreign_keys(data, table_name)
+                                    if checked_data is None:
+                                        # Skip this record due to FK constraint issues
+                                        skipped += 1
+                                        skip_reasons[skip_reason] = skip_reasons.get(skip_reason, 0) + 1
+                                        continue
+                                    
+                                    # Check if record exists in target
+                                    pk_filter = {}
+                                    for pk in pk_cols:
+                                        if pk in checked_data:
+                                            pk_filter[pk] = checked_data[pk]
+                                        else:
+                                            logger.warning(f"Primary key {pk} not found in record data for {table_name}")
+                                            
+                                    if not pk_filter:
+                                        logger.warning(f"No primary key values found for record in {table_name}, skipping")
+                                        skipped += 1
+                                        continue
+                                        
+                                    existing = target_session.query(model_class).filter_by(**pk_filter).first()
+                                    
+                                    if existing:
+                                        # Update existing record
+                                        for key, value in checked_data.items():
+                                            setattr(existing, key, value)
+                                        
+                                        # Update the primary key cache
+                                        for pk in pk_cols:
+                                            if pk in checked_data and checked_data[pk] is not None:
+                                                self.primary_key_cache.setdefault(table_name, set()).add(checked_data[pk])
+                                        updated += 1
+                                        logger.debug(f"Updated {table_name} record (id={record_id})")
+                                    else:
+                                        # Create new record
+                                        new_record = model_class(**checked_data)
+                                        target_session.add(new_record)
+                                        
+                                        # Update the primary key cache
+                                        for pk in pk_cols:
+                                            if pk in checked_data and checked_data[pk] is not None:
+                                                self.primary_key_cache.setdefault(table_name, set()).add(checked_data[pk])
+                                        created += 1
+                                        logger.debug(f"Created new {table_name} record (id={record_id})")
+                                    
+                                    total_synced += 1
+                                    
+                                    # Commit every 5000 records to avoid long transactions
+                                    if total_synced % self.batch_size == 0:
+                                        target_session.commit()
+                                        logger.info(f"Committed batch of {self.batch_size} records for {table_name}")
+                                
+                                except Exception as e:
+                                    errors += 1
+                                    logger.error(f"Error processing record in {table_name} (id={record_id if 'record_id' in locals() else 'unknown'}): {str(e)}")
+                            
+                            # Re-enable foreign keys for SQLite
+                            if 'sqlite' in self.target_uri.lower():
+                                target_session.execute(text("PRAGMA foreign_keys = ON"))
+                    
+                    # Update total synced
+                    if use_bulk:
+                        total_synced = created + updated
+                    
+                    # Move to next batch
+                    offset += batch_size
+                    logger.info(f"Synced {total_synced} records from {table_name}, created {created}, updated {updated}, skipped {skipped}, errors {errors}")
+                    
             except Exception as e:
-                logger.error(f"Error processing batch for {table_name} at offset {offset}: {str(e)}")
-                offset += self.batch_size  # Skip this batch and try the next one
+                logger.error(f"Error processing batch: {str(e)}")
+                offset += adjusted_batch_size
                 errors += 1
                 
-                # If there are too many consecutive errors, stop processing
+                # If too many errors, stop processing
                 if errors > 5:
-                    logger.error(f"Too many errors while syncing {table_name}, stopping")
+                    logger.error(f"Too many errors, stopping sync for {table_name}")
                     break
         
-        # Log skip reasons summary
+        # Re-enable triggers in PostgreSQL if disabled
+        if 'postgres' in self.target_uri.lower() and self.optimize:
+            try:
+                with self.target_session() as session:
+                    try:
+                        session.execute(text("SET session_replication_role = 'origin';"))
+                        logger.info("Re-enabled PostgreSQL triggers")
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+        
+        # Log skip reasons if any
         if skipped > 0:
             logger.info(f"Skip reasons for {table_name}:")
             for reason, count in skip_reasons.items():
                 logger.info(f"  - {reason}: {count} records")
         
+        elapsed = time.time() - start_time
         return {
             "status": "success",
             "records": total_synced,
             "created": created,
             "updated": updated,
-            "time": f"{time.time() - start_time:.2f}s",
+            "time": f"{elapsed:.2f}s",
             "skipped": skipped,
             "skip_reasons": skip_reasons,
-            "errors": errors
+            "errors": errors,
+            "bulk_operations": use_bulk,
+            "batch_size": adjusted_batch_size
         }
     
     def sync_all_tables(self):
@@ -393,18 +554,16 @@ class DatabaseSync:
         # Get tables in dependency order
         ordered_tables = self._build_dependency_order()
         results = {}
+        total_start_time = time.time()
+        
+        # Log optimization settings
+        logger.info(f"Starting sync with batch size {self.batch_size}, optimization {'enabled' if self.optimize else 'disabled'}")
         
         for table_name in ordered_tables:
             if table_name in self.model_map:
-                start_time = time.time()
                 try:
-                    count = self.sync_table(table_name)
-                    elapsed = time.time() - start_time
-                    results[table_name] = {
-                        "records": count,
-                        "time": f"{elapsed:.2f}s",
-                        "status": "success"
-                    }
+                    result = self.sync_table(table_name)
+                    results[table_name] = result
                 except Exception as e:
                     logger.error(f"Error syncing {table_name}: {str(e)}")
                     results[table_name] = {
@@ -414,16 +573,32 @@ class DatabaseSync:
             else:
                 results[table_name] = {"status": "skipped", "message": "No model mapping"}
         
+        # Add summary statistics
+        total_time = time.time() - total_start_time
+        total_records = sum(info.get("records", 0) for info in results.values() if isinstance(info, dict))
+        total_created = sum(info.get("created", 0) for info in results.values() if isinstance(info, dict))
+        total_updated = sum(info.get("updated", 0) for info in results.values() if isinstance(info, dict))
+        
+        results["_summary"] = {
+            "total_time": f"{total_time:.2f}s",
+            "total_records": total_records,
+            "total_created": total_created,
+            "total_updated": total_updated,
+            "records_per_second": int(total_records / total_time) if total_time > 0 else 0
+        }
+        
         return results
 
 
-def sync_databases(direction="both", tables=None):
+def sync_databases(direction="both", tables=None, batch_size=None, optimize=True):
     """
     Synchronize data between SQLite and PostgreSQL databases
     
     Args:
         direction: 'sqlite_to_postgres', 'postgres_to_sqlite', or 'both'
         tables: List of table names to sync (None for all mappable tables)
+        batch_size: Number of records to process in each batch
+        optimize: Whether to use optimized sync methods
     
     Returns:
         Dictionary with sync results
@@ -439,6 +614,7 @@ def sync_databases(direction="both", tables=None):
         "timestamp": datetime.now().isoformat(),
         "direction": direction,
         "tables": tables,
+        "optimize": optimize
     }
     
     if not postgres_uri:
@@ -463,20 +639,24 @@ def sync_databases(direction="both", tables=None):
             logger.info(f"Created directory for SQLite database: {sqlite_dir}")
         
         if direction in ["sqlite_to_postgres", "both"]:
-            logger.info("Syncing SQLite to PostgreSQL")
+            logger.info(f"Syncing SQLite to PostgreSQL with optimization {'enabled' if optimize else 'disabled'}")
             sqlite_to_postgres = DatabaseSync(
                 source_uri=sqlite_uri,
                 target_uri=postgres_uri,
-                tables=tables
+                tables=tables,
+                batch_size=batch_size,
+                optimize=optimize
             )
             results["sqlite_to_postgres"] = sqlite_to_postgres.sync_all_tables()
         
         if direction in ["postgres_to_sqlite", "both"]:
-            logger.info("Syncing PostgreSQL to SQLite")
+            logger.info(f"Syncing PostgreSQL to SQLite with optimization {'enabled' if optimize else 'disabled'}")
             postgres_to_sqlite = DatabaseSync(
                 source_uri=postgres_uri,
                 target_uri=sqlite_uri,
-                tables=tables
+                tables=tables,
+                batch_size=batch_size,
+                optimize=optimize
             )
             results["postgres_to_sqlite"] = postgres_to_sqlite.sync_all_tables()
         
@@ -489,18 +669,25 @@ def sync_databases(direction="both", tables=None):
 
 
 # Add a convenience function to sync from Supabase to SQLite
-def sync_from_supabase_to_sqlite(tables=None):
+def sync_from_supabase_to_sqlite(tables=None, batch_size=None, optimize=True):
     """
     Synchronize data from Supabase/PostgreSQL to SQLite
     
     Args:
         tables: List of table names to sync (None for all mappable tables)
+        batch_size: Number of records to process in each batch
+        optimize: Whether to use optimized methods
     
     Returns:
         Dictionary with sync results
     """
     logger.info("Starting sync from Supabase to SQLite...")
-    return sync_databases(direction="postgres_to_sqlite", tables=tables)
+    return sync_databases(
+        direction="postgres_to_sqlite", 
+        tables=tables,
+        batch_size=batch_size,
+        optimize=optimize
+    )
 
 
 if __name__ == "__main__":
@@ -522,14 +709,33 @@ if __name__ == "__main__":
         "--output", 
         help="Save results to JSON file"
     )
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        help="Batch size for processing records"
+    )
+    parser.add_argument(
+        "--no-optimize",
+        action="store_true",
+        help="Disable optimization techniques"
+    )
     
     args = parser.parse_args()
     
     # Run sync operation
     if args.direction == "supabase_to_sqlite":
-        results = sync_from_supabase_to_sqlite(tables=args.tables if args.tables else None)
+        results = sync_from_supabase_to_sqlite(
+            tables=args.tables,
+            batch_size=args.batch_size,
+            optimize=not args.no_optimize
+        )
     else:
-        results = sync_databases(direction=args.direction, tables=args.tables if args.tables else None)
+        results = sync_databases(
+            direction=args.direction, 
+            tables=args.tables,
+            batch_size=args.batch_size,
+            optimize=not args.no_optimize
+        )
     
     # Print results summary
     print(f"\nSync completed: {datetime.now().isoformat()}")
