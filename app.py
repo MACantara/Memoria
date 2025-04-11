@@ -1,18 +1,25 @@
-from flask import Flask
+from flask import Flask, jsonify
 import json
+import os
 from models import db
 from config import Config
 from routes import register_blueprints
 from google import genai
-import os
-from flask_login import LoginManager
+from flask_login import LoginManager, login_required
+from services.database_service import DatabaseService
 
 def create_app(config_class=Config):
+    # Ensure SQLite database directory exists before initializing the app
+    config_class.ensure_sqlite_directory_exists()
+    
     app = Flask(__name__)
     app.config.from_object(config_class)
     
-    # Initialize database
-    db.init_app(app)
+    # Set the database URI from the Config property method
+    app.config['SQLALCHEMY_DATABASE_URI'] = config_class().SQLALCHEMY_DATABASE_URI
+    
+    # Initialize database using the service
+    DatabaseService.init_db(app)
     
     # Initialize Flask-Login
     login_manager = LoginManager()
@@ -41,16 +48,38 @@ def create_app(config_class=Config):
             # Return empty list as fallback if parsing fails
             return []
     
+    # Route for database synchronization
+    @app.route('/api/sync-databases', methods=['POST'])
+    @login_required
+    def sync_databases_route():
+        """API endpoint to trigger database synchronization"""
+        try:
+            # Only allow sync if both database types are configured
+            config = Config()
+            if not config.POSTGRES_URL:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'PostgreSQL database not configured'
+                }), 400
+                
+            # Run synchronization using the service
+            results = DatabaseService.sync_databases()
+            return jsonify({
+                'status': 'success',
+                'results': results
+            })
+        except Exception as e:
+            return jsonify({
+                'status': 'error',
+                'message': str(e)
+            }), 500
+    
     # Register blueprints using the centralized function
     register_blueprints(app)
     
     return app
 
 app = create_app()
-
-# Create tables if they don't exist
-with app.app_context():
-    db.create_all()
 
 if __name__ == "__main__":
     try:

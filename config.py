@@ -1,5 +1,6 @@
 import os
 import tempfile
+import re
 from dotenv import load_dotenv
 from google.genai import types
 
@@ -10,7 +11,70 @@ class Config:
     SECRET_KEY = os.getenv('SECRET_KEY')
     
     # Database configuration
-    SQLALCHEMY_DATABASE_URI = os.getenv('POSTGRES_URL_NON_POOLING', '').replace('postgres://', 'postgresql://')
+    DB_TYPE = os.getenv('DB_TYPE', 'sqlite').lower()  # 'sqlite' or 'postgres'
+    
+    # SQLite configuration - handle relative paths properly
+    _sqlite_path = os.getenv('SQLITE_DB_PATH', 'data/memoria.db')
+    
+    # Clean up any quotes or comments from the path
+    if _sqlite_path:
+        _sqlite_path = re.sub(r'["\']', '', _sqlite_path.split('#')[0].strip())
+    
+    # Get the absolute path to the application root directory
+    BASE_DIR = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
+    
+    # Convert relative path to absolute path based on application root
+    SQLITE_DB_PATH = (
+        _sqlite_path if os.path.isabs(_sqlite_path)
+        else os.path.join(BASE_DIR, _sqlite_path)
+    )
+    
+    @staticmethod
+    def ensure_sqlite_directory_exists():
+        """Create the directory for SQLite database if it doesn't exist"""
+        if Config.DB_TYPE.lower() == 'sqlite':
+            db_dir = os.path.dirname(Config.SQLITE_DB_PATH)
+            if db_dir and not os.path.exists(db_dir):
+                try:
+                    os.makedirs(db_dir, exist_ok=True)
+                    print(f"Created directory for SQLite database: {db_dir}")
+                except Exception as e:
+                    print(f"WARNING: Could not create SQLite database directory: {e}")
+                    # Fall back to temp directory if the specified path can't be created
+                    Config.SQLITE_DB_PATH = os.path.join(tempfile.gettempdir(), 'memoria.db')
+                    print(f"Using fallback SQLite path: {Config.SQLITE_DB_PATH}")
+    
+    # PostgreSQL configuration
+    POSTGRES_URL = os.getenv('POSTGRES_URL_NON_POOLING', '').replace('postgres://', 'postgresql://')
+    
+    # Database synchronization settings - ensure proper parsing of environment variables
+    DB_SYNC_ENABLED = os.getenv('DB_SYNC_ENABLED', 'false').lower() in ('true', '1', 't')
+    DB_SYNC_DIRECTION = os.getenv('DB_SYNC_DIRECTION', 'both').strip()
+    
+    # Parse the DB_SYNC_INTERVAL carefully to handle potential comment inclusion
+    try:
+        db_sync_interval_str = os.getenv('DB_SYNC_INTERVAL', '3600')
+        # Extract just the numeric part if there are comments or other text
+        if db_sync_interval_str and db_sync_interval_str.strip():
+            numeric_part = re.match(r'^\s*(\d+)', db_sync_interval_str)
+            if numeric_part:
+                DB_SYNC_INTERVAL = int(numeric_part.group(1))
+            else:
+                DB_SYNC_INTERVAL = 3600  # Default if no numeric part found
+        else:
+            DB_SYNC_INTERVAL = 3600  # Default if empty
+    except (ValueError, TypeError):
+        print(f"WARNING: Invalid DB_SYNC_INTERVAL value: '{os.getenv('DB_SYNC_INTERVAL')}', using default of 3600")
+        DB_SYNC_INTERVAL = 3600  # Default to 1 hour
+    
+    # Set the database URI based on the configured database type
+    @property
+    def SQLALCHEMY_DATABASE_URI(self):
+        if self.DB_TYPE == 'postgres':
+            return self.POSTGRES_URL
+        else:  # default to SQLite
+            return f'sqlite:///{self.SQLITE_DB_PATH}'
+    
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # API Keys
@@ -198,11 +262,11 @@ class Config:
 
     ## Output Format
     Return ONLY a JSON array with this exact structure:
-    [{{
+    [{
         "question": "What is X?",
         "correct_answer": "The correct answer",
         "incorrect_answers": ["Wrong 1", "Wrong 2", "Wrong 3"]
-    }}]
+    }]
     """
     
     # Enhanced prompt for generating more comprehensive explanations for quiz answers
