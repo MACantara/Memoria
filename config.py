@@ -45,7 +45,7 @@ class Config:
                     print(f"Using fallback SQLite path: {Config.SQLITE_DB_PATH}")
     
     # PostgreSQL configuration
-    POSTGRES_URL = os.getenv('POSTGRES_URL_NON_POOLING', '').replace('postgres://', 'postgresql://')
+    POSTGRES_URL = os.getenv('POSTGRES_URL', '').replace('postgres://', 'postgresql://')
     
     # Database synchronization settings - ensure proper parsing of environment variables
     DB_SYNC_ENABLED = os.getenv('DB_SYNC_ENABLED', 'false').lower() in ('true', '1', 't')
