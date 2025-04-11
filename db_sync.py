@@ -34,7 +34,7 @@ logger = logging.getLogger("db_sync")
 class DatabaseSync:
     """Database synchronization between SQLite and PostgreSQL"""
     
-    def __init__(self, source_uri, target_uri, tables=None, batch_size=5000):
+    def __init__(self, source_uri, target_uri, tables=None, batch_size=100):
         """
         Initialize the database sync utility
         
