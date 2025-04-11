@@ -172,15 +172,15 @@ class DatabaseSyncHelper:
         
         # Map model classes to table names - include all models
         self.model_map = {
-            'users': User,
+            'users': User, 
             'flashcard_decks': FlashcardDecks,
             'flashcards': Flashcards,
-            'learning_sessions': LearningSession,
-            'learning_sections': LearningSection,
+            'learning_sessions': LearningSession, 
+            'learning_sections': LearningSection, 
             'learning_questions': LearningQuestion,
-            'import_files': ImportFile,
-            'import_chunks': ImportChunk,
-            'import_flashcards': ImportFlashcard,
+            'import_files': ImportFile, 
+            'import_chunks': ImportChunk, 
+            'import_flashcards': ImportFlashcard, 
             'import_tasks': ImportTask
         }
         
@@ -193,14 +193,18 @@ class DatabaseSyncHelper:
             'learning_sessions': ['users'],  
             'learning_sections': ['learning_sessions'],
             'learning_questions': ['learning_sections'],
-            'import_files': ['users'],
+            'import_files': ['users', 'flashcard_decks'],  # import_files depend on users AND decks
             'import_chunks': ['import_files'],
             'import_flashcards': ['import_chunks'],
-            'import_tasks': ['users']
+            'import_tasks': ['users', 'import_files']
         }
         
         # Cache of primary keys for each table to ensure foreign keys exist
         self.primary_key_cache = {}
+        self.foreign_key_columns = {}
+        
+        # Track failed records to avoid repetitive errors
+        self.failed_ids_by_table = {}
     
     @contextmanager
     def source_session(self):
@@ -217,13 +221,15 @@ class DatabaseSyncHelper:
     
     @contextmanager
     def target_session(self):
-        """Context manager for target database session"""
+        """Context manager for target database session with error handling"""
         session = self.TargetSession()
         try:
             yield session
             session.commit()
         except Exception as e:
             session.rollback()
+            logger.warning(f"Session error (rolling back): {str(e)}")
+            # Re-raise the exception for the caller to handle
             raise e
         finally:
             session.close()
@@ -233,10 +239,10 @@ class DatabaseSyncHelper:
         try:
             if 'sqlite' in self.target_uri.lower():
                 session.execute(text("PRAGMA foreign_keys = OFF"))
+                logger.debug("Disabled SQLite foreign keys")
             elif 'postgresql' in self.target_uri.lower() or 'postgres' in self.target_uri.lower():
-                # In PostgreSQL, we can't disable constraints for a session
-                # We could use ALTER TABLE ... DISABLE TRIGGER ALL for each table
-                # but that requires superuser privileges, so we'll just skip this
+                # In PostgreSQL we can't disable constraints for a session without superuser privileges
+                # We'll handle this by skipping records that violate constraints instead
                 pass
         except Exception as e:
             logger.warning(f"Could not disable foreign keys: {str(e)}")
@@ -246,6 +252,7 @@ class DatabaseSyncHelper:
         try:
             if 'sqlite' in self.target_uri.lower():
                 session.execute(text("PRAGMA foreign_keys = ON"))
+                logger.debug("Re-enabled SQLite foreign keys")
             elif 'postgresql' in self.target_uri.lower() or 'postgres' in self.target_uri.lower():
                 # Nothing to do for PostgreSQL as we didn't disable constraints
                 pass
@@ -256,14 +263,30 @@ class DatabaseSyncHelper:
         """Get all table names from the source database"""
         inspector = inspect(self.source_engine)
         return inspector.get_table_names()
+
+    def _get_foreign_key_columns(self, table_name):
+        """Get all foreign key columns for a table"""
+        if table_name in self.foreign_key_columns:
+            return self.foreign_key_columns[table_name]
+            
+        inspector = inspect(self.target_engine)
+        fk_columns = {}
+        
+        try:
+            for fk in inspector.get_foreign_keys(table_name):
+                for local_col in fk['constrained_columns']:
+                    # Map the local column to the referenced table
+                    fk_columns[local_col] = fk['referred_table']
+        except Exception as e:
+            logger.warning(f"Error getting foreign keys for {table_name}: {e}")
+            
+        self.foreign_key_columns[table_name] = fk_columns
+        return fk_columns
     
     def _get_primary_key_columns(self, table_name):
         """Get primary key column names for a table"""
         inspector = inspect(self.source_engine)
         pk_constraint = inspector.get_pk_constraint(table_name)
-        
-        # Debug information
-        logger.debug(f"PK constraint for {table_name}: {pk_constraint}")
         
         # Handle different database drivers returning different formats
         if 'constrained_columns' in pk_constraint:
@@ -348,6 +371,12 @@ class DatabaseSyncHelper:
     def _check_foreign_keys(self, data, table_name):
         """Check and fix foreign key references in a record"""
         fixed_data = data.copy()
+        
+        # Get record ID for better logging
+        pk_cols = self._get_primary_key_columns(table_name)
+        record_id = data.get(pk_cols[0]) if pk_cols else None
+        
+        # First check explicit dependencies from our mapping
         dependencies = self.table_dependencies.get(table_name, [])
         
         for dep_table in dependencies:
@@ -357,10 +386,44 @@ class DatabaseSyncHelper:
             if fk_column in fixed_data and fixed_data[fk_column] is not None:
                 # Check if the foreign key exists in the target database
                 if dep_table in self.primary_key_cache and fixed_data[fk_column] not in self.primary_key_cache[dep_table]:
-                    logger.warning(f"Foreign key violation in {table_name}: {fk_column}={fixed_data[fk_column]} not found in {dep_table}")
-                    return None  # Skip this record as its dependency doesn't exist
+                    logger.info(f"Skipping {table_name} (id={record_id}): Foreign key violation - {fk_column}={fixed_data[fk_column]} not found in {dep_table}")
+                    return None, f"Missing dependency: {dep_table} with id={fixed_data[fk_column]}"
+        
+        # Now check all foreign keys reported by the database
+        fk_columns = self._get_foreign_key_columns(table_name)
+        
+        for column, referred_table in fk_columns.items():
+            if column in fixed_data and fixed_data[column] is not None:
+                # Check if the referenced table's primary keys are cached
+                if referred_table not in self.primary_key_cache:
+                    # Try to load the primary keys for this table
+                    if referred_table in self.model_map:
+                        with self.target_session() as target_session:
+                            self._cache_primary_keys(target_session, self.model_map[referred_table], referred_table)
+                
+                # Now check if the foreign key exists
+                if referred_table in self.primary_key_cache and fixed_data[column] not in self.primary_key_cache[referred_table]:
+                    logger.info(f"Skipping {table_name} (id={record_id}): Foreign key violation - {column}={fixed_data[column]} not found in {referred_table}")
+                    return None, f"Missing reference: {referred_table} with id={fixed_data[column]}"
                     
-        return fixed_data
+        return fixed_data, None
+    
+    def _track_failed_record(self, table_name, record_id, reason=None):
+        """Track a failed record to avoid repeated attempts"""
+        if table_name not in self.failed_ids_by_table:
+            self.failed_ids_by_table[table_name] = {}
+            
+        self.failed_ids_by_table[table_name][record_id] = reason or "Unknown error"
+        
+    def _is_failed_record(self, table_name, record_id):
+        """Check if a record has already failed in this sync operation"""
+        return table_name in self.failed_ids_by_table and record_id in self.failed_ids_by_table[table_name]
+    
+    def _get_failed_reason(self, table_name, record_id):
+        """Get the reason a record failed in a previous attempt"""
+        if table_name in self.failed_ids_by_table and record_id in self.failed_ids_by_table[table_name]:
+            return self.failed_ids_by_table[table_name][record_id]
+        return "Unknown reason"
     
     def sync_table(self, table_name):
         """Synchronize a single table from source to target"""
@@ -369,13 +432,13 @@ class DatabaseSyncHelper:
         
         if not model_class:
             logger.warning(f"No model class found for table '{table_name}', skipping")
-            return
+            return {"status": "skipped", "reason": "No model mapping"}
 
         # Get primary key columns
         pk_cols = self._get_primary_key_columns(table_name)
         if not pk_cols:
             logger.warning(f"No primary key found for table '{table_name}', skipping")
-            return
+            return {"status": "skipped", "reason": "No primary key"}
             
         logger.debug(f"Primary key columns for {table_name}: {pk_cols}")
         
@@ -388,7 +451,7 @@ class DatabaseSyncHelper:
             with self.target_session() as target_session:
                 self._cache_primary_keys(target_session, model_class, table_name)
                 
-            # Cache primary keys of dependency tables if needed
+            # Pre-cache primary keys of dependency tables to validate foreign keys
             for dep_table in self.table_dependencies.get(table_name, []):
                 if dep_table not in self.primary_key_cache:
                     dep_model = self._get_model_class(dep_table)
@@ -398,15 +461,21 @@ class DatabaseSyncHelper:
                     
         except Exception as e:
             logger.warning(f"Error preparing table '{table_name}': {str(e)}")
+            return {"status": "error", "message": str(e), "records": 0}
             
         # Process records in batches
         offset = 0
         total_synced = 0
         errors = 0
         skipped = 0
+        created = 0
+        updated = 0
+        batch_errors = 0
+        skip_reasons = {}
         
         while True:
             try:
+                batch_errors = 0  # Reset batch error counter
                 with self.source_session() as source_session:
                     # Get batch of records from source
                     query = source_session.query(model_class)
@@ -415,22 +484,42 @@ class DatabaseSyncHelper:
                     if not records:
                         break
                     
-                    # Process records
-                    with self.target_session() as target_session:
-                        # Use database-specific method to disable foreign keys
-                        self._disable_foreign_keys(target_session)
-                        
-                        for record in records:
-                            try:
-                                # Create a dictionary of the record's attributes
-                                data = {c.name: getattr(record, c.name) 
-                                        for c in record.__table__.columns}
+                    batch_size = len(records)
+                    logger.debug(f"Processing batch of {batch_size} records from offset {offset}")
+                    
+                    # Process records with a clean session for each record to prevent cascading failures
+                    for record_idx, record in enumerate(records):
+                        # Create a dictionary of the record's attributes
+                        data = {c.name: getattr(record, c.name) 
+                                for c in record.__table__.columns}
                                 
+                        # Get primary key for tracking failures
+                        record_id = None
+                        if pk_cols:
+                            record_id = data.get(pk_cols[0])
+                        
+                        # Skip if this record has failed before
+                        if record_id is not None and self._is_failed_record(table_name, record_id):
+                            reason = self._get_failed_reason(table_name, record_id)
+                            logger.debug(f"Skipping previously failed record {table_name} (id={record_id}): {reason}")
+                            skipped += 1
+                            skip_reasons[reason] = skip_reasons.get(reason, 0) + 1
+                            continue
+                            
+                        try:
+                            # Start a fresh session for each record to avoid transaction failures affecting multiple records
+                            with self.target_session() as target_session:
+                                # Use database-specific method to disable foreign keys
+                                self._disable_foreign_keys(target_session)
+
                                 # Check foreign key constraints
-                                checked_data = self._check_foreign_keys(data, table_name)
+                                checked_data, skip_reason = self._check_foreign_keys(data, table_name)
                                 if checked_data is None:
                                     # Skip this record due to FK constraint issues
+                                    if record_id is not None:
+                                        self._track_failed_record(table_name, record_id, skip_reason)
                                     skipped += 1
+                                    skip_reasons[skip_reason] = skip_reasons.get(skip_reason, 0) + 1
                                     continue
                                 
                                 # Check if record exists in target
@@ -442,8 +531,12 @@ class DatabaseSyncHelper:
                                         logger.warning(f"Primary key {pk} not found in record data for {table_name}")
                                         
                                 if not pk_filter:
+                                    skip_reason = "Missing primary key values"
                                     logger.warning(f"No primary key values found for record in {table_name}, skipping")
                                     skipped += 1
+                                    skip_reasons[skip_reason] = skip_reasons.get(skip_reason, 0) + 1
+                                    if record_id is not None:
+                                        self._track_failed_record(table_name, record_id, skip_reason)
                                     continue
                                     
                                 existing = target_session.query(model_class).filter_by(**pk_filter).first()
@@ -457,6 +550,9 @@ class DatabaseSyncHelper:
                                     for pk in pk_cols:
                                         if pk in checked_data and checked_data[pk] is not None:
                                             self.primary_key_cache.setdefault(table_name, set()).add(checked_data[pk])
+                                    
+                                    updated += 1
+                                    logger.debug(f"Updated {table_name} record (id={record_id})")
                                 else:
                                     # Create new record
                                     new_record = model_class(**checked_data)
@@ -467,21 +563,35 @@ class DatabaseSyncHelper:
                                         if pk in checked_data and checked_data[pk] is not None:
                                             self.primary_key_cache.setdefault(table_name, set()).add(checked_data[pk])
                                     
+                                    created += 1
+                                    logger.debug(f"Created new {table_name} record (id={record_id})")
+                                
+                                # Use database-specific method to re-enable foreign keys
+                                self._enable_foreign_keys(target_session)
+                                
+                                # Commit this record's transaction
+                                target_session.commit()
                                 total_synced += 1
+                                logger.debug(f"Transaction successful for {table_name} record (id={record_id})")
                                 
-                                # Commit every 5000 records to avoid long transactions
-                                if total_synced % self.batch_size == 0:
-                                    target_session.commit()
-                                
-                            except Exception as e:
-                                errors += 1
-                                logger.error(f"Error processing record in {table_name}: {str(e)}")
-                        
-                        # Use database-specific method to re-enable foreign keys
-                        self._enable_foreign_keys(target_session)
+                        except Exception as e:
+                            # Log the error but continue with next record
+                            errors += 1
+                            batch_errors += 1
+                            error_msg = str(e)
+                            if record_id is not None:
+                                self._track_failed_record(table_name, record_id, f"Error: {error_msg}")
+                            logger.error(f"Error processing record in {table_name} (id={record_id}): {error_msg}")
+                            
+                            # If we have too many errors in this batch, break out
+                            if batch_errors > batch_size / 2:  # If more than 50% of batch failed
+                                logger.error(f"Too many errors in this batch ({batch_errors}/{batch_size}), skipping remaining records")
+                                break
                     
-                    offset += len(records)
-                    logger.info(f"Synced {total_synced} records from {table_name}, skipped {skipped}, errors {errors}")
+                    # Move to next batch
+                    offset += batch_size
+                    logger.info(f"Synced {total_synced} records from {table_name}, created {created}, updated {updated}, skipped {skipped}, errors {errors}")
+                    
             except Exception as e:
                 logger.error(f"Error processing batch for {table_name} at offset {offset}: {str(e)}")
                 offset += self.batch_size  # Skip this batch and try the next one
@@ -492,25 +602,47 @@ class DatabaseSyncHelper:
                     logger.error(f"Too many errors while syncing {table_name}, stopping")
                     break
         
-        return total_synced
+        # Log skip reasons summary
+        if skipped > 0:
+            logger.info(f"Skip reasons for {table_name}:")
+            for reason, count in skip_reasons.items():
+                logger.info(f"  - {reason}: {count} records")
+        
+        return {
+            "status": "success",
+            "records": total_synced,
+            "created": created,
+            "updated": updated,
+            "time": f"{time.time() - self._start_time:.2f}s",
+            "skipped": skipped,
+            "skip_reasons": skip_reasons,
+            "errors": errors
+        }
     
     def sync_all_tables(self):
         """Synchronize all tables from source to target"""
         # Get tables in dependency order
         ordered_tables = self._build_dependency_order()
         results = {}
+        self._start_time = time.time()
         
         for table_name in ordered_tables:
             if table_name in self.model_map:
-                start_time = time.time()
+                table_start_time = time.time()
                 try:
-                    count = self.sync_table(table_name)
-                    elapsed = time.time() - start_time
-                    results[table_name] = {
-                        "records": count,
-                        "time": f"{elapsed:.2f}s",
-                        "status": "success"
-                    }
+                    result = self.sync_table(table_name)
+                    elapsed = time.time() - table_start_time
+                    
+                    if isinstance(result, dict):
+                        result["time"] = f"{elapsed:.2f}s"
+                        results[table_name] = result
+                    else:
+                        # If sync_table returned a non-dict value (like an int), create a result dict
+                        results[table_name] = {
+                            "records": result,
+                            "time": f"{elapsed:.2f}s",
+                            "status": "success"
+                        }
                 except Exception as e:
                     logger.error(f"Error syncing {table_name}: {str(e)}")
                     results[table_name] = {
