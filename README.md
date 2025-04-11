@@ -86,7 +86,19 @@ python cli.py db-sync --direction sqlite_to_postgres
 
 # Synchronize specific tables
 python cli.py db-sync --tables users flashcard_decks
+
+# Synchronize flashcard decks and cards only
+python cli.py sync-decks
 ```
+
+### Troubleshooting Database Sync
+
+If you encounter issues during database synchronization, consider the following steps:
+
+1. **Check Database Connections**: Ensure that both SQLite and PostgreSQL databases are accessible and the connection details in the `.env` file are correct.
+2. **Review Logs**: Check the application logs for any error messages that can provide more details about the issue.
+3. **Update Dependencies**: Make sure all dependencies are up to date by running `pip install --upgrade -r requirements.txt`.
+4. **Database Migrations**: Ensure that all database migrations have been applied. You can run `python cli.py db-migrate` to apply any pending migrations.
 
 ## 🤖 AI Integration
 
