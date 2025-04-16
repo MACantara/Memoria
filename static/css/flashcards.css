@@ -568,9 +568,9 @@ body {
 /* Enhanced milestone celebration toast */
 .milestone-toast {
     position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
+    top: 20px;
+    right: 20px;
+    transform: none;
     background-color: rgba(25, 135, 84, 0.9);
     color: white;
     padding: 20px 30px;
@@ -578,10 +578,6 @@ body {
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
     z-index: 9999 !important; /* Ensure this is on top */
     text-align: center;
-    animation: milestone-toast-in 3s ease forwards;
-    pointer-events: none;
-    min-width: 280px;
-    max-width: 90%;
 }
 
 .milestone-icon {
@@ -600,10 +596,10 @@ body {
 }
 
 @keyframes milestone-toast-in {
-    0% { opacity: 0; transform: translate(-50%, -30%); }
-    10% { opacity: 1; transform: translate(-50%, -50%); }
-    80% { opacity: 1; transform: translate(-50%, -50%); }
-    100% { opacity: 0; transform: translate(-50%, -70%); }
+    0% { opacity: 0; transform: translateX(30px); }
+    10% { opacity: 1; transform: translateX(0); }
+    80% { opacity: 1; transform: translateX(0); }
+    100% { opacity: 0; transform: translateX(30px); }
 }
 
 /* Improve segment loading UX */
@@ -816,7 +812,7 @@ body.loading-next-segment form {
     border-color: var(--bs-warning) transparent transparent transparent;
 }
 
-.card-status-indicator i {
+.card-status-indicator.i {
     position: absolute;
     top: -20px;
     left: 2px;
