@@ -947,38 +947,17 @@ export class UIManager {
         this.currentSegment = 0;
         this.totalCards = totalCards;
         
-        // Create container for segment info
-        const segmentInfoContainer = document.createElement('div');
-        segmentInfoContainer.id = 'segmentInfoContainer';
-        segmentInfoContainer.className = 'segment-info';
-        
-        // Add segment progress text
-        const segmentProgress = document.createElement('div');
-        segmentProgress.id = 'segmentProgress';
-        segmentProgress.className = 'segment-progress';
-        
-        // Create a new layout with segment progress on left and batch info on right
+        // Create a cleaner, centered layout with just the batch information
         const progressDisplay = document.createElement('div');
-        progressDisplay.className = 'd-flex justify-content-between w-100';
+        progressDisplay.className = 'd-flex justify-content-center w-100';
         
-        // Create left side with segment progress
-        const leftSide = document.createElement('div');
-        leftSide.className = 'text-start';
-        leftSide.appendChild(segmentProgress);
-        
-        // Create right side with current segment label
-        const rightSide = document.createElement('div');
-        rightSide.className = 'text-end';
-        
+        // Create centered batch label
         const currentSegmentLabel = document.createElement('div');
         currentSegmentLabel.id = 'currentSegmentLabel';
-        currentSegmentLabel.className = 'current-segment-label';
+        currentSegmentLabel.className = 'current-segment-label text-center';
         
-        rightSide.appendChild(currentSegmentLabel);
-        
-        // Assemble the layout
-        progressDisplay.appendChild(leftSide);
-        progressDisplay.appendChild(rightSide);
+        // Add elements to the layout
+        progressDisplay.appendChild(currentSegmentLabel);
         
         // Add elements to page
         this.progressMilestones.appendChild(progressDisplay);
@@ -1053,18 +1032,12 @@ export class UIManager {
             this.createSegmentMarker();
         }
         
-        // Update segment info display with batch and overall progress
-        const segmentProgress = document.getElementById('segmentProgress');
+        // Update segment info display with combined batch and overall progress
         const currentSegmentLabel = document.getElementById('currentSegmentLabel');
-        
-        if (segmentProgress) {
-            segmentProgress.textContent = `${overallScore}/${totalCards}`;
-            segmentProgress.title = `Overall progress: ${overallScore} of ${totalCards} cards`;
-        }
         
         if (currentSegmentLabel) {
             currentSegmentLabel.textContent = `Batch ${completedSegments + 1} of ${this.totalSegments}`;
-            currentSegmentLabel.title = `Current batch progress: ${batchScore}/${batchSize}`;
+            currentSegmentLabel.title = `Overall progress: ${overallScore} of ${totalCards} cards (${batchScore}/${batchSize} in current batch)`;
         }
         
         // Update the progress bar for the current batch
@@ -1101,6 +1074,7 @@ export class UIManager {
         const currentSegmentLabel = document.getElementById('currentSegmentLabel');
         if (currentSegmentLabel) {
             currentSegmentLabel.textContent = `Batch ${batchNumber} of ${totalBatches}`;
+            currentSegmentLabel.title = `Starting batch ${batchNumber} of ${totalBatches}`;
         }
         
         // Reset segment progress
