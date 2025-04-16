@@ -69,6 +69,9 @@ export class FlashcardManager {
         console.log(`Initializing flashcard manager. Total expected cards: ${this.totalDueCards}`);
         
         if (this.totalDueCards > 0) {
+            // Update overdue cards to forgotten state before loading
+            await this.updateOverdueCardsToForgotten();
+            
             // Load the first batch of flashcards
             await this.loadFlashcardBatch(this.currentBatch);
             
@@ -106,6 +109,46 @@ export class FlashcardManager {
         
         // Setup event listeners
         this.events.setupEventListeners();
+    }
+
+    /**
+     * Update overdue cards to forgotten state before loading flashcards
+     */
+    async updateOverdueCardsToForgotten() {
+        try {
+            console.log("Updating overdue cards to forgotten state...");
+            
+            const response = await fetch(`/deck/update-overdue/${this.deckId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({
+                    update_type: 'forgotten'
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to update overdue cards: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                console.log(`Updated ${data.updated_count} overdue cards to forgotten state`);
+                
+                // If we've updated cards, we might want to reload the initial count
+                if (data.updated_count > 0) {
+                    console.log("Cards were updated to forgotten state, refreshing count information");
+                }
+            } else {
+                console.warn("Failed to update overdue cards:", data.message || "Unknown error");
+            }
+        } catch (error) {
+            console.error("Error updating overdue cards:", error);
+            // Continue anyway - we don't want this to block the flashcard loading
+        }
     }
 
     async loadFlashcardBatch(batchNumber) {
