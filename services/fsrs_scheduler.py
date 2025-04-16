@@ -138,7 +138,7 @@ def process_review(flashcard, is_correct):
         
         return flashcard.due_date, 0.0
 
-def get_due_cards(deck_id, due_only=False, excluded_ids=None):
+def get_due_cards(deck_id, due_only=False, excluded_ids=None, page=1, per_page=None):
     """
     Get cards that are due for review from a deck and its sub-decks
     
@@ -146,6 +146,8 @@ def get_due_cards(deck_id, due_only=False, excluded_ids=None):
         deck_id: The deck ID to fetch cards from
         due_only: Whether to only include cards that are due
         excluded_ids: DEPRECATED - No longer used, kept for backwards compatibility
+        page: The page number for pagination (1-based)
+        per_page: Number of cards per page, if None returns all cards
     """
     from models import FlashcardDecks, Flashcards
     from sqlalchemy import case
@@ -204,33 +206,74 @@ def get_due_cards(deck_id, due_only=False, excluded_ids=None):
     target_learning = 15
     target_new = 15
     
-    # Total cards we're aiming for
+    # Calculate the total target count (missing variable)
     total_target = target_forgotten + target_learning + target_new
     
-    # Fetch cards for each state separately with proper ordering
-    forgotten_cards = query.filter(Flashcards.state == 3).order_by(
-        case((Flashcards.due_date == None, 0), else_=1),
-        Flashcards.due_date.asc(),
-        Flashcards.flashcard_id.asc()
-    ).all()
+    # If we're paginating, adjust targets based on page number
+    if per_page is not None:
+        # For page 1, use default targets
+        # For subsequent pages, adjust proportion of each state
+        if page > 1:
+            # For later pages, we can change the distribution if needed
+            # Here we're keeping it the same
+            pass
     
-    learning_cards = query.filter(Flashcards.state == 1).order_by(
-        case((Flashcards.due_date == None, 0), else_=1),
-        Flashcards.due_date.asc(),
-        Flashcards.flashcard_id.asc()
-    ).all()
-    
-    new_cards = query.filter(Flashcards.state == 0).order_by(
-        case((Flashcards.due_date == None, 0), else_=1),
-        Flashcards.due_date.asc(),
-        Flashcards.flashcard_id.asc()
-    ).all()
-    
-    mastered_cards = query.filter(Flashcards.state == 2).order_by(
-        case((Flashcards.due_date == None, 0), else_=1),
-        Flashcards.due_date.asc(),
-        Flashcards.flashcard_id.asc()
-    ).all()
+    # Apply pagination at the SQL level if per_page is specified
+    if per_page is not None:
+        # Calculate offset based on page number (1-based indexing)
+        offset = (page - 1) * per_page
+        
+        # Apply LIMIT and OFFSET to the queries to get paginated results
+        forgotten_cards = query.filter(Flashcards.state == 3).order_by(
+            case((Flashcards.due_date == None, 0), else_=1),
+            Flashcards.due_date.asc(),
+            Flashcards.flashcard_id.asc()
+        ).offset(offset).limit(per_page // 3 + 5).all()  # Add a few extra in case we need them
+        
+        learning_cards = query.filter(Flashcards.state == 1).order_by(
+            case((Flashcards.due_date == None, 0), else_=1),
+            Flashcards.due_date.asc(),
+            Flashcards.flashcard_id.asc()
+        ).offset(offset).limit(per_page // 3 + 5).all()
+        
+        new_cards = query.filter(Flashcards.state == 0).order_by(
+            case((Flashcards.due_date == None, 0), else_=1),
+            Flashcards.due_date.asc(),
+            Flashcards.flashcard_id.asc()
+        ).offset(offset).limit(per_page // 3 + 5).all()
+        
+        # For mastered cards, we're less concerned about pagination
+        # since they're only used to fill in when there aren't enough other cards
+        mastered_cards = query.filter(Flashcards.state == 2).order_by(
+            case((Flashcards.due_date == None, 0), else_=1),
+            Flashcards.due_date.asc(),
+            Flashcards.flashcard_id.asc()
+        ).limit(per_page // 3).all()
+    else:
+        # Use existing code for non-paginated queries
+        forgotten_cards = query.filter(Flashcards.state == 3).order_by(
+            case((Flashcards.due_date == None, 0), else_=1),
+            Flashcards.due_date.asc(),
+            Flashcards.flashcard_id.asc()
+        ).all()
+        
+        learning_cards = query.filter(Flashcards.state == 1).order_by(
+            case((Flashcards.due_date == None, 0), else_=1),
+            Flashcards.due_date.asc(),
+            Flashcards.flashcard_id.asc()
+        ).all()
+        
+        new_cards = query.filter(Flashcards.state == 0).order_by(
+            case((Flashcards.due_date == None, 0), else_=1),
+            Flashcards.due_date.asc(),
+            Flashcards.flashcard_id.asc()
+        ).all()
+        
+        mastered_cards = query.filter(Flashcards.state == 2).order_by(
+            case((Flashcards.due_date == None, 0), else_=1),
+            Flashcards.due_date.asc(),
+            Flashcards.flashcard_id.asc()
+        ).all()
     
     # Track available cards for each state
     available_forgotten = len(forgotten_cards)
@@ -353,7 +396,11 @@ def get_due_cards(deck_id, due_only=False, excluded_ids=None):
     if len(balanced_cards) < total_target and len(mastered_cards) > 0:
         balanced_cards.extend(mastered_cards[:total_target - len(balanced_cards)])
     
-    logger.debug(f"Final card distribution - Total: {len(balanced_cards)}")
+    # Make sure we don't return more than per_page cards if pagination is enabled
+    if per_page is not None and len(balanced_cards) > per_page:
+        balanced_cards = balanced_cards[:per_page]
+    
+    logger.debug(f"get_due_cards returning {len(balanced_cards)} cards for page {page}, per_page {per_page}")
     
     return balanced_cards
 

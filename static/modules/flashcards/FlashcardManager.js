@@ -161,6 +161,12 @@ export class FlashcardManager {
                 console.log(`Keeping existing total of ${this.totalDueCards} cards (server reported ${data.total})`);
             }
             
+            // Check if we've reached the end of available cards
+            if (this.flashcards.length === 0 && data.total > 0) {
+                console.log("Received empty batch despite cards remaining. This likely means we've studied all available cards.");
+                return false; // Signal that we've completed all cards
+            }
+            
             // For first batch, dispatch event 
             if (batchNumber === 1) {
                 this.dispatchEvent('firstBatchLoaded');
@@ -255,8 +261,9 @@ export class FlashcardManager {
             this.ui.renderCard(this.currentCard);
             this.updateCardCounter();
         } else {
-            // No more cards or error loading
-            this.ui.showFinalCompletion(this.deckId, this.totalSessionCompleted, this.totalDueCards, this.studyMode);
+            // No more cards or error loading - show final completion screen
+            console.log("No more cards available or error loading next batch. Showing final completion screen.");
+            this.ui.showFinalCompletion(this.deckId, this.totalSessionCompleted, this.totalDueCards, this.studyMode, 0);
         }
     }
     

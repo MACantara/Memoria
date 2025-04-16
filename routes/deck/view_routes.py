@@ -186,21 +186,21 @@ def study_deck(deck_id):
         # Get the actual total count of cards
         total_cards = total_cards_query.scalar() or 0
         
-        # Get all cards for this batch (no exclusions)
-        all_cards = get_due_cards(deck_id, due_only)
+        # Get all cards for this batch - important fix:
+        # Instead of getting all cards and then slicing, we should directly 
+        # apply pagination in the database query for better performance
+        all_cards = get_due_cards(deck_id, due_only, per_page=per_page, page=page)
         
-        # Calculate pagination values for the current batch
+        # Log debugging information
+        current_app.logger.debug(f"Study batch request: deck={deck_id}, page={page}, per_page={per_page}, returned={len(all_cards)}")
+        
+        # For accurate pagination, we need to know how many pages of cards exist
         total_pages = (total_cards + per_page - 1) // per_page if total_cards > 0 else 1
-        start_idx = (page - 1) * per_page
-        end_idx = min(start_idx + per_page, len(all_cards))
-        
-        # Get just the requested page of cards
-        page_cards = all_cards[start_idx:end_idx]
         
         # Transform to JSON response format
         flashcard_data = []
         
-        for card in page_cards:
+        for card in all_cards:
             # Set default deck info
             deck_info = None
             
@@ -229,6 +229,8 @@ def study_deck(deck_id):
             'flashcards': flashcard_data,
             'total': total_cards,
             'batch_size': len(flashcard_data),
+            'current_page': page,
+            'total_pages': total_pages,
             'pagination': {
                 'page': page,
                 'per_page': per_page,
