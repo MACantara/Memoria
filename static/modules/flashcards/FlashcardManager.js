@@ -7,19 +7,20 @@ export class FlashcardManager {
     constructor() {
         this.container = document.getElementById('flashcardsContainer');
         this.currentCardIndex = 0;
-        this.score = 0;  // Track cards completed in this session
+        this.score = 0;  // Track cards completed in current batch
         this.flashcards = [];  // Store flashcard data, not DOM elements
         this.ui = new UIManager();
-        this.completedCards = new Set();  // Track cards completed in this session
+        this.completedCards = new Set();  // Track all cards completed in this session
         this.totalDueCards = parseInt(document.getElementById('totalFlashcards')?.value || 0);
         this.deckId = document.getElementById('deckId')?.value;
         this.studyMode = document.getElementById('studyMode')?.value === 'due_only';
         this.isLoading = false;
         this.isSegmentTransition = false; // Track segment transition state
         this.currentCard = null;  // Store the current card data
-        this.totalPages = 0;  // Total pages for pagination
-        this.currentPage = 0;  // Current page for pagination
-        this.cardsPerSegment = 45;  // Load 45 cards at once (15 forgotten, 15 learning, 15 new)
+        this.currentBatch = parseInt(document.getElementById('currentBatch')?.value || 1);
+        this.cardsPerBatch = 45;  // Each batch loads 45 cards
+        this.totalSessionCompleted = 0; // Track total cards completed across all batches
+        this.excludedCardIds = []; // Track card IDs to exclude from future batches
         
         // Initialize event system
         this.eventListeners = {};
@@ -69,11 +70,11 @@ export class FlashcardManager {
         console.log(`Initializing flashcard manager. Total expected cards: ${this.totalDueCards}`);
         
         if (this.totalDueCards > 0) {
-            // Load all flashcards at once
-            await this.loadAllFlashcards();
+            // Load the first batch of flashcards
+            await this.loadFlashcardBatch(this.currentBatch);
             
             // Initialize milestone segments
-            this.ui.initializeMilestones(this.totalDueCards);
+            this.ui.initializeMilestones(this.totalDueCards, this.cardsPerBatch);
             
             // Show the first card if we loaded any
             if (this.flashcards.length > 0) {
@@ -102,13 +103,13 @@ export class FlashcardManager {
         }
         
         // Update the initial score and progress display
-        this.ui.updateScore(this.score, this.totalDueCards);
+        this.ui.updateScore(this.score, this.flashcards.length, this.totalSessionCompleted, this.totalDueCards);
         
         // Setup event listeners
         this.events.setupEventListeners();
     }
 
-    async loadAllFlashcards() {
+    async loadFlashcardBatch(batchNumber) {
         try {
             if (this.isLoading) return;
             
@@ -122,11 +123,16 @@ export class FlashcardManager {
                 url.searchParams.append('due_only', 'true');
             }
             
-            // Load up to 45 cards (15 forgotten, 15 learning, 15 new)
-            url.searchParams.append('page', '1');
-            url.searchParams.append('per_page', '45');
+            // Add parameters for this batch
+            url.searchParams.append('page', batchNumber.toString());
+            url.searchParams.append('per_page', this.cardsPerBatch.toString());
             
-            console.log(`Loading flashcards from: ${url}`);
+            // Add excluded card IDs if there are any
+            if (this.excludedCardIds.length > 0) {
+                url.searchParams.append('exclude_ids', this.excludedCardIds.join(','));
+            }
+            
+            console.log(`Loading batch ${batchNumber} flashcards from: ${url}`);
             
             const response = await fetch(url, {
                 headers: {
@@ -144,33 +150,157 @@ export class FlashcardManager {
             
             // Store flashcards in the order they were received
             this.flashcards = data.flashcards;
-            this.totalPages = 1; // We're now loading all cards at once
-            this.currentPage = 1;
-            this.cardsPerSegment = 45; // 15 of each card type
+            this.currentBatch = batchNumber;
             
-            console.log(`Successfully loaded ${this.flashcards.length} flashcards out of ${data.total} total`);
+            console.log(`Successfully loaded ${this.flashcards.length} flashcards (batch ${batchNumber}) out of ${data.total} total`);
             
-            // Store the total count - don't override it with just first batch size
+            // Store the total count from server
             if (data.total !== this.totalDueCards) {
                 console.log(`Updating total from ${this.totalDueCards} to ${data.total}`);
                 this.totalDueCards = data.total;
                 
                 // Update the counter display with the correct total
-                const remainingCountElement = document.getElementById('remainingCount');
-                if (remainingCountElement) {
-                    remainingCountElement.textContent = this.totalDueCards;
-                }
+                this.updateTotalCountDisplay(this.totalDueCards);
             }
             
-            // Dispatch event to indicate first batch loaded
-            this.dispatchEvent('firstBatchLoaded');
+            // For first batch, dispatch event 
+            if (batchNumber === 1) {
+                this.dispatchEvent('firstBatchLoaded');
+            }
+            
+            // Update batch info displays
+            const batchSizeElement = document.getElementById('batchSize');
+            if (batchSizeElement) {
+                batchSizeElement.textContent = this.flashcards.length;
+            }
+            
+            const batchCardCount = document.getElementById('batchCardCount');
+            if (batchCardCount) {
+                batchCardCount.textContent = this.flashcards.length;
+            }
+            
+            return this.flashcards.length > 0;
             
         } catch (error) {
-            console.error("Error loading flashcards:", error);
+            console.error(`Error loading flashcard batch ${batchNumber}:`, error);
             this.ui.showLoadingError(error.message);
+            return false;
         } finally {
             this.isLoading = false;
         }
+    }
+    
+    updateTotalCountDisplay(totalCount) {
+        // Update all elements that display the total count
+        const totalCountElement = document.getElementById('totalCount');
+        if (totalCountElement) {
+            totalCountElement.textContent = totalCount;
+        }
+        
+        const totalDueDisplay = document.getElementById('totalDueDisplay');
+        if (totalDueDisplay) {
+            totalDueDisplay.textContent = totalCount;
+        }
+        
+        const totalDueCount = document.getElementById('totalDueCount');
+        if (totalDueCount) {
+            totalDueCount.textContent = totalCount;
+        }
+        
+        // Update metadata field
+        const totalFlashcardsField = document.getElementById('totalFlashcards');
+        if (totalFlashcardsField) {
+            totalFlashcardsField.value = totalCount;
+        }
+    }
+
+    async loadNextBatch() {
+        // Save the current completed card IDs to exclude from future batches
+        this.excludedCardIds = Array.from(this.completedCards);
+        
+        // Increment batch number
+        const nextBatch = this.currentBatch + 1;
+        
+        // Show loading UI
+        this.ui.showBatchLoading();
+        
+        // Reset current state for the new batch
+        this.score = 0;
+        this.currentCardIndex = 0;
+        
+        // Load next batch of cards
+        const success = await this.loadFlashcardBatch(nextBatch);
+        
+        if (success && this.flashcards.length > 0) {
+            // Hide batch completion screen
+            const batchCompletionScreen = document.getElementById('batchCompletionScreen');
+            if (batchCompletionScreen) {
+                batchCompletionScreen.style.display = 'none';
+            }
+            
+            // Hide loading indicator
+            const loadingContainer = document.getElementById('loadingContainer');
+            if (loadingContainer) {
+                loadingContainer.style.display = 'none';
+            }
+            
+            // Show first card
+            this.currentCard = this.flashcards[0];
+            const currentCardElement = document.getElementById('currentFlashcard');
+            if (currentCardElement) {
+                currentCardElement.style.display = 'block';
+                // Add the current flashcard ID as a data attribute
+                currentCardElement.dataset.flashcardId = this.currentCard.id;
+            }
+            
+            // Update progress display for new batch
+            this.ui.resetProgressForNewBatch(this.currentBatch, Math.ceil(this.totalDueCards / this.cardsPerBatch));
+            
+            // Render the first card
+            this.ui.renderCard(this.currentCard);
+            this.updateCardCounter();
+        } else {
+            // No more cards or error loading
+            this.ui.showFinalCompletion(this.deckId, this.totalSessionCompleted, this.totalDueCards, this.studyMode);
+        }
+    }
+    
+    // Replace loadAllFlashcards with loadFlashcardBatch
+    async loadAllFlashcards() {
+        return this.loadFlashcardBatch(1);
+    }
+
+    updateCardCounter() {
+        // Calculate cards left to review in this batch
+        const cardsInBatch = this.flashcards.length;
+        const remaining = Math.max(0, cardsInBatch - this.score);
+        
+        // Calculate overall progress
+        const totalCompleted = this.totalSessionCompleted + this.score;
+        const overallRemaining = Math.max(0, this.totalDueCards - totalCompleted);
+        
+        // Use getDisplayIndex to get the correct 1-based card number for display
+        const currentIndex = this.getDisplayIndex(this.currentCardIndex);
+        
+        // Update UI manager's counter with correct display index and overall progress
+        this.ui.updateCardCounter(
+            currentIndex - 1,          // Current card index (0-based)
+            cardsInBatch,              // Cards in current batch
+            this.score,                // Cards completed in current batch
+            remaining,                 // Cards remaining in current batch
+            totalCompleted,            // Total cards completed across all batches
+            this.totalDueCards,        // Total cards to study overall
+            overallRemaining           // Overall remaining cards
+        );
+        
+        // Also update the completed count in the header
+        const completedCount = document.getElementById('completedCount');
+        if (completedCount) {
+            completedCount.textContent = totalCompleted;
+        }
+        
+        // Log counter state for debugging
+        console.log(`Batch ${this.currentBatch}: ${this.score}/${cardsInBatch}, Overall: ${totalCompleted}/${this.totalDueCards}`);
     }
 
     async moveToNextCard() {
@@ -259,80 +389,6 @@ export class FlashcardManager {
         }
     }
 
-    updateCardCounter() {
-        // Calculate cards left to review in this session
-        const remaining = Math.max(0, this.totalDueCards - this.score);
-        
-        // Use getDisplayIndex to get the correct 1-based card number for display
-        const currentIndex = this.getDisplayIndex(this.currentCardIndex);
-        
-        // Update UI manager's counter with correct display index
-        this.ui.updateCardCounter(currentIndex - 1, this.totalDueCards, this.score, remaining);
-        
-        // Log counter state for debugging
-        console.log(`Card counter: ${this.score}/${this.totalDueCards}, ${remaining} remaining`);
-    }
-
-    async moveToNextCard() {
-        // Debug info
-        console.log("Moving to next card. Completed cards:", this.completedCards.size);
-        console.log(`Total cards to review: ${this.totalDueCards}, completed: ${this.score}`);
-        
-        // Find the next uncompleted card in the original order
-        let nextCardIndex = -1;
-        
-        for (let i = 0; i < this.flashcards.length; i++) {
-            // Skip the current card and completed cards
-            if (i === this.currentCardIndex || this.completedCards.has(this.flashcards[i].id)) {
-                continue;
-            }
-            
-            // In "Due Only" mode, skip mastered cards
-            if (this.studyMode && parseInt(this.flashcards[i].state) === 2) {
-                continue;
-            }
-            
-            // Found the next card
-            nextCardIndex = i;
-            break;
-        }
-        
-        // If we couldn't find the next card, try again from the start
-        if (nextCardIndex === -1) {
-            for (let i = 0; i < this.currentCardIndex; i++) {
-                if (!this.completedCards.has(this.flashcards[i].id)) {
-                    if (!(this.studyMode && parseInt(this.flashcards[i].state) === 2)) {
-                        nextCardIndex = i;
-                        break;
-                    }
-                }
-            }
-        }
-        
-        // If we found a valid next card
-        if (nextCardIndex !== -1) {
-            this.currentCardIndex = nextCardIndex;
-            this.currentCard = this.flashcards[nextCardIndex];
-            const visibleCardIndex = this.getDisplayIndex(nextCardIndex);
-            console.log(`Moving to card ${visibleCardIndex}/${this.totalDueCards} with ID ${this.currentCard.id} (state: ${this.currentCard.state}, due: ${this.currentCard.due_date || 'N/A'})`);
-            
-            // Add the current flashcard ID as a data attribute
-            const currentCardElement = document.getElementById('currentFlashcard');
-            if (currentCardElement) {
-                currentCardElement.dataset.flashcardId = this.currentCard.id;
-            }
-            
-            // Render this card
-            this.ui.renderCard(this.currentCard);
-            this.updateCardCounter();
-            return;
-        }
-        
-        // If we reach here, all cards have been completed
-        console.log("All cards completed. Showing completion screen.");
-        this.checkRemainingDueCards();
-    }
-
     async handleAnswer(selectedAnswer) {
         // Prevent multiple submissions while processing
         if (this.isProcessingAnswer) {
@@ -370,13 +426,13 @@ export class FlashcardManager {
         if (!this.completedCards.has(card.id)) {
             this.completedCards.add(card.id);
             this.score++;
+            this.totalSessionCompleted++;
             
             // Debug info
-            console.log(`Card ${card.id} completed. Score: ${this.score}/${this.totalDueCards}`);
-            console.log(`Completed cards: ${this.completedCards.size}, Total flashcards: ${this.flashcards.length}`);
+            console.log(`Card ${card.id} completed. Score: ${this.score}/${this.flashcards.length}, Total: ${this.totalSessionCompleted}/${this.totalDueCards}`);
             
             // Update the progress display
-            this.ui.updateScore(this.score, this.totalDueCards);
+            this.ui.updateScore(this.score, this.flashcards.length, this.totalSessionCompleted, this.totalDueCards);
         }
         
         // Show different feedback based on correctness
@@ -386,10 +442,10 @@ export class FlashcardManager {
             
             // Set a short timeout to auto-advance
             setTimeout(() => {
-                // If all cards are completed, show completion screen
-                if (this.completedCards.size >= this.totalDueCards) {
-                    console.log("All cards completed. Showing completion screen.");
-                    this.checkRemainingDueCards();
+                // If all cards in this batch are completed, show batch completion screen
+                if (this.score >= this.flashcards.length) {
+                    console.log("Batch completed. Showing batch completion screen.");
+                    this.showBatchCompletion();
                 } else {
                     // Otherwise move to the next card
                     this.moveToNextCard();
@@ -400,10 +456,10 @@ export class FlashcardManager {
             this.ui.showAnswerFeedback(false, () => {
                 // This callback is triggered when the user clicks "Next"
                 
-                // If all cards are completed, show completion screen
-                if (this.completedCards.size >= this.totalDueCards) {
-                    console.log("All cards completed. Showing completion screen.");
-                    this.checkRemainingDueCards();
+                // If all cards in this batch are completed, show batch completion screen
+                if (this.score >= this.flashcards.length) {
+                    console.log("Batch completed. Showing batch completion screen.");
+                    this.showBatchCompletion();
                 } else {
                     // Otherwise move to the next card
                     this.moveToNextCard();
@@ -444,20 +500,80 @@ export class FlashcardManager {
         this.navigation.handleKeyPress(key);
     }
 
+    showBatchCompletion() {
+        // Hide the flashcard
+        const currentFlashcard = document.getElementById('currentFlashcard');
+        if (currentFlashcard) {
+            currentFlashcard.style.display = 'none';
+        }
+        
+        // Check if we've completed all cards in the deck
+        const allCardsCompleted = this.totalSessionCompleted >= this.totalDueCards;
+        
+        // If we've completed all cards, show final completion
+        if (allCardsCompleted) {
+            this.checkRemainingDueCards();
+            return;
+        }
+        
+        // Show batch completion screen
+        const batchCompletionScreen = document.getElementById('batchCompletionScreen');
+        if (batchCompletionScreen) {
+            // Update the completion screen data
+            const completedBatchCount = document.getElementById('completedBatchCount');
+            if (completedBatchCount) {
+                completedBatchCount.textContent = this.score;
+            }
+            
+            const sessionCompletedCount = document.getElementById('sessionCompletedCount');
+            if (sessionCompletedCount) {
+                sessionCompletedCount.textContent = this.totalSessionCompleted;
+            }
+            
+            // Calculate and display overall progress
+            const overallProgressBar = document.getElementById('overallProgressBar');
+            if (overallProgressBar) {
+                const percentComplete = Math.round((this.totalSessionCompleted / this.totalDueCards) * 100);
+                overallProgressBar.style.width = `${percentComplete}%`;
+                overallProgressBar.setAttribute('aria-valuenow', percentComplete);
+                overallProgressBar.textContent = `${percentComplete}%`;
+            }
+            
+            // Enable the next batch button
+            const loadNextBatchBtn = document.getElementById('loadNextBatchBtn');
+            if (loadNextBatchBtn) {
+                loadNextBatchBtn.disabled = false;
+                const normalState = loadNextBatchBtn.querySelector('.normal-state');
+                const loadingState = loadNextBatchBtn.querySelector('.loading-state');
+                if (normalState && loadingState) {
+                    normalState.classList.remove('d-none');
+                    loadingState.classList.add('d-none');
+                }
+            }
+            
+            // Show the completion screen
+            batchCompletionScreen.style.display = 'block';
+        }
+    }
+
     checkRemainingDueCards() {
+        // Hide current flashcard and batch completion screen
+        const currentFlashcard = document.getElementById('currentFlashcard');
+        if (currentFlashcard) {
+            currentFlashcard.style.display = 'none';
+        }
+        
+        const batchCompletionScreen = document.getElementById('batchCompletionScreen');
+        if (batchCompletionScreen) {
+            batchCompletionScreen.style.display = 'none';
+        }
+        
         // Get the current study mode
         const isDueOnly = this.studyMode;
         
-        // Make sure score reflects completion - set score to total cards
-        this.score = this.completedCards.size;
-        
-        // Update UI to show all cards completed and 0 remaining
-        this.ui.updateScore(this.score, this.totalDueCards);
-        this.ui.updateCardCounter(this.score - 1, this.totalDueCards, this.score, 0);
-        
         // In "Study All" mode, we know we've completed everything, so no need to check server
         if (!isDueOnly) {
-            this.ui.showCompletionScreen(this.deckId, this.score, this.totalDueCards, isDueOnly, 0);
+            this.ui.showFinalCompletion(this.deckId, this.totalSessionCompleted, this.totalDueCards, isDueOnly, 0);
             return;
         }
         
@@ -466,20 +582,20 @@ export class FlashcardManager {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    const remainingDueCards = data.due_count;
+                    const remainingDueCards = data.due_count - this.totalSessionCompleted;
                     console.log(`Remaining due cards: ${remainingDueCards}`);
                     
-                    // Display completion with information about remaining due cards
-                    this.ui.showCompletionScreen(this.deckId, this.score, this.totalDueCards, isDueOnly, remainingDueCards);
+                    // Display final completion with information about remaining due cards
+                    this.ui.showFinalCompletion(this.deckId, this.totalSessionCompleted, this.totalDueCards, isDueOnly, Math.max(0, remainingDueCards));
                 } else {
                     // Error fetching due count, just show normal completion
-                    this.ui.showCompletionScreen(this.deckId, this.score, this.totalDueCards, isDueOnly, 0);
+                    this.ui.showFinalCompletion(this.deckId, this.totalSessionCompleted, this.totalDueCards, isDueOnly, 0);
                 }
             })
             .catch(error => {
                 console.error("Error checking remaining due cards:", error);
                 // Error occurred, just show normal completion
-                this.ui.showCompletionScreen(this.deckId, this.score, this.totalDueCards, isDueOnly, 0);
+                this.ui.showFinalCompletion(this.deckId, this.totalSessionCompleted, this.totalDueCards, isDueOnly, 0);
             });
     }
 
