@@ -24,7 +24,7 @@ export class UIManager {
         this.progressMilestones = document.getElementById('progressMilestones');
         this.milestoneSegments = [];
         this.currentSegment = 0;
-        this.cardsPerSegment = 45; // Update to 45 cards for the whole session
+        this.cardsPerSegment = 45; // Batch size of 45 cards
         this.celebrationSound = new Audio('/static/sounds/achievement.mp3');
         this.celebrationSound.load();
         
@@ -427,28 +427,52 @@ export class UIManager {
         }
     }
 
-    updateCardCounter(index, total, score, remaining) {
+    /**
+     * Updates the card counter display
+     */
+    updateCardCounter(index, batchTotal, batchScore, batchRemaining, overallCompleted, overallTotal, overallRemaining) {
         // Update the score and remaining counts with accurate numbers
         const scoreCountElement = document.getElementById('scoreCount');
-        const remainingCountElement = document.getElementById('remainingCount');
+        const completedCountElement = document.getElementById('completedCount');
         
         if (scoreCountElement) {
-            scoreCountElement.textContent = score;
+            scoreCountElement.textContent = batchScore;
         }
         
-        if (remainingCountElement) {
-            remainingCountElement.textContent = remaining;
+        if (completedCountElement) {
+            completedCountElement.textContent = overallCompleted;
         }
         
         // Update the full card counter text if it exists
         if (this.cardCounter) {
-            this.cardCounter.innerHTML = `<span id="scoreCount">${score}</span> / ${total} completed (<span id="remainingCount">${remaining}</span> remaining)`;
+            // Show batch progress and overall progress
+            this.cardCounter.innerHTML = `
+                <span class="badge bg-light text-dark me-1">${batchScore}/${batchTotal}</span> in batch 
+                (<span id="completedCount">${overallCompleted}</span>/<span id="totalCount">${overallTotal}</span> total)
+            `;
         }
     }
 
-    updateScore(score, total) {
-        // Update milestone progress - this now handles progress bar updates
-        this.updateMilestones(score, total);
+    /**
+     * Update the score display and progress indicators
+     */
+    updateScore(batchScore, batchTotal, overallScore, overallTotal) {
+        // Calculate what percentage of the overall deck is complete
+        const overallPercent = Math.round((overallScore / overallTotal) * 100);
+        
+        // Calculate what percentage of the current batch is complete
+        const batchPercent = Math.round((batchScore / batchTotal) * 100);
+        
+        // Update milestone progress - this now handles progress bar updates too
+        this.updateMilestones(batchScore, batchTotal, overallScore, overallTotal);
+        
+        // Update the overall progress display
+        const overallProgressBar = document.getElementById('overallProgressBar');
+        if (overallProgressBar) {
+            overallProgressBar.style.width = `${overallPercent}%`;
+            overallProgressBar.setAttribute('aria-valuenow', overallPercent);
+            overallProgressBar.textContent = `${overallPercent}%`;
+        }
     }
 
     showBriefFeedback(isCorrect) {
@@ -628,145 +652,9 @@ export class UIManager {
         return null;
     }
 
-    showCompletionScreen(deckId, score, totalDue, isDueOnly, remainingDueCards) {
-        // Update card counters first to show all completed
-        this.updateCardCounter(totalDue - 1, totalDue, score, 0);
-        this.updateScore(score, totalDue);
-        
-        // Create different completion screens depending on the mode and whether there are more due cards
-        if (!this.flashcardContainer) return;
-        
-        if (isDueOnly) {
-            if (remainingDueCards > 0) {
-                // Due Only mode with more cards due - show option to continue
-                this.flashcardContainer.innerHTML = `
-                    <div class="text-center p-3">
-                        <div>
-                            <h2 class="card-title mb-4">
-                                <i class="bi bi-check2-circle text-success"></i> Session Complete!
-                            </h2>
-                            <p class="card-text fs-5">You've reviewed ${score} flashcards in this session.</p>
-                            <div class="progress mb-3" style="height: 20px;">
-                                <div class="progress-bar bg-success" role="progressbar" 
-                                    style="width: 100%" aria-valuenow="100" aria-valuemin="0" 
-                                    aria-valuemax="100">100%</div>
-                            </div>
-                            
-                            <div class="alert alert-info mt-4">
-                                <i class="bi bi-info-circle me-2"></i>
-                                <strong>${remainingDueCards} more cards</strong> have become due for review since you started this session.
-                            </div>
-                            
-                            <div class="d-flex justify-content-center gap-3 mt-4 flex-wrap">
-                                <a href="/deck/study/${deckId}?due_only=true" class="btn btn-primary">
-                                    <i class="bi bi-arrow-right"></i> Continue Studying Due Cards
-                                </a>
-                                <a href="/deck/${deckId}" class="btn btn-outline-secondary">
-                                    <i class="bi bi-house-door"></i> Back to Deck
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            } else {
-                // Due Only mode with no more cards due - show standard completion with dropdown
-                this.flashcardContainer.innerHTML = `
-                    <div class="text-center p-3">
-                        <div>
-                            <h2 class="card-title mb-4">
-                                <i class="bi bi-calendar-check-fill text-success"></i> All Due Cards Completed!
-                            </h2>
-                            <p class="card-text fs-5">You've reviewed all flashcards that were due today.</p>
-                            <div class="progress mb-3" style="height: 20px;">
-                                <div class="progress-bar bg-success" role="progressbar" 
-                                    style="width: 100%" aria-valuenow="100" aria-valuemin="0" 
-                                    aria-valuemax="100">100%</div>
-                            </div>
-                            
-                            <div class="alert alert-info mt-4">
-                                <i class="bi bi-info-circle me-2"></i>
-                                Want to study more? You can review other cards or try a different deck.
-                            </div>
-                            
-                            <div class="d-flex justify-content-center gap-3 mt-4 flex-wrap">
-                                <div class="dropdown">
-                                    <button class="btn btn-primary dropdown-toggle" type="button" id="studyOptionsDropdown" 
-                                        data-bs-toggle="dropdown" aria-expanded="false">
-                                        <i class="bi bi-book"></i> Study Options
-                                    </button>
-                                    <ul class="dropdown-menu" aria-labelledby="studyOptionsDropdown">
-                                        <li>
-                                            <a href="/deck/study/${deckId}" class="dropdown-item">
-                                                <i class="bi bi-collection me-2"></i> Study All Cards
-                                            </a>
-                                        </li>
-                                        <li><hr class="dropdown-divider"></li>
-                                        <li>
-                                            <a href="/deck/random-deck" class="dropdown-item">
-                                                <i class="bi bi-shuffle me-2"></i> Study Random Deck
-                                            </a>
-                                        </li>
-                                    </ul>
-                                </div>
-                                <a href="/deck/${deckId}" class="btn btn-outline-secondary">
-                                    <i class="bi bi-house-door"></i> Back to Deck
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }
-        } else {
-            // Study All mode - show standard completion with random deck option
-            this.flashcardContainer.innerHTML = `
-                <div class="card text-center p-5">
-                    <div class="card-body">
-                        <h2 class="card-title mb-4">
-                            <i class="bi bi-emoji-smile-fill text-success"></i> Session Complete!
-                        </h2>
-                        <p class="card-text fs-5">You've completed your flashcard review session.</p>
-                        <div class="progress mb-3" style="height: 20px;">
-                            <div class="progress-bar bg-success" role="progressbar" 
-                                style="width: 100%" aria-valuenow="100" aria-valuemin="0" 
-                                aria-valuemax="100">100%</div>
-                        </div>
-                        <p class="card-text fs-4 text-success fw-bold">
-                            <i class="bi bi-trophy-fill"></i> Session Score: ${score}/${totalDue}
-                        </p>
-                        <div class="d-flex justify-content-center gap-3 mt-4 flex-wrap">
-                            <div class="dropdown">
-                                <button class="btn btn-primary dropdown-toggle" type="button" id="studyOptionsDropdown" 
-                                    data-bs-toggle="dropdown" aria-expanded="false">
-                                    <i class="bi bi-book"></i> Study Options
-                                </button>
-                                <ul class="dropdown-menu" aria-labelledby="studyOptionsDropdown">
-                                    <li>
-                                        <a href="${window.location.href}" class="dropdown-item">
-                                            <i class="bi bi-arrow-repeat me-2"></i> Study Again
-                                        </a>
-                                    </li>
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li>
-                                        <a href="/deck/random-deck" class="dropdown-item">
-                                            <i class="bi bi-shuffle me-2"></i> Study Random Deck
-                                        </a>
-                                    </li>
-                                </ul>
-                            </div>
-                            <a href="/deck/${deckId}" class="btn btn-outline-secondary">
-                                <i class="bi bi-house-door"></i> Back to Deck
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
-        // Update badge to show completion status
-        if (this.statusBadge) {
-            this.statusBadge.textContent = 'Completed';
-            this.statusBadge.className = 'badge bg-success';
-        }
+    showCompletionScreenLegacy(deckId, score, totalDue, isDueOnly, remainingDueCards) {
+        // This method is kept for backward compatibility but not used
+        console.warn('showCompletionScreen is deprecated, use showFinalCompletion instead');
     }
 
     showNoCardsMessage() {
@@ -1049,15 +937,17 @@ export class UIManager {
     /**
      * Initialize segmented milestone progress system
      * @param {number} totalCards - Total number of cards to study
+     * @param {number} batchSize - Number of cards per batch
      */
-    initializeMilestones(totalCards) {
+    initializeMilestones(totalCards, batchSize) {
         if (!this.progressBarContainer || !this.progressMilestones) return;
         
         // Clear existing milestones
         this.progressBarContainer.querySelectorAll('.milestone-marker').forEach(el => el.remove());
         this.progressMilestones.innerHTML = '';
         
-        // Use fixed-size segments (e.g., 25 cards per segment)
+        // Store these values 
+        this.cardsPerSegment = batchSize || 45;
         this.totalSegments = Math.ceil(totalCards / this.cardsPerSegment);
         this.currentSegment = 0;
         this.totalCards = totalCards;
@@ -1076,29 +966,44 @@ export class UIManager {
         currentSegmentLabel.id = 'currentSegmentLabel';
         currentSegmentLabel.className = 'current-segment-label';
         
-        const segmentGoal = document.createElement('div');
-        segmentGoal.id = 'segmentGoal';
-        segmentGoal.className = 'segment-goal';
+        const overallProgressLabel = document.createElement('div');
+        overallProgressLabel.id = 'overallProgressLabel';
+        overallProgressLabel.className = 'overall-progress-label';
+        overallProgressLabel.innerHTML = `<span id="overallProgressCount">0</span>/${totalCards}`;
         
-        // Add elements to page with clearer text indicating segment focus
+        // Add elements to page with clear labels
         segmentInfoContainer.appendChild(segmentProgress);
         this.progressMilestones.appendChild(segmentInfoContainer);
         this.progressMilestones.appendChild(currentSegmentLabel);
-        this.progressMilestones.appendChild(segmentGoal);
+        this.progressMilestones.appendChild(overallProgressLabel);
         
         // Initialize the first segment
-        this.updateSegmentDisplay(0, totalCards);
+        this.updateSegmentDisplay(0, this.cardsPerSegment, 0, totalCards);
         
         // Create milestone marker for current segment
         this.createSegmentMarker();
         
-        console.log(`Initialized ${this.totalSegments} segments of ${this.cardsPerSegment} cards each`);
+        console.log(`Initialized ${this.totalSegments} batches of ${this.cardsPerSegment} cards each (total: ${totalCards})`);
+    }
+    
+    /**
+     * Create marker for the current segment
+     */
+    createSegmentMarker() {
+        // Remove existing markers
+        this.progressBarContainer.querySelectorAll('.milestone-marker').forEach(el => el.remove());
+        
+        // Only add a milestone marker at 100%
+        const marker = document.createElement('div');
+        marker.className = 'milestone-marker';
+        marker.style.left = '100%';
+        this.progressBarContainer.appendChild(marker);
     }
     
     /**
      * Update the progress bar to show progress within current segment only
-     * @param {number} segmentProgress - Progress within current segment
-     * @param {number} segmentSize - Total cards in current segment
+     * @param {number} segmentProgress - Progress within current batch
+     * @param {number} segmentSize - Total cards in current batch
      */
     updateProgressBar(segmentProgress, segmentSize) {
         if (this.progressBar) {
@@ -1116,22 +1021,23 @@ export class UIManager {
     
     /**
      * Update the current segment display
-     * @param {number} score - Current score
+     * @param {number} batchScore - Score in current batch
+     * @param {number} batchSize - Size of current batch
+     * @param {number} overallScore - Overall completed cards
      * @param {number} totalCards - Total cards in the deck
      */
-    updateSegmentDisplay(score, totalCards) {
+    updateSegmentDisplay(batchScore, batchSize, overallScore, totalCards) {
+        // Store total cards
         this.totalCards = totalCards;
         
-        // Calculate which segment we're in
-        const completedSegments = Math.floor(score / this.cardsPerSegment);
+        // Calculate which batch we're on
+        const completedSegments = Math.floor(overallScore / this.cardsPerSegment);
         
-        // Only update display if we've moved to a new segment
+        // Update current segment if changed
         if (completedSegments !== this.currentSegment) {
-            // If we completed a segment, show celebration (but only if not already shown)
-            if (completedSegments > this.currentSegment && !this.celebratedSegments.has(completedSegments)) {
-                this.celebrateSegmentCompletion(this.currentSegment + 1, this.totalSegments);
-                // Track that we've shown celebration for this segment
-                this.celebratedSegments.add(completedSegments);
+            // If we completed a segment, show celebration
+            if (completedSegments > this.currentSegment) {
+                this.celebrateSegmentCompletion(completedSegments, this.totalSegments);
             }
             
             // Update current segment
@@ -1139,106 +1045,249 @@ export class UIManager {
             
             // Update the marker position
             this.createSegmentMarker();
-            
-            // Explicitly reset progress bar to 0% for the new segment with animation
-            if (this.progressBar) {
-                // Add transition class for smooth reset
-                this.progressBar.classList.add('resetting-segment');
-                this.progressBar.style.width = '0%';
-                this.progressBar.setAttribute('aria-valuenow', 0);
-                
-                // Remove transition class after animation completes
-                setTimeout(() => {
-                    this.progressBar.classList.remove('resetting-segment');
-                }, 300);
-            }
         }
         
-        // Calculate progress within the current segment
-        const segmentStart = this.currentSegment * this.cardsPerSegment;
-        const segmentEnd = Math.min((this.currentSegment + 1) * this.cardsPerSegment, totalCards);
-        const cardsInSegment = segmentEnd - segmentStart;
-        const progressInSegment = score - segmentStart;
-        
-        // Update segment info display with more informative text
+        // Update segment info display with batch and overall progress
         const segmentProgress = document.getElementById('segmentProgress');
         const currentSegmentLabel = document.getElementById('currentSegmentLabel');
-        const segmentGoal = document.getElementById('segmentGoal');
+        const overallProgressLabel = document.getElementById('overallProgressCount');
         
         if (segmentProgress) {
-            segmentProgress.textContent = `${progressInSegment}/${cardsInSegment}`;
-            // Add tooltip for clarity
-            segmentProgress.title = `Progress in current segment (${progressInSegment} of ${cardsInSegment} cards)`;
+            segmentProgress.textContent = `${batchScore}/${batchSize}`;
+            segmentProgress.title = `Progress in current batch (${batchScore} of ${batchSize} cards)`;
         }
         
         if (currentSegmentLabel) {
-            currentSegmentLabel.textContent = `Segment ${this.currentSegment + 1} of ${this.totalSegments}`;
-            // Add overall progress as tooltip
-            currentSegmentLabel.title = `Overall progress: ${score}/${totalCards} cards (${Math.round((score/totalCards)*100)}%)`;
+            currentSegmentLabel.textContent = `Batch ${completedSegments + 1} of ${this.totalSegments}`;
+            currentSegmentLabel.title = `Overall progress: ${overallScore}/${totalCards} cards`;
         }
         
-        if (segmentGoal) {
-            const remaining = segmentEnd - score;
-            if (remaining > 0) {
-                segmentGoal.textContent = `${remaining} cards to complete segment`;
-            } else if (score === totalCards) {
-                segmentGoal.textContent = 'All segments completed!';
-                segmentGoal.classList.add('completed-all');
-            } else {
-                segmentGoal.textContent = 'Ready for next segment!';
-            }
+        if (overallProgressLabel) {
+            overallProgressLabel.textContent = `${overallScore}/${totalCards}`;
         }
         
-        // Update the progress bar to show progress within current segment only
-        this.updateProgressBar(progressInSegment, cardsInSegment);
-    }
-
-    /**
-     * Update milestone progress based on current score
-     * @param {number} score - Current score/completed cards
-     * @param {number} total - Total cards in session
-     */
-    updateMilestones(score, total) {
-        if (!this.progressBarContainer) return;
-        
-        // Update segment display - this now handles progress bar updates too
-        this.updateSegmentDisplay(score, total);
-        
-        // Ensure segment indicator covers the full progress bar width
-        const segmentIndicator = document.getElementById('segmentIndicator');
-        if (!segmentIndicator && this.progressBarContainer) {
-            const indicator = document.createElement('div');
-            indicator.id = 'segmentIndicator';
-            indicator.className = 'segment-indicator';
-            this.progressBarContainer.appendChild(indicator);
-        }
-        
-        // Update segment indicator to fill entire progress bar
-        // since we're now showing only the current segment
-        if (segmentIndicator) {
-            segmentIndicator.style.left = '0%';
-            segmentIndicator.style.width = '100%';
-        }
+        // Update the progress bar for the current batch
+        this.updateProgressBar(batchScore, batchSize);
     }
     
     /**
-     * Create marker for the current segment
+     * Update milestone progress based on current score
+     * @param {number} batchScore - Score in current batch
+     * @param {number} batchTotal - Total cards in current batch
+     * @param {number} overallScore - Overall completed cards
+     * @param {number} overallTotal - Total cards in all batches
      */
-    createSegmentMarker() {
-        // Remove existing markers
-        this.progressBarContainer.querySelectorAll('.milestone-marker').forEach(el => el.remove());
+    updateMilestones(batchScore, batchTotal, overallScore, overallTotal) {
+        if (!this.progressBarContainer) return;
         
-        // Only add a milestone marker at 100%
-        const marker = document.createElement('div');
-        marker.className = 'milestone-marker';
-        marker.style.left = '100%';
-        this.progressBarContainer.appendChild(marker);
+        // Update segment display with both batch and overall progress
+        this.updateSegmentDisplay(batchScore, batchTotal, overallScore, overallTotal);
+    }
+
+    /**
+     * Reset progress display for a new batch
+     * @param {number} batchNumber - Current batch number
+     * @param {number} totalBatches - Total number of batches
+     */
+    resetProgressForNewBatch(batchNumber, totalBatches) {
+        // Reset progress bar to 0%
+        if (this.progressBar) {
+            this.progressBar.style.width = '0%';
+            this.progressBar.setAttribute('aria-valuenow', 0);
+        }
+        
+        // Update segment label
+        const currentSegmentLabel = document.getElementById('currentSegmentLabel');
+        if (currentSegmentLabel) {
+            currentSegmentLabel.textContent = `Batch ${batchNumber} of ${totalBatches}`;
+        }
+        
+        // Reset segment progress
+        const segmentProgress = document.getElementById('segmentProgress');
+        if (segmentProgress) {
+            segmentProgress.textContent = `0/${this.cardsPerSegment}`;
+        }
+    }
+
+    /**
+     * Show loading indicator for next batch
+     */
+    showBatchLoading() {
+        // Hide the current flashcard
+        const currentFlashcard = document.getElementById('currentFlashcard');
+        if (currentFlashcard) {
+            currentFlashcard.style.display = 'none';
+        }
+        
+        // Hide the batch completion screen
+        const batchCompletionScreen = document.getElementById('batchCompletionScreen');
+        if (batchCompletionScreen) {
+            batchCompletionScreen.style.display = 'none';
+        }
+        
+        // Show loading indicator
+        const loadingContainer = document.getElementById('loadingContainer');
+        if (loadingContainer) {
+            loadingContainer.style.display = 'block';
+        }
+        
+        // Disable the next batch button
+        const loadNextBatchBtn = document.getElementById('loadNextBatchBtn');
+        if (loadNextBatchBtn) {
+            loadNextBatchBtn.disabled = true;
+            const normalState = loadNextBatchBtn.querySelector('.normal-state');
+            const loadingState = loadNextBatchBtn.querySelector('.loading-state');
+            if (normalState && loadingState) {
+                normalState.classList.add('d-none');
+                loadingState.classList.remove('d-none');
+            }
+        }
+    }
+
+    /**
+     * Show final completion screen when all cards are done
+     */
+    showFinalCompletion(deckId, score, totalDue, isDueOnly, remainingDueCards) {
+        // Update card counters first to show all completed
+        const completedCountElement = document.getElementById('completedCount');
+        if (completedCountElement) {
+            completedCountElement.textContent = score;
+        }
+        
+        // Get the final completion screen
+        const finalCompletionScreen = document.getElementById('finalCompletionScreen');
+        if (!finalCompletionScreen) return;
+        
+        // Calculate completion percentage
+        const completionPercent = Math.round((score / totalDue) * 100);
+        
+        // Create different completion screens depending on the mode and whether there are more due cards
+        if (isDueOnly && remainingDueCards > 0) {
+            // Due Only mode with more cards due - show option to start a new session
+            finalCompletionScreen.innerHTML = `
+                <h2 class="card-title mb-4">
+                    <i class="bi bi-check2-circle text-success"></i> Session Complete!
+                </h2>
+                <p class="card-text fs-5">You've reviewed ${score} flashcards in this session.</p>
+                <div class="progress mb-3" style="height: 20px;">
+                    <div class="progress-bar bg-success" role="progressbar" 
+                        style="width: 100%" aria-valuenow="100" aria-valuemin="0" 
+                        aria-valuemax="100">100%</div>
+                </div>
+                
+                <div class="alert alert-info mt-4">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <strong>${remainingDueCards} more cards</strong> have become due for review since you started this session.
+                </div>
+                
+                <div class="d-flex justify-content-center gap-3 mt-4 flex-wrap">
+                    <a href="/deck/study/${deckId}?due_only=true" class="btn btn-primary">
+                        <i class="bi bi-arrow-right"></i> Start New Session
+                    </a>
+                    <a href="/deck/${deckId}" class="btn btn-outline-secondary">
+                        <i class="bi bi-house-door"></i> Back to Deck
+                    </a>
+                </div>
+            `;
+        } else if (isDueOnly) {
+            // Due Only mode with no more cards due - show standard completion with dropdown
+            finalCompletionScreen.innerHTML = `
+                <h2 class="card-title mb-4">
+                    <i class="bi bi-calendar-check-fill text-success"></i> All Due Cards Completed!
+                </h2>
+                <p class="card-text fs-5">You've reviewed all flashcards that were due today.</p>
+                <div class="progress mb-3" style="height: 20px;">
+                    <div class="progress-bar bg-success" role="progressbar" 
+                        style="width: 100%" aria-valuenow="100" aria-valuemin="0" 
+                        aria-valuemax="100">100%</div>
+                </div>
+                
+                <div class="alert alert-info mt-4">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Want to study more? You can review other cards or try a different deck.
+                </div>
+                
+                <div class="d-flex justify-content-center gap-3 mt-4 flex-wrap">
+                    <div class="dropdown">
+                        <button class="btn btn-primary dropdown-toggle" type="button" id="studyOptionsDropdown" 
+                            data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-book"></i> Study Options
+                        </button>
+                        <ul class="dropdown-menu" aria-labelledby="studyOptionsDropdown">
+                            <li>
+                                <a href="/deck/study/${deckId}" class="dropdown-item">
+                                    <i class="bi bi-collection me-2"></i> Study All Cards
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a href="/deck/random-deck" class="dropdown-item">
+                                    <i class="bi bi-shuffle me-2"></i> Study Random Deck
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                    <a href="/deck/${deckId}" class="btn btn-outline-secondary">
+                        <i class="bi bi-house-door"></i> Back to Deck
+                    </a>
+                </div>
+            `;
+        } else {
+            // Study All mode - show standard completion with session stats
+            finalCompletionScreen.innerHTML = `
+                <h2 class="card-title mb-4">
+                    <i class="bi bi-emoji-smile-fill text-success"></i> Session Complete!
+                </h2>
+                <p class="card-text fs-5">You've completed your flashcard review session.</p>
+                <div class="progress mb-3" style="height: 20px;">
+                    <div class="progress-bar bg-success" role="progressbar" 
+                        style="width: 100%" aria-valuenow="100" aria-valuemin="0" 
+                        aria-valuemax="100">100%</div>
+                </div>
+                <p class="card-text fs-4 text-success fw-bold">
+                    <i class="bi bi-trophy-fill"></i> Session Score: ${score}/${totalDue}
+                </p>
+                <div class="d-flex justify-content-center gap-3 mt-4 flex-wrap">
+                    <div class="dropdown">
+                        <button class="btn btn-primary dropdown-toggle" type="button" id="studyOptionsDropdown" 
+                            data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-book"></i> Study Options
+                        </button>
+                        <ul class="dropdown-menu" aria-labelledby="studyOptionsDropdown">
+                            <li>
+                                <a href="/deck/study/${deckId}" class="dropdown-item">
+                                    <i class="bi bi-arrow-repeat me-2"></i> Study Again
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a href="/deck/random-deck" class="dropdown-item">
+                                    <i class="bi bi-shuffle me-2"></i> Study Random Deck
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                    <a href="/deck/${deckId}" class="btn btn-outline-secondary">
+                        <i class="bi bi-house-door"></i> Back to Deck
+                    </a>
+                </div>
+            `;
+        }
+
+        // Show final completion screen
+        finalCompletionScreen.style.display = 'block';
+
+        // Update badge to show completion status
+        if (this.statusBadge) {
+            this.statusBadge.textContent = 'Completed';
+            this.statusBadge.className = 'badge bg-success';
+        }
     }
 
     /**
      * Show celebration when segment is completed
-     * @param {number} segment - Segment number that was completed
-     * @param {number} total - Total number of segments
+     * @param {number} segment - Batch number that was completed
+     * @param {number} total - Total number of batches
      */
     celebrateSegmentCompletion(segment, total) {
         // Check if we've already celebrated this segment to avoid duplicates
@@ -1271,28 +1320,25 @@ export class UIManager {
         // Choose celebration message based on progress
         let message;
         if (segment === total) {
-            message = 'Final segment completed!';
+            message = 'Final batch completed!';
         } else if (segment / total > 0.75) {
-            message = `Great progress! Segment ${segment} completed!`;
+            message = `Great progress! Batch ${segment} completed!`;
         } else if (segment / total > 0.5) {
             message = 'Halfway there! Keep going!';
         } else if (segment / total > 0.25) {
             message = 'Making good progress!';
         } else {
-            message = 'First segment completed!';
+            message = 'First batch completed!';
         }
         
         // Add segment count and next segment message
-        const segmentCountMsg = `<div class="segment-count mt-1">Segment ${segment}/${total} completed</div>`;
-        const nextSegmentMsg = segment < total ? 
-            `<div class="next-segment-msg mt-2">Loading next segment...</div>` : 
-            `<div class="completed-all mt-2">All segments completed!</div>`;
+        const segmentCountMsg = `<div class="segment-count mt-1">Batch ${segment}/${total} completed</div>`;
         
         toast.innerHTML = `
             <div class="milestone-icon mb-2"><i class="bi bi-trophy fs-3"></i></div>
             <div class="milestone-message">${message}</div>
             ${segmentCountMsg}
-            ${nextSegmentMsg}
+            <div class="mt-2">Ready for next batch!</div>
         `;
         
         document.body.appendChild(toast);
