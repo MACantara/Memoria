@@ -628,6 +628,8 @@ export class FlashcardManager {
         const card = this.currentCard;
         if (!card || card.id != flashcardId) return;
         
+        console.log("Showing edit modal for flashcard:", card);
+        
         // Check if modal is already open
         const modalElement = document.getElementById('editFlashcardModal');
         if (modalElement && modalElement.classList.contains('show')) {
@@ -648,20 +650,26 @@ export class FlashcardManager {
             return;
         }
         
-        // Populate form
+        // Populate form with proper error handling
         idInput.value = card.id;
-        questionInput.value = card.question;
-        correctAnswerInput.value = card.correct_answer;
+        questionInput.value = card.question || '';
+        correctAnswerInput.value = card.correct_answer || '';
         
-        // Clear container
+        // Clear container before adding new fields
         incorrectContainer.innerHTML = '';
         
+        // Make sure incorrect_answers is always an array
+        const incorrectAnswers = Array.isArray(card.incorrect_answers) ? 
+            card.incorrect_answers : 
+            (card.incorrect_answers ? [card.incorrect_answers] : []);
+        
+        console.log("Incorrect answers:", incorrectAnswers);
+        
         // Add incorrect answers
-        card.incorrect_answers.forEach((answer, index) => {
+        incorrectAnswers.forEach((answer, index) => {
             incorrectContainer.innerHTML += `
                 <div class="mb-2">
-                    <textarea class="form-control mb-2" name="incorrect_answers[]" rows="2" required 
-                             placeholder="Incorrect Answer ${index + 1}">${answer || ''}</textarea>
+                    <textarea class="form-control incorrect-answer mb-2" name="incorrect_answers[]" rows="2">${answer || ''}</textarea>
                 </div>
             `;
         });
@@ -670,8 +678,7 @@ export class FlashcardManager {
         while (incorrectContainer.children.length < 3) {
             incorrectContainer.innerHTML += `
                 <div class="mb-2">
-                    <textarea class="form-control mb-2" name="incorrect_answers[]" rows="2" required 
-                             placeholder="Incorrect Answer ${incorrectContainer.children.length + 1}"></textarea>
+                    <textarea class="form-control incorrect-answer mb-2" name="incorrect_answers[]" rows="2"></textarea>
                 </div>
             `;
         }

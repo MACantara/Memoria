@@ -32,49 +32,47 @@ export function initializeFlashcardOperations() {
             let incorrectAnswers = [];
             
             try {
-                // Try to parse the incorrect answers as JSON
-                const incorrectAnswersData = btn.dataset.incorrectAnswers.replace(/&quot;/g, '"');
-                incorrectAnswers = JSON.parse(incorrectAnswersData);
-                
-                // Handle case where it's a string that should be an array
-                if (typeof incorrectAnswers === 'string') {
+                // Improved JSON parsing with better error handling
+                if (btn.dataset.incorrectAnswers) {
+                    // First replace HTML entities if they exist
+                    const decodedJson = btn.dataset.incorrectAnswers
+                        .replace(/&quot;/g, '"')
+                        .replace(/&#39;/g, "'")
+                        .replace(/&lt;/g, '<')
+                        .replace(/&gt;/g, '>');
+                    
                     try {
-                        // Second parsing attempt
-                        incorrectAnswers = JSON.parse(incorrectAnswers);
-                    } catch (e) {
-                        // If that fails, split by comma as fallback
-                        incorrectAnswers = incorrectAnswers.split(',');
+                        // Try to parse the cleaned JSON
+                        incorrectAnswers = JSON.parse(decodedJson);
+                    } catch (jsonError) {
+                        console.error("Error parsing decoded JSON:", jsonError);
+                        console.log("Decoded data:", decodedJson);
+                        
+                        // Fallback to string handling
+                        incorrectAnswers = decodedJson.split(',').map(s => s.trim()).filter(s => s);
                     }
                 }
             } catch (e) {
-                console.error("Error parsing incorrect answers:", e);
-                console.log("Raw data:", btn.dataset.incorrectAnswers);
-                
-                // Fallback to string handling
-                incorrectAnswers = btn.dataset.incorrectAnswers;
-                if (typeof incorrectAnswers === 'string') {
-                    // Replace escaped quotes and try to parse again
-                    try {
-                        incorrectAnswers = JSON.parse(incorrectAnswers.replace(/&quot;/g, '"'));
-                    } catch (e) {
-                        // Split by comma as last resort
-                        incorrectAnswers = incorrectAnswers.split(',');
-                    }
-                }
+                console.error("Error handling incorrect answers:", e);
+                incorrectAnswers = []; // Default to empty array on error
             }
             
             // Ensure incorrectAnswers is an array
             if (!Array.isArray(incorrectAnswers)) {
-                incorrectAnswers = [incorrectAnswers];
+                incorrectAnswers = [incorrectAnswers].filter(Boolean);
             }
             
-            // Filter out any null or undefined values
-            incorrectAnswers = incorrectAnswers.filter(answer => answer !== null && answer !== undefined);
+            console.log("Editing flashcard:", {
+                id: flashcardId,
+                question: question,
+                correctAnswer: correctAnswer,
+                incorrectAnswers: incorrectAnswers
+            });
             
             // Populate form fields
             document.getElementById('editFlashcardId').value = flashcardId;
-            document.getElementById('editFlashcardQuestion').value = question;
-            document.getElementById('editFlashcardCorrectAnswer').value = correctAnswer;
+            document.getElementById('editFlashcardQuestion').value = question || '';
+            document.getElementById('editFlashcardCorrectAnswer').value = correctAnswer || '';
             
             // Populate incorrect answers
             const container = document.getElementById('editIncorrectAnswersContainer');
@@ -84,8 +82,7 @@ export function initializeFlashcardOperations() {
             incorrectAnswers.forEach((answer, index) => {
                 container.innerHTML += `
                     <div class="mb-2">
-                        <textarea class="form-control mb-2" name="incorrect_answers[]" rows="2" required 
-                                 placeholder="Incorrect Answer ${index + 1}">${answer || ''}</textarea>
+                        <textarea class="form-control incorrect-answer mb-2" name="incorrect_answers[]" rows="2">${answer || ''}</textarea>
                     </div>
                 `;
             });
@@ -94,8 +91,7 @@ export function initializeFlashcardOperations() {
             while (container.children.length < 3) {
                 container.innerHTML += `
                     <div class="mb-2">
-                        <textarea class="form-control mb-2" name="incorrect_answers[]" rows="2" required 
-                                 placeholder="Incorrect Answer ${container.children.length + 1}"></textarea>
+                        <textarea class="form-control incorrect-answer mb-2" name="incorrect_answers[]" rows="2"></textarea>
                     </div>
                 `;
             }
