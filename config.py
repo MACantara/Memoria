@@ -114,7 +114,7 @@ class Config:
     
     # Gemini API configuration - merged with FLASHCARD_CONFIG settings
     GEMINI_CONFIG = types.GenerateContentConfig(
-        temperature=0.7,
+        temperature=0.1,
         top_p=0.95,
         top_k=20,
         candidate_count=1,
@@ -305,40 +305,41 @@ class Config:
         Generate comprehensive, accurate, and engaging flashcards following these strict guidelines:
 
         1. Each flashcard must have:
-           - A clear, concise question that tests understanding
+           - A clear, concise question that provides sufficient context for understanding
            - One definitively correct answer
            - Three plausible but incorrect answers
-           - CRITICAL: All answers (correct and incorrect) MUST:
+           - All answers (correct and incorrect) MUST:
+             * Follow identical grammatical structure and sentence patterns
              * Be similar in length (within 10-15 characters of each other)
-             * Use the same level of detail and complexity
-             * Follow the same grammatical structure
-             * Be equally specific/general
+             * Maintain consistent level of detail and specificity
+             * Use parallel phrasing (all fragments, all full sentences, or all phrases)
+             * Present similar complexity and technical depth
         
-        2. Question types must be evenly distributed:
-           - Factual recall (25% of cards)
-           - Concept application (25% of cards)
-           - Problem-solving (25% of cards)
-           - Relationships between concepts (25% of cards)
+        2. Question types distribution:
+           - Factual recall questions (25%)
+           - Concept application questions (25%)
+           - Problem-solving questions (25%)
+           - Relationship between concepts questions (25%)
         
-        3. Ensure quality control:
+        3. Quality control requirements:
            - No duplicate questions or answers
-           - All content is factually accurate
-           - Clear, unambiguous wording
-           - Progressive difficulty (easy -> medium -> hard)
-           - Avoid answers that are obviously wrong
-           - Don't make the correct answer stand out by length or detail
+           - All content must be factually accurate
+           - Questions should provide complete context without assuming background knowledge
+           - Include a mix of difficulty levels from introductory to advanced
+           - Incorrect answers must be plausible but unambiguously wrong
+           - The correct answer should not stand out by length, detail, or writing style
         
         Format your response as a JSON array of objects, each with:
-        - 'q': the flashcard question (short for question)
-        - 'ca': the correct answer (short for correct_answer)
-        - 'ia': array of exactly three incorrect answers (short for incorrect_answers)
+        - 'q': the question with complete context
+        - 'ca': the correct answer
+        - 'ia': array of exactly three incorrect answers
 
         Generate {batch_size} unique flashcards covering different aspects of the topic.
         Ensure comprehensive coverage by:
         1. Breaking down the topic into key subtopics
-        2. Creating equal numbers of cards for each subtopic
+        2. Creating equal numbers of cards for each important subtopic
         3. Varying question types within each subtopic
-        4. Including both fundamental and advanced concepts
-        5. Maintaining consistent answer length and style throughout
+        4. Including both fundamental concepts and advanced applications
+        5. Ensuring all answers for a question follow the same sentence structure and style
         </instructions>
         """
