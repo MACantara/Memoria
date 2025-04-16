@@ -99,6 +99,7 @@
                             <li>
                                 <button class="dropdown-item text-danger delete-flashcard-btn"
                                         data-flashcard-id="{{ card.flashcard_id }}"
+                                        data-question="{{ card.question|e }}"
                                         data-bs-toggle="modal" 
                                         data-bs-target="#deleteFlashcardModal">
                                     <i class="bi bi-trash me-2"></i>Delete

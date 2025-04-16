@@ -32,29 +32,41 @@ export function initializeFlashcardOperations() {
             let incorrectAnswers = [];
             
             try {
-                // Improved JSON parsing with better error handling
-                if (btn.dataset.incorrectAnswers) {
-                    // First replace HTML entities if they exist
-                    const decodedJson = btn.dataset.incorrectAnswers
+                // Fix for the JSON parsing error
+                console.log("Raw incorrectAnswers:", btn.dataset.incorrectAnswers);
+                
+                // First check if the data attribute exists
+                if (btn.dataset.incorrectAnswers !== undefined && btn.dataset.incorrectAnswers !== '') {
+                    // Clean up the string for JSON parsing
+                    let jsonStr = btn.dataset.incorrectAnswers
                         .replace(/&quot;/g, '"')
                         .replace(/&#39;/g, "'")
                         .replace(/&lt;/g, '<')
                         .replace(/&gt;/g, '>');
                     
-                    try {
-                        // Try to parse the cleaned JSON
-                        incorrectAnswers = JSON.parse(decodedJson);
-                    } catch (jsonError) {
-                        console.error("Error parsing decoded JSON:", jsonError);
-                        console.log("Decoded data:", decodedJson);
-                        
-                        // Fallback to string handling
-                        incorrectAnswers = decodedJson.split(',').map(s => s.trim()).filter(s => s);
+                    // Make sure the string actually looks like JSON before parsing
+                    if ((jsonStr.startsWith('[') && jsonStr.endsWith(']')) || 
+                        (jsonStr.startsWith('{') && jsonStr.endsWith('}'))) {
+                        try {
+                            incorrectAnswers = JSON.parse(jsonStr);
+                        } catch (jsonError) {
+                            console.error("JSON parse error:", jsonError);
+                            console.log("Attempted to parse:", jsonStr);
+                            
+                            // If JSON parsing fails, fall back to comma-separated string handling
+                            incorrectAnswers = jsonStr.split(',').map(s => s.trim());
+                        }
+                    } else {
+                        // If it doesn't look like JSON, treat as comma-separated string
+                        incorrectAnswers = jsonStr.split(',').map(s => s.trim());
                     }
                 }
             } catch (e) {
-                console.error("Error handling incorrect answers:", e);
-                incorrectAnswers = []; // Default to empty array on error
+                console.error("Error handling incorrectAnswers:", e);
+                console.log("Data attribute value:", btn.dataset.incorrectAnswers);
+                // Default to empty array or simple string split as fallback
+                incorrectAnswers = btn.dataset.incorrectAnswers ? 
+                    btn.dataset.incorrectAnswers.split(',').map(s => s.trim()) : [];
             }
             
             // Ensure incorrectAnswers is an array
@@ -62,7 +74,8 @@ export function initializeFlashcardOperations() {
                 incorrectAnswers = [incorrectAnswers].filter(Boolean);
             }
             
-            console.log("Editing flashcard:", {
+            // Log the processed data for debugging
+            console.log("Processed data for editing flashcard:", {
                 id: flashcardId,
                 question: question,
                 correctAnswer: correctAnswer,
