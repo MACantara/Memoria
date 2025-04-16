@@ -278,7 +278,7 @@ export class FlashcardManager {
         const remaining = Math.max(0, cardsInBatch - this.score);
         
         // Calculate overall progress
-        const totalCompleted = this.totalSessionCompleted + this.score;
+        const totalCompleted = this.totalSessionCompleted;
         const overallRemaining = Math.max(0, this.totalDueCards - totalCompleted);
         
         // Use getDisplayIndex to get the correct 1-based card number for display

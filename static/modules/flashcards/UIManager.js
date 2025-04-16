@@ -433,14 +433,9 @@ export class UIManager {
     updateCardCounter(index, batchTotal, batchScore, batchRemaining, overallCompleted, overallTotal, overallRemaining) {
         // Update the score and remaining counts with accurate numbers
         const scoreCountElement = document.getElementById('scoreCount');
-        const completedCountElement = document.getElementById('completedCount');
         
         if (scoreCountElement) {
             scoreCountElement.textContent = batchScore;
-        }
-        
-        if (completedCountElement) {
-            completedCountElement.textContent = overallCompleted;
         }
         
         // Update the full card counter text if it exists
@@ -448,7 +443,7 @@ export class UIManager {
             // Show batch progress and overall progress
             this.cardCounter.innerHTML = `
                 <span class="badge bg-light text-dark me-1">${batchScore}/${batchTotal}</span> in batch 
-                (<span id="completedCount">${overallCompleted}</span>/<span id="totalCount">${overallTotal}</span> total)
+                (<span id="totalCount">${overallTotal}</span> total)
             `;
         }
     }
@@ -1148,12 +1143,6 @@ export class UIManager {
      * Show final completion screen when all cards are done
      */
     showFinalCompletion(deckId, score, totalDue, isDueOnly, remainingDueCards) {
-        // Update card counters first to show all completed
-        const completedCountElement = document.getElementById('completedCount');
-        if (completedCountElement) {
-            completedCountElement.textContent = score;
-        }
-        
         // Get the final completion screen
         const finalCompletionScreen = document.getElementById('finalCompletionScreen');
         if (!finalCompletionScreen) return;
