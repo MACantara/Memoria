@@ -32,60 +32,49 @@ export function initializeFlashcardOperations() {
             let incorrectAnswers = [];
             
             try {
-                // Fix for the JSON parsing error
-                console.log("Raw incorrectAnswers:", btn.dataset.incorrectAnswers);
+                // Try to parse the incorrect answers as JSON
+                const incorrectAnswersData = btn.dataset.incorrectAnswers.replace(/&quot;/g, '"');
+                incorrectAnswers = JSON.parse(incorrectAnswersData);
                 
-                // First check if the data attribute exists
-                if (btn.dataset.incorrectAnswers !== undefined && btn.dataset.incorrectAnswers !== '') {
-                    // Clean up the string for JSON parsing
-                    let jsonStr = btn.dataset.incorrectAnswers
-                        .replace(/&quot;/g, '"')
-                        .replace(/&#39;/g, "'")
-                        .replace(/&lt;/g, '<')
-                        .replace(/&gt;/g, '>');
-                    
-                    // Make sure the string actually looks like JSON before parsing
-                    if ((jsonStr.startsWith('[') && jsonStr.endsWith(']')) || 
-                        (jsonStr.startsWith('{') && jsonStr.endsWith('}'))) {
-                        try {
-                            incorrectAnswers = JSON.parse(jsonStr);
-                        } catch (jsonError) {
-                            console.error("JSON parse error:", jsonError);
-                            console.log("Attempted to parse:", jsonStr);
-                            
-                            // If JSON parsing fails, fall back to comma-separated string handling
-                            incorrectAnswers = jsonStr.split(',').map(s => s.trim());
-                        }
-                    } else {
-                        // If it doesn't look like JSON, treat as comma-separated string
-                        incorrectAnswers = jsonStr.split(',').map(s => s.trim());
+                // Handle case where it's a string that should be an array
+                if (typeof incorrectAnswers === 'string') {
+                    try {
+                        // Second parsing attempt
+                        incorrectAnswers = JSON.parse(incorrectAnswers);
+                    } catch (e) {
+                        // If that fails, split by comma as fallback
+                        incorrectAnswers = incorrectAnswers.split(',');
                     }
                 }
             } catch (e) {
-                console.error("Error handling incorrectAnswers:", e);
-                console.log("Data attribute value:", btn.dataset.incorrectAnswers);
-                // Default to empty array or simple string split as fallback
-                incorrectAnswers = btn.dataset.incorrectAnswers ? 
-                    btn.dataset.incorrectAnswers.split(',').map(s => s.trim()) : [];
+                console.error("Error parsing incorrect answers:", e);
+                console.log("Raw data:", btn.dataset.incorrectAnswers);
+                
+                // Fallback to string handling
+                incorrectAnswers = btn.dataset.incorrectAnswers;
+                if (typeof incorrectAnswers === 'string') {
+                    // Replace escaped quotes and try to parse again
+                    try {
+                        incorrectAnswers = JSON.parse(incorrectAnswers.replace(/&quot;/g, '"'));
+                    } catch (e) {
+                        // Split by comma as last resort
+                        incorrectAnswers = incorrectAnswers.split(',');
+                    }
+                }
             }
             
             // Ensure incorrectAnswers is an array
             if (!Array.isArray(incorrectAnswers)) {
-                incorrectAnswers = [incorrectAnswers].filter(Boolean);
+                incorrectAnswers = [incorrectAnswers];
             }
             
-            // Log the processed data for debugging
-            console.log("Processed data for editing flashcard:", {
-                id: flashcardId,
-                question: question,
-                correctAnswer: correctAnswer,
-                incorrectAnswers: incorrectAnswers
-            });
+            // Filter out any null or undefined values
+            incorrectAnswers = incorrectAnswers.filter(answer => answer !== null && answer !== undefined);
             
             // Populate form fields
             document.getElementById('editFlashcardId').value = flashcardId;
-            document.getElementById('editFlashcardQuestion').value = question || '';
-            document.getElementById('editFlashcardCorrectAnswer').value = correctAnswer || '';
+            document.getElementById('editFlashcardQuestion').value = question;
+            document.getElementById('editFlashcardCorrectAnswer').value = correctAnswer;
             
             // Populate incorrect answers
             const container = document.getElementById('editIncorrectAnswersContainer');
@@ -95,7 +84,8 @@ export function initializeFlashcardOperations() {
             incorrectAnswers.forEach((answer, index) => {
                 container.innerHTML += `
                     <div class="mb-2">
-                        <textarea class="form-control incorrect-answer mb-2" name="incorrect_answers[]" rows="2">${answer || ''}</textarea>
+                        <textarea class="form-control mb-2" name="incorrect_answers[]" rows="2" required 
+                                 placeholder="Incorrect Answer ${index + 1}">${answer || ''}</textarea>
                     </div>
                 `;
             });
@@ -104,7 +94,8 @@ export function initializeFlashcardOperations() {
             while (container.children.length < 3) {
                 container.innerHTML += `
                     <div class="mb-2">
-                        <textarea class="form-control incorrect-answer mb-2" name="incorrect_answers[]" rows="2"></textarea>
+                        <textarea class="form-control mb-2" name="incorrect_answers[]" rows="2" required 
+                                 placeholder="Incorrect Answer ${container.children.length + 1}"></textarea>
                     </div>
                 `;
             }

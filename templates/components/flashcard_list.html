@@ -91,7 +91,7 @@
                                 <button class="dropdown-item edit-flashcard-btn" 
                                         data-flashcard-id="{{ card.flashcard_id }}"
                                         data-question="{{ card.question|e }}"
-                                        data-correct-answer="{{ card.correct_answer|e }}"
+                                        data-answer="{{ card.correct_answer|e }}"
                                         data-incorrect-answers="{{ card.incorrect_answers|tojson|e }}">
                                     <i class="bi bi-pencil me-2"></i>Edit
                                 </button>
@@ -99,7 +99,6 @@
                             <li>
                                 <button class="dropdown-item text-danger delete-flashcard-btn"
                                         data-flashcard-id="{{ card.flashcard_id }}"
-                                        data-question="{{ card.question|e }}"
                                         data-bs-toggle="modal" 
                                         data-bs-target="#deleteFlashcardModal">
                                     <i class="bi bi-trash me-2"></i>Delete

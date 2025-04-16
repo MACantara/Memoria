@@ -25,8 +25,7 @@
                     <div class="mb-3">
                         <label class="form-label">Incorrect Answers</label>
                         <div class="incorrect-answers-container" id="editIncorrectAnswersContainer">
-                            <!-- Incorrect answers will be populated here -->
-                            <!-- Default structure is added by JavaScript -->
+                            <!-- Will be populated dynamically -->
                         </div>
                     </div>
                     
@@ -43,36 +42,3 @@
         </div>
     </div>
 </div>
-
-<script>
-// Debug data handling in modal events
-document.addEventListener('DOMContentLoaded', function() {
-    const editModal = document.getElementById('editFlashcardModal');
-    if (editModal) {
-        editModal.addEventListener('show.bs.modal', function(event) {
-            // This event fires right before the modal is shown
-            console.log("Edit modal is opening");
-            
-            // If triggered by a button with data attributes
-            const button = event.relatedTarget;
-            if (button && button.classList.contains('edit-flashcard-btn')) {
-                console.log("Modal triggered by edit button with data:");
-                console.log({
-                    id: button.dataset.flashcardId,
-                    question: button.dataset.question,
-                    correctAnswer: button.dataset.correctAnswer,
-                    incorrectAnswers: button.dataset.incorrectAnswers
-                });
-            }
-            
-            // Check current form values
-            console.log("Current form values:", {
-                id: document.getElementById('editFlashcardId').value,
-                question: document.getElementById('editFlashcardQuestion').value,
-                correctAnswer: document.getElementById('editFlashcardCorrectAnswer').value,
-                incorrectAnswers: Array.from(document.querySelectorAll('#editIncorrectAnswersContainer textarea')).map(t => t.value)
-            });
-        });
-    }
-});
-</script>
