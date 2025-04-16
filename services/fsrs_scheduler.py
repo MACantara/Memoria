@@ -145,7 +145,7 @@ def get_due_cards(deck_id, due_only=False, excluded_ids=None):
     Args:
         deck_id: The deck ID to fetch cards from
         due_only: Whether to only include cards that are due
-        excluded_ids: Optional list of card IDs to exclude from results
+        excluded_ids: DEPRECATED - No longer used, kept for backwards compatibility
     """
     from models import FlashcardDecks, Flashcards
     from sqlalchemy import case
@@ -197,9 +197,7 @@ def get_due_cards(deck_id, due_only=False, excluded_ids=None):
             (Flashcards.due_date == None)  # Include cards without due date
         )
     
-    # If excluded_ids is provided, exclude those cards
-    if excluded_ids:
-        query = query.filter(~Flashcards.flashcard_id.in_(excluded_ids))
+    # Removed: Excluded IDs filtering code
     
     # Target counts for each state - we want 15 of each primary state
     target_forgotten = 15

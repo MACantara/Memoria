@@ -20,7 +20,6 @@ export class FlashcardManager {
         this.currentBatch = parseInt(document.getElementById('currentBatch')?.value || 1);
         this.cardsPerBatch = 45;  // Each batch loads 45 cards
         this.totalSessionCompleted = 0; // Track total cards completed across all batches
-        this.excludedCardIds = []; // Track card IDs to exclude from future batches
         
         // Initialize event system
         this.eventListeners = {};
@@ -127,11 +126,6 @@ export class FlashcardManager {
             url.searchParams.append('page', batchNumber.toString());
             url.searchParams.append('per_page', this.cardsPerBatch.toString());
             
-            // Add excluded card IDs if there are any
-            if (this.excludedCardIds.length > 0) {
-                url.searchParams.append('exclude_ids', this.excludedCardIds.join(','));
-            }
-            
             console.log(`Loading batch ${batchNumber} flashcards from: ${url}`);
             
             const response = await fetch(url, {
@@ -219,9 +213,6 @@ export class FlashcardManager {
     }
 
     async loadNextBatch() {
-        // Save the current completed card IDs to exclude from future batches
-        this.excludedCardIds = Array.from(this.completedCards);
-        
         // Increment batch number
         const nextBatch = this.currentBatch + 1;
         
