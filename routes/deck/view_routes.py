@@ -152,16 +152,72 @@ def study_deck(deck_id):
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         # Get pagination parameters
         page = request.args.get('page', 1, type=int)
-        per_page = request.args.get('per_page', 50, type=int)
+        per_page = request.args.get('per_page', 45, type=int)
+        exclude_ids = request.args.get('exclude_ids', '')
         
-        # Get all due cards (still need the total count)
-        all_cards = get_due_cards(deck_id, due_only)
-        total_cards = len(all_cards)
+        # Parse excluded IDs if provided
+        excluded_card_ids = []
+        if exclude_ids:
+            try:
+                excluded_card_ids = [int(id) for id in exclude_ids.split(',')]
+            except ValueError:
+                current_app.logger.warning(f"Invalid exclude_ids parameter: {exclude_ids}")
         
-        # Calculate pagination values
-        total_pages = (total_cards + per_page - 1) // per_page
+        # Get the actual total cards count before pagination
+        # This is important for keeping track of overall progress
+        # Create recursive CTE to find all decks including this one and its sub-decks
+        cte = db.session.query(
+            FlashcardDecks.flashcard_deck_id.label('id')
+        ).filter(
+            FlashcardDecks.flashcard_deck_id == deck_id
+        ).cte(name='ajax_deck_hierarchy', recursive=True)
+
+        cte = cte.union_all(
+            db.session.query(
+                FlashcardDecks.flashcard_deck_id.label('id')
+            ).filter(
+                FlashcardDecks.parent_deck_id == cte.c.id
+            )
+        )
+        
+        # Calculate total cards for this request
+        total_cards_query = db.session.query(db.func.count(Flashcards.flashcard_id))
+        total_cards_query = total_cards_query.filter(
+            Flashcards.flashcard_deck_id.in_(db.session.query(cte.c.id))
+        )
+        
+        # Apply due_only filter if needed
+        if due_only:
+            current_time = get_current_time()
+            total_cards_query = total_cards_query.filter(
+                db.or_(Flashcards.due_date <= current_time, Flashcards.due_date == None),
+                Flashcards.state != 2  # Exclude cards already mastered
+            )
+        
+        # Exclude cards that have already been seen
+        if excluded_card_ids:
+            total_cards_query = total_cards_query.filter(
+                ~Flashcards.flashcard_id.in_(excluded_card_ids)
+            )
+        
+        # Get the actual total count of remaining cards
+        total_remaining_cards = total_cards_query.scalar() or 0
+        
+        # Get all due cards (still need the total count including those already seen in this session)
+        all_cards = get_due_cards(deck_id, due_only, excluded_card_ids)
+        
+        # For the total, we want to include both the cards we've loaded in this batch
+        # and the remaining cards that could be loaded in future batches
+        total_cards = len(all_cards) + (total_remaining_cards if excluded_card_ids else 0)
+        
+        # If this is the first batch (no excludes), then total_cards should be total_remaining_cards
+        if not excluded_card_ids:
+            total_cards = total_remaining_cards
+        
+        # Calculate pagination values for the current batch
+        total_pages = (total_cards + per_page - 1) // per_page if total_cards > 0 else 1
         start_idx = (page - 1) * per_page
-        end_idx = min(start_idx + per_page, total_cards)
+        end_idx = min(start_idx + per_page, len(all_cards))
         
         # Get just the requested page of cards
         page_cards = all_cards[start_idx:end_idx]
@@ -193,10 +249,11 @@ def study_deck(deck_id):
                 'subdeck': deck_info
             })
         
-        # Return paginated response
+        # Return paginated response with correct total
         return jsonify({
             'flashcards': flashcard_data,
-            'total': total_cards,
+            'total': total_cards,  # Important: This should reflect the total available cards, not just this batch
+            'batch_size': len(flashcard_data),  # Add the actual batch size
             'pagination': {
                 'page': page,
                 'per_page': per_page,

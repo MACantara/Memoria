@@ -152,15 +152,19 @@ export class FlashcardManager {
             this.flashcards = data.flashcards;
             this.currentBatch = batchNumber;
             
+            // Only log the success message with the actual data received
             console.log(`Successfully loaded ${this.flashcards.length} flashcards (batch ${batchNumber}) out of ${data.total} total`);
             
-            // Store the total count from server
-            if (data.total !== this.totalDueCards) {
+            // IMPORTANT: Only update the total count on the first batch load
+            // or if the new total is legitimately higher (new cards were added)
+            if (batchNumber === 1 || data.total > this.totalDueCards) {
                 console.log(`Updating total from ${this.totalDueCards} to ${data.total}`);
                 this.totalDueCards = data.total;
                 
                 // Update the counter display with the correct total
                 this.updateTotalCountDisplay(this.totalDueCards);
+            } else {
+                console.log(`Keeping existing total of ${this.totalDueCards} cards (server reported ${data.total})`);
             }
             
             // For first batch, dispatch event 
