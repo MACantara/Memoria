@@ -190,51 +190,161 @@ def get_due_cards(deck_id, due_only=False):
             (Flashcards.due_date == None)  # Include cards without due date
         )
     
-    # Fetch cards for each state with proper ordering
-    # Get 15 forgotten, 15 learning, and 15 new cards
+    # Target counts for each state - we want 15 of each primary state
+    target_forgotten = 15
+    target_learning = 15
+    target_new = 15
+    
+    # Total cards we're aiming for
+    total_target = target_forgotten + target_learning + target_new
+    
+    # Fetch cards for each state separately with proper ordering
     forgotten_cards = query.filter(Flashcards.state == 3).order_by(
         case((Flashcards.due_date == None, 0), else_=1),
         Flashcards.due_date.asc(),
         Flashcards.flashcard_id.asc()
-    ).limit(15).all()
+    ).all()
     
     learning_cards = query.filter(Flashcards.state == 1).order_by(
         case((Flashcards.due_date == None, 0), else_=1),
         Flashcards.due_date.asc(),
         Flashcards.flashcard_id.asc()
-    ).limit(15).all()
+    ).all()
     
     new_cards = query.filter(Flashcards.state == 0).order_by(
         case((Flashcards.due_date == None, 0), else_=1),
         Flashcards.due_date.asc(),
         Flashcards.flashcard_id.asc()
-    ).limit(15).all()
+    ).all()
     
-    # If we don't have enough cards, check for mastered cards as well
-    mastered_cards = []
-    if len(forgotten_cards) + len(learning_cards) + len(new_cards) < 45:
-        needed = 45 - (len(forgotten_cards) + len(learning_cards) + len(new_cards))
-        mastered_cards = query.filter(Flashcards.state == 2).order_by(
-            case((Flashcards.due_date == None, 0), else_=1),
-            Flashcards.due_date.asc(),
-            Flashcards.flashcard_id.asc()
-        ).limit(needed).all()
+    mastered_cards = query.filter(Flashcards.state == 2).order_by(
+        case((Flashcards.due_date == None, 0), else_=1),
+        Flashcards.due_date.asc(),
+        Flashcards.flashcard_id.asc()
+    ).all()
+    
+    # Track available cards for each state
+    available_forgotten = len(forgotten_cards)
+    available_learning = len(learning_cards)
+    available_new = len(new_cards)
+    available_mastered = len(mastered_cards)
+    
+    logger.debug(f"Available cards - Forgotten: {available_forgotten}, Learning: {available_learning}, " +
+                f"New: {available_new}, Mastered: {available_mastered}")
+    
+    # Initialize lists for final selection
+    selected_forgotten = []
+    selected_learning = []
+    selected_new = []
+    
+    # 1. First, allocate the primary target for each state if available
+    selected_forgotten = forgotten_cards[:target_forgotten]
+    selected_learning = learning_cards[:target_learning]
+    selected_new = new_cards[:target_new]
+    
+    # Calculate shortfalls
+    shortage_forgotten = target_forgotten - len(selected_forgotten)
+    shortage_learning = target_learning - len(selected_learning)
+    shortage_new = target_new - len(selected_new)
+    
+    # 2. If there's a shortage in forgotten cards, fill with other types in priority order
+    if shortage_forgotten > 0:
+        logger.debug(f"Shortage of {shortage_forgotten} forgotten cards, filling with other types")
+        
+        # First try to fill with learning cards
+        learning_for_forgotten = min(shortage_forgotten, max(0, available_learning - len(selected_learning)))
+        if learning_for_forgotten > 0:
+            additional_learning = learning_cards[len(selected_learning):len(selected_learning) + learning_for_forgotten]
+            selected_forgotten.extend(additional_learning)
+            shortage_forgotten -= learning_for_forgotten
+        
+        # Then try to fill with new cards
+        if shortage_forgotten > 0:
+            new_for_forgotten = min(shortage_forgotten, max(0, available_new - len(selected_new)))
+            if new_for_forgotten > 0:
+                additional_new = new_cards[len(selected_new):len(selected_new) + new_for_forgotten]
+                selected_forgotten.extend(additional_new)
+                shortage_forgotten -= new_for_forgotten
+        
+        # Finally try with mastered cards
+        if shortage_forgotten > 0:
+            mastered_for_forgotten = min(shortage_forgotten, available_mastered)
+            if mastered_for_forgotten > 0:
+                selected_forgotten.extend(mastered_cards[:mastered_for_forgotten])
+                mastered_cards = mastered_cards[mastered_for_forgotten:]  # Update remaining mastered cards
+    
+    # 3. If there's a shortage in learning cards, fill with other types in priority order
+    if shortage_learning > 0:
+        logger.debug(f"Shortage of {shortage_learning} learning cards, filling with other types")
+        
+        # First try to fill with forgotten cards beyond what we've already used
+        forgotten_for_learning = min(shortage_learning, max(0, available_forgotten - len(selected_forgotten)))
+        if forgotten_for_learning > 0:
+            additional_forgotten = forgotten_cards[len(selected_forgotten):len(selected_forgotten) + forgotten_for_learning]
+            selected_learning.extend(additional_forgotten)
+            shortage_learning -= forgotten_for_learning
+        
+        # Then try to fill with new cards
+        if shortage_learning > 0:
+            new_for_learning = min(shortage_learning, max(0, available_new - len(selected_new)))
+            if new_for_learning > 0:
+                additional_new = new_cards[len(selected_new):len(selected_new) + new_for_learning]
+                selected_learning.extend(additional_new)
+                shortage_learning -= new_for_learning
+        
+        # Finally try with mastered cards
+        if shortage_learning > 0:
+            mastered_for_learning = min(shortage_learning, len(mastered_cards))
+            if mastered_for_learning > 0:
+                selected_learning.extend(mastered_cards[:mastered_for_learning])
+                mastered_cards = mastered_cards[mastered_for_learning:]  # Update remaining mastered cards
+    
+    # 4. If there's a shortage in new cards, fill with other types in priority order
+    if shortage_new > 0:
+        logger.debug(f"Shortage of {shortage_new} new cards, filling with other types")
+        
+        # First try to fill with forgotten cards beyond what we've already used
+        forgotten_for_new = min(shortage_new, max(0, available_forgotten - len(selected_forgotten)))
+        if forgotten_for_new > 0:
+            additional_forgotten = forgotten_cards[len(selected_forgotten):len(selected_forgotten) + forgotten_for_new]
+            selected_new.extend(additional_forgotten)
+            shortage_new -= forgotten_for_new
+        
+        # Then try to fill with learning cards
+        if shortage_new > 0:
+            learning_for_new = min(shortage_new, max(0, available_learning - len(selected_learning)))
+            if learning_for_new > 0:
+                additional_learning = learning_cards[len(selected_learning):len(selected_learning) + learning_for_new]
+                selected_new.extend(additional_learning)
+                shortage_new -= learning_for_new
+        
+        # Finally try with mastered cards
+        if shortage_new > 0:
+            mastered_for_new = min(shortage_new, len(mastered_cards))
+            if mastered_for_new > 0:
+                selected_new.extend(mastered_cards[:mastered_for_new])
+                mastered_cards = mastered_cards[mastered_for_new:]  # Update remaining mastered cards
     
     # Combine all cards with a balanced distribution
     balanced_cards = []
     
-    # Create an interleaved pattern to mix states and prevent too many of one type in a row
-    # Start with forgotten cards (highest priority)
-    for i in range(15):
-        if i < len(forgotten_cards):
-            balanced_cards.append(forgotten_cards[i])
-        if i < len(learning_cards):
-            balanced_cards.append(learning_cards[i])
-        if i < len(new_cards):
-            balanced_cards.append(new_cards[i])
+    # Create an interleaved pattern to mix states
+    # We'll alternate between forgotten, learning and new
+    max_cards = max(len(selected_forgotten), len(selected_learning), len(selected_new))
     
-    # Add any mastered cards at the end
-    balanced_cards.extend(mastered_cards)
+    for i in range(max_cards):
+        if i < len(selected_forgotten):
+            balanced_cards.append(selected_forgotten[i])
+        if i < len(selected_learning):
+            balanced_cards.append(selected_learning[i])
+        if i < len(selected_new):
+            balanced_cards.append(selected_new[i])
+    
+    # If we still don't have enough cards to reach our target, add any remaining mastered cards
+    if len(balanced_cards) < total_target and len(mastered_cards) > 0:
+        balanced_cards.extend(mastered_cards[:total_target - len(balanced_cards)])
+    
+    logger.debug(f"Final card distribution - Total: {len(balanced_cards)}")
     
     return balanced_cards
 
