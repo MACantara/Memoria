@@ -92,7 +92,7 @@
                                         data-flashcard-id="{{ card.flashcard_id }}"
                                         data-question="{{ card.question|e }}"
                                         data-correct-answer="{{ card.correct_answer|e }}"
-                                        data-incorrect-answers="{{ card.incorrect_answers }}">
+                                        data-incorrect-answers="{{ card.incorrect_answers|tojson|forceescape }}">
                                     <i class="bi bi-pencil me-2"></i>Edit
                                 </button>
                             </li>
