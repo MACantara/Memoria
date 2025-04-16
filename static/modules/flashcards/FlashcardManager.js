@@ -19,7 +19,7 @@ export class FlashcardManager {
         this.currentCard = null;  // Store the current card data
         this.totalPages = 0;  // Total pages for pagination
         this.currentPage = 0;  // Current page for pagination
-        this.cardsPerSegment = 25;  // Default cards per segment
+        this.cardsPerSegment = 45;  // Load 45 cards at once (15 forgotten, 15 learning, 15 new)
         
         // Initialize event system
         this.eventListeners = {};
@@ -122,11 +122,11 @@ export class FlashcardManager {
                 url.searchParams.append('due_only', 'true');
             }
             
-            // Add pagination parameters - load one segment (25 cards) at a time
+            // Load up to 45 cards (15 forgotten, 15 learning, 15 new)
             url.searchParams.append('page', '1');
-            url.searchParams.append('per_page', '25');
+            url.searchParams.append('per_page', '45');
             
-            console.log(`Loading first segment of flashcards from: ${url}`);
+            console.log(`Loading flashcards from: ${url}`);
             
             const response = await fetch(url, {
                 headers: {
@@ -144,11 +144,11 @@ export class FlashcardManager {
             
             // Store flashcards in the order they were received
             this.flashcards = data.flashcards;
-            this.totalPages = data.pagination.total_pages;
+            this.totalPages = 1; // We're now loading all cards at once
             this.currentPage = 1;
-            this.cardsPerSegment = data.pagination.per_page || 25;
+            this.cardsPerSegment = 45; // 15 of each card type
             
-            console.log(`Successfully loaded segment 1/${this.totalPages} with ${this.flashcards.length} flashcards out of ${data.total} total`);
+            console.log(`Successfully loaded ${this.flashcards.length} flashcards out of ${data.total} total`);
             
             // Store the total count - don't override it with just first batch size
             if (data.total !== this.totalDueCards) {
@@ -173,148 +173,64 @@ export class FlashcardManager {
         }
     }
 
-    async loadNextSegment() {
-        try {
-            if (this.isLoading) return false;
-            
-            // Check if we have more pages to load
-            if (this.currentPage >= this.totalPages) {
-                console.log("No more segments to load");
-                return false;
+    async moveToNextCard() {
+        // Debug info
+        console.log("Moving to next card. Completed cards:", this.completedCards.size);
+        console.log(`Total cards to review: ${this.totalDueCards}, completed: ${this.score}`);
+        
+        // Find the next uncompleted card in the original order
+        let nextCardIndex = -1;
+        
+        for (let i = 0; i < this.flashcards.length; i++) {
+            // Skip the current card and completed cards
+            if (i === this.currentCardIndex || this.completedCards.has(this.flashcards[i].id)) {
+                continue;
             }
             
-            this.isLoading = true;
-            this.isSegmentTransition = true; // Set flag to indicate we're in a segment transition
-            console.log(`Starting to load segment ${this.currentPage + 1}/${this.totalPages}`);
-            
-            // Show loading message between segments
-            this.ui.showLoadingMessage(`Loading next segment (${this.currentPage + 1}/${this.totalPages})...`);
-            
-            // Build the URL for loading the next segment
-            const url = new URL(`/deck/study/${this.deckId}`, window.location.origin);
-            
-            // Add query parameter for due only
-            if (this.studyMode) {
-                url.searchParams.append('due_only', 'true');
+            // In "Due Only" mode, skip mastered cards
+            if (this.studyMode && parseInt(this.flashcards[i].state) === 2) {
+                continue;
             }
             
-            const nextPage = this.currentPage + 1;
-            url.searchParams.append('page', nextPage.toString());
-            url.searchParams.append('per_page', this.cardsPerSegment.toString());
-            
-            console.log(`Loading segment ${nextPage}/${this.totalPages} from URL:`, url.toString());
-            
-            // Ensure this is treated as an AJAX request to prevent page navigation
-            try {
-                const response = await fetch(url, {
-                    method: 'GET',
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'Accept': 'application/json'
-                    },
-                    // Prevent browser from navigating to the result
-                    mode: 'same-origin',
-                    credentials: 'same-origin'
-                });
-                
-                console.log(`Received response for segment ${nextPage}, status:`, response.status);
-                
-                if (!response.ok) {
-                    console.error(`Server returned error ${response.status}`);
-                    throw new Error(`Failed to load segment ${nextPage}: ${response.status}`);
-                }
-                
-                const data = await response.json();
-                console.log(`Successfully parsed JSON for segment ${nextPage}`);
-                
-                // Verify we got the expected data structure
-                if (!data.flashcards || !Array.isArray(data.flashcards)) {
-                    console.error("Invalid data structure received:", data);
-                    throw new Error('Received invalid data structure from server');
-                }
-                
-                // Append to existing flashcards array
-                const newCards = data.flashcards;
-                console.log(`Adding ${newCards.length} new cards to existing ${this.flashcards.length} cards`);
-                this.flashcards = [...this.flashcards, ...newCards];
-                this.currentPage = nextPage;
-                
-                console.log(`Added ${newCards.length} more cards, total now: ${this.flashcards.length}`);
-                
-                // Hide the loading message BEFORE finding and rendering the card
-                this.ui.hideLoadingMessage(this.isSegmentTransition);
-                console.log("Loading message hidden after successful segment load");
-                
-                // Verify DOM elements are available before trying to render
-                this.verifyDomElements();
-                
-                // IMPORTANT: Find the first card from the new segment and display it
-                const segmentStartIndex = (this.currentPage - 1) * this.cardsPerSegment;
-                if (segmentStartIndex < this.flashcards.length) {
-                    console.log(`Looking for first uncompleted card starting at index ${segmentStartIndex}`);
-                    
-                    // Find the first uncompleted card in the new segment
-                    let nextCardIndex = -1;
-                    for (let i = segmentStartIndex; i < this.flashcards.length; i++) {
-                        if (!this.completedCards.has(this.flashcards[i].id)) {
-                            nextCardIndex = i;
-                            break;
-                        }
-                    }
-                    
-                    if (nextCardIndex >= 0) {
-                        this.currentCardIndex = nextCardIndex;
-                        this.currentCard = this.flashcards[nextCardIndex];
-                        console.log(`Found first uncompleted card at index ${nextCardIndex}: ID ${this.currentCard.id}`);
-                        
-                        // Get reference to the card container and set flashcard ID
-                        const currentCardElement = document.getElementById('currentFlashcard');
-                        if (currentCardElement) {
-                            currentCardElement.style.display = 'block';
-                            currentCardElement.dataset.flashcardId = this.currentCard.id;
-                            console.log(`Set flashcard ID in DOM element: ${this.currentCard.id}`);
-                        } else {
-                            console.error("Card container element not found!");
-                        }
-                        
-                        // Render the card immediately
-                        this.ui.renderCard(this.currentCard);
-                        this.updateCardCounter();
-                        console.log("First card from new segment rendered!");
-                        
-                        return true;
-                    } else {
-                        console.warn("No uncompleted cards found in the new segment");
-                        return false;
-                    }
-                } else {
-                    console.warn(`Start index ${segmentStartIndex} is out of bounds (${this.flashcards.length} total cards)`);
-                    return false;
-                }
-                
-            } catch (fetchError) {
-                console.error("Fetch error during segment loading:", fetchError);
-                
-                // Always hide the loading message on error
-                this.ui.hideLoadingMessage(this.isSegmentTransition);
-                console.log("Loading message hidden after fetch error");
-                
-                throw fetchError;
-            }
-        } catch (error) {
-            console.error("Error loading next segment:", error);
-            
-            // Always hide the loading message in the outer catch block too
-            this.ui.hideLoadingMessage(this.isSegmentTransition);
-            console.log("Loading message hidden in outer catch block");
-            
-            this.ui.showLoadingError(`Failed to load segment: ${error.message}`);
-            return false;
-        } finally {
-            this.isLoading = false;
-            this.isSegmentTransition = false; // Reset segment transition flag
-            console.log(`Segment loading completed, isLoading set to false, isSegmentTransition reset to false`);
+            // Found the next card
+            nextCardIndex = i;
+            break;
         }
+        
+        // If we couldn't find the next card, try again from the start
+        if (nextCardIndex === -1) {
+            for (let i = 0; i < this.currentCardIndex; i++) {
+                if (!this.completedCards.has(this.flashcards[i].id)) {
+                    if (!(this.studyMode && parseInt(this.flashcards[i].state) === 2)) {
+                        nextCardIndex = i;
+                        break;
+                    }
+                }
+            }
+        }
+        
+        // If we found a valid next card
+        if (nextCardIndex !== -1) {
+            this.currentCardIndex = nextCardIndex;
+            this.currentCard = this.flashcards[nextCardIndex];
+            const visibleCardIndex = this.getDisplayIndex(nextCardIndex);
+            console.log(`Moving to card ${visibleCardIndex}/${this.totalDueCards} with ID ${this.currentCard.id} (state: ${this.currentCard.state}, due: ${this.currentCard.due_date || 'N/A'})`);
+            
+            // Add the current flashcard ID as a data attribute
+            const currentCardElement = document.getElementById('currentFlashcard');
+            if (currentCardElement) {
+                currentCardElement.dataset.flashcardId = this.currentCard.id;
+            }
+            
+            // Render this card
+            this.ui.renderCard(this.currentCard);
+            this.updateCardCounter();
+            return;
+        }
+        
+        // If we reach here, all cards have been completed
+        console.log("All cards completed. Showing completion screen.");
+        this.checkRemainingDueCards();
     }
 
     /**
@@ -410,58 +326,6 @@ export class FlashcardManager {
             this.ui.renderCard(this.currentCard);
             this.updateCardCounter();
             return;
-        }
-        
-        // Check if we've completed a segment and need to load more cards
-        if (this.currentPage < this.totalPages && 
-            this.completedCards.size > 0 && 
-            this.completedCards.size % this.cardsPerSegment === 0) {
-            
-            console.log(`Completed segment ${this.currentPage}. Loading next segment...`);
-            
-            // Prevent any user interaction during segment loading
-            document.body.classList.add('loading-next-segment');
-            this.isSegmentTransition = true; // Set transition flag
-            
-            try {
-                // Calculate which segment was just completed (1-based)
-                const completedSegment = Math.floor(this.completedCards.size / this.cardsPerSegment);
-                
-                // Show segment completion celebration if not already shown
-                if (!this.ui.celebratedSegments.has(completedSegment)) {
-                    this.ui.celebrateSegmentCompletion(this.currentPage, this.totalPages);
-                } else {
-                    console.log(`Segment ${completedSegment} celebration was already shown during score update`);
-                }
-                
-                // Add small delay to let the celebration show before starting to load
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                
-                // Load next segment - this is an async operation
-                const loadedSuccessfully = await this.loadNextSegment();
-                
-                // Note: loadNextSegment now handles displaying the first card from the new segment
-                // So we don't need to call moveToNextCard() recursively
-                
-                if (loadedSuccessfully) {
-                    console.log("Successfully loaded next segment, card already rendered");
-                    // No need to call moveToNextCard() again since loadNextSegment already displayed a card
-                    return;
-                } else {
-                    // If we failed to load, show error and completion screen
-                    console.error("Failed to load next segment, showing completion screen");
-                    this.checkRemainingDueCards();
-                    return;
-                }
-            } catch (error) {
-                console.error("Error during segment transition:", error);
-                // Show error message
-                this.ui.showLoadingError("Error loading next segment. Please try refreshing the page.");
-            } finally {
-                // Re-enable user interaction
-                document.body.classList.remove('loading-next-segment');
-                this.isSegmentTransition = false; // Reset transition flag when complete
-            }
         }
         
         // If we reach here, all cards have been completed

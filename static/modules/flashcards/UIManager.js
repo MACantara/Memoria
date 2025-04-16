@@ -24,7 +24,7 @@ export class UIManager {
         this.progressMilestones = document.getElementById('progressMilestones');
         this.milestoneSegments = [];
         this.currentSegment = 0;
-        this.cardsPerSegment = 25; // Smaller, more manageable chunks
+        this.cardsPerSegment = 45; // Update to 45 cards for the whole session
         this.celebrationSound = new Audio('/static/sounds/achievement.mp3');
         this.celebrationSound.load();
         
@@ -1264,6 +1264,9 @@ export class UIManager {
         const toast = document.createElement('div');
         toast.className = 'milestone-toast';
         toast.style.zIndex = "9999"; // Ensure it's on top of all other elements
+        toast.style.top = "20px";    // Position at top
+        toast.style.right = "20px";  // Position at right
+        toast.style.transform = "none"; // Remove any centering transform
         
         // Choose celebration message based on progress
         let message;
