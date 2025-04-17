@@ -152,24 +152,55 @@ def study_deck(deck_id):
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         # Get pagination parameters
         page = request.args.get('page', 1, type=int)
-        per_page = request.args.get('per_page', 50, type=int)
+        per_page = request.args.get('per_page', 45, type=int)
         
-        # Get all due cards (still need the total count)
-        all_cards = get_due_cards(deck_id, due_only)
-        total_cards = len(all_cards)
+        # Create recursive CTE to find all decks including this one and its sub-decks
+        cte = db.session.query(
+            FlashcardDecks.flashcard_deck_id.label('id')
+        ).filter(
+            FlashcardDecks.flashcard_deck_id == deck_id
+        ).cte(name='ajax_deck_hierarchy', recursive=True)
+
+        cte = cte.union_all(
+            db.session.query(
+                FlashcardDecks.flashcard_deck_id.label('id')
+            ).filter(
+                FlashcardDecks.parent_deck_id == cte.c.id
+            )
+        )
         
-        # Calculate pagination values
-        total_pages = (total_cards + per_page - 1) // per_page
-        start_idx = (page - 1) * per_page
-        end_idx = min(start_idx + per_page, total_cards)
+        # Calculate total cards for this request
+        total_cards_query = db.session.query(db.func.count(Flashcards.flashcard_id))
+        total_cards_query = total_cards_query.filter(
+            Flashcards.flashcard_deck_id.in_(db.session.query(cte.c.id))
+        )
         
-        # Get just the requested page of cards
-        page_cards = all_cards[start_idx:end_idx]
+        # Apply due_only filter if needed
+        if due_only:
+            current_time = get_current_time()
+            total_cards_query = total_cards_query.filter(
+                db.or_(Flashcards.due_date <= current_time, Flashcards.due_date == None),
+                Flashcards.state != 2  # Exclude cards already mastered
+            )
+        
+        # Get the actual total count of cards
+        total_cards = total_cards_query.scalar() or 0
+        
+        # Get all cards for this batch - important fix:
+        # Instead of getting all cards and then slicing, we should directly 
+        # apply pagination in the database query for better performance
+        all_cards = get_due_cards(deck_id, due_only, per_page=per_page, page=page)
+        
+        # Log debugging information
+        current_app.logger.debug(f"Study batch request: deck={deck_id}, page={page}, per_page={per_page}, returned={len(all_cards)}")
+        
+        # For accurate pagination, we need to know how many pages of cards exist
+        total_pages = (total_cards + per_page - 1) // per_page if total_cards > 0 else 1
         
         # Transform to JSON response format
         flashcard_data = []
         
-        for card in page_cards:
+        for card in all_cards:
             # Set default deck info
             deck_info = None
             
@@ -197,6 +228,9 @@ def study_deck(deck_id):
         return jsonify({
             'flashcards': flashcard_data,
             'total': total_cards,
+            'batch_size': len(flashcard_data),
+            'current_page': page,
+            'total_pages': total_pages,
             'pagination': {
                 'page': page,
                 'per_page': per_page,

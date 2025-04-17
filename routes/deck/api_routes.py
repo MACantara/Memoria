@@ -326,3 +326,80 @@ def count_imported_cards(deck_id):
     ).count()
     
     return count
+
+@deck_api_bp.route('/update-overdue/<int:deck_id>', methods=['POST'])
+@login_required
+def update_overdue_cards(deck_id):
+    """Update overdue cards to forgotten state"""
+    try:
+        # Check if deck belongs to the current user
+        deck = FlashcardDecks.query.filter_by(
+            flashcard_deck_id=deck_id, 
+            user_id=current_user.id
+        ).first_or_404()
+        
+        # Get update type from request body
+        data = request.get_json(silent=True) or {}
+        update_type = data.get('update_type', 'forgotten')
+        
+        if update_type != 'forgotten':
+            return jsonify({'success': False, 'message': 'Invalid update type'}), 400
+        
+        # Execute raw SQL query to update overdue cards to forgotten state
+        # This specific query handles both NULL and JSON fsrs_state
+        result = db.session.execute("""
+            UPDATE flashcards
+            SET 
+                state = 3,
+                fsrs_state = 
+                    CASE 
+                        WHEN fsrs_state IS NULL THEN '{"state": 3, "step": 0}'::jsonb
+                        ELSE jsonb_set(
+                            jsonb_set(
+                                fsrs_state::jsonb, 
+                                '{state}', 
+                                '3'::jsonb
+                            ),
+                            '{step}',
+                            '0'::jsonb
+                        )
+                    END
+            WHERE 
+                due_date < NOW() 
+                AND flashcard_deck_id = :deck_id
+                AND state != 0  -- Skip new cards
+                AND state != 3  -- Skip already forgotten cards
+            RETURNING flashcard_id
+        """, {'deck_id': deck_id})
+        
+        # Get the IDs of updated cards
+        updated_ids = [row[0] for row in result]
+        updated_count = len(updated_ids)
+        
+        # Commit changes
+        db.session.commit()
+        
+        current_app.logger.info(f"Updated {updated_count} overdue cards to forgotten state for deck {deck_id}")
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Updated {updated_count} overdue cards to forgotten state',
+            'updated_count': updated_count,
+            'updated_ids': updated_ids
+        })
+        
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        current_app.logger.error(f"Database error updating overdue cards: {str(e)}")
+        return jsonify({
+            'success': False, 
+            'error': f"Database error: {str(e)}"
+        }), 500
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error updating overdue cards: {str(e)}")
+        return jsonify({
+            'success': False, 
+            'error': f"Error: {str(e)}"
+        }), 500

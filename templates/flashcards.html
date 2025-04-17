@@ -31,7 +31,7 @@ Study {{ deck.name }} (All Cards)
         <div class="text-center">
             <span class="badge bg-primary rounded-pill px-3 py-2" id="flashcardCounter">
                 <i class="bi bi-card-text me-1"></i>
-                <span id="remainingCount">{{ flashcards_count }}</span>
+                <span id="completedCount">0</span>/<span id="totalCount">{{ flashcards_count }}</span>
             </span>
         </div>
 
@@ -118,7 +118,7 @@ Study {{ deck.name }} (All Cards)
             <span class="visually-hidden">Loading flashcards...</span>
         </div>
         <p class="mt-3">Loading your flashcards...</p>
-        <p class="text-muted small">Preparing {{ flashcards_count }} cards for review</p>
+        <p class="text-muted small">Preparing batch of cards (<span id="batchSize">45</span> out of <span id="totalDueDisplay">{{ flashcards_count }}</span> total)</p>
     </div>
 
     <!-- Single card template that will be dynamically populated -->
@@ -132,6 +132,56 @@ Study {{ deck.name }} (All Cards)
             </form>
         </div>
     </div>
+    
+    <!-- Batch completion screen -->
+    <div id="batchCompletionScreen" class="card text-center p-4" style="display: none;">
+        <div class="card-body">
+            <h2 class="card-title mb-4">
+                <i class="bi bi-check2-circle text-success"></i> Batch Complete!
+            </h2>
+            <p class="card-text fs-5">You've completed <span id="completedBatchCount">0</span> cards.</p>
+            <p class="card-text">Would you like to continue with the next set of cards or take a break?</p>
+            
+            <div class="progress mb-3" style="height: 20px;">
+                <div class="progress-bar bg-success" id="overallProgressBar" role="progressbar" 
+                    style="width: 0%" aria-valuenow="0" aria-valuemin="0" 
+                    aria-valuemax="100">0%</div>
+            </div>
+            
+            <div class="session-stats my-3 text-start border rounded p-3">
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Cards completed this session:</span>
+                    <span class="fw-bold" id="sessionCompletedCount">0</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Cards in current batch:</span>
+                    <span class="fw-bold" id="batchCardCount">0</span>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <span>Total cards to review:</span>
+                    <span class="fw-bold" id="totalDueCount">{{ flashcards_count }}</span>
+                </div>
+            </div>
+            
+            <div class="d-flex justify-content-center gap-3 mt-4 flex-wrap">
+                <button id="loadNextBatchBtn" class="btn btn-primary">
+                    <span class="normal-state"><i class="bi bi-arrow-right"></i> Continue Next Batch</span>
+                    <span class="loading-state d-none"><span class="spinner-border spinner-border-sm" role="status"
+                        aria-hidden="true"></span> Loading...</span>
+                </button>
+                <a href="/deck/{{ deck.flashcard_deck_id }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-house-door"></i> Back to Deck
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Final completion screen -->
+    <div id="finalCompletionScreen" class="card text-center p-4" style="display: none;">
+        <div class="card-body">
+            <!-- Will be populated dynamically when all cards are completed -->
+        </div>
+    </div>
     {% endif %}
 </div>
 
@@ -139,6 +189,7 @@ Study {{ deck.name }} (All Cards)
 <input type="hidden" id="studyMode" value="{{ 'due_only' if due_only else 'all' }}">
 <input type="hidden" id="deckId" value="{{ deck.flashcard_deck_id }}">
 <input type="hidden" id="totalFlashcards" value="{{ flashcards_count }}">
+<input type="hidden" id="currentBatch" value="1">
 
 <!-- Add the Edit Flashcard Modal -->
 <div class="modal fade" id="editFlashcardModal" tabindex="-1" aria-labelledby="editFlashcardModalLabel"
@@ -229,7 +280,7 @@ Study {{ deck.name }} (All Cards)
 
         // Add debugging to verify segment loading
         manager.addEventListener('firstBatchLoaded', () => {
-            console.log("First segment loaded, verifying order and count...");
+            console.log("First batch loaded, verifying order and count...");
             
             // Log state distribution
             if (manager.flashcards && manager.flashcards.length > 0) {
@@ -239,21 +290,23 @@ Study {{ deck.name }} (All Cards)
                     states[state] = (states[state] || 0) + 1;
                 });
                 console.log("Card distribution by state:", states);
-                console.log(`First segment: ${manager.flashcards.length} cards loaded out of ${manager.totalDueCards} total`);
-                console.log(`Total segments: ${manager.totalPages}, Cards per segment: ${manager.cardsPerSegment}`);
+                console.log(`Batch ${manager.currentBatch}: ${manager.flashcards.length} cards loaded out of ${manager.totalDueCards} total`);
                 
-                // Log first few cards of each type
-                const firstCardOfType = {0: null, 1: null, 2: null, 3: null};
-                for (let i = 0; i < manager.flashcards.length; i++) {
-                    const card = manager.flashcards[i];
-                    const state = parseInt(card.state) || 0;
-                    if (firstCardOfType[state] === null) {
-                        firstCardOfType[state] = {index: i, id: card.id};
-                        // Once we found one of each type, we can stop
-                        if (Object.values(firstCardOfType).every(v => v !== null)) break;
-                    }
+                // Update UI to show the overall total cards
+                const totalCountElement = document.getElementById('totalCount');
+                if (totalCountElement) {
+                    totalCountElement.textContent = manager.totalDueCards;
                 }
-                console.log("First card of each type (index, id):", firstCardOfType);
+                
+                const totalDueDisplay = document.getElementById('totalDueDisplay');
+                if (totalDueDisplay) {
+                    totalDueDisplay.textContent = manager.totalDueCards;
+                }
+                
+                const totalDueCount = document.getElementById('totalDueCount');
+                if (totalDueCount) {
+                    totalDueCount.textContent = manager.totalDueCards;
+                }
             }
             
             const initialLoader = document.getElementById('initialLoadingIndicator');
@@ -266,6 +319,11 @@ Study {{ deck.name }} (All Cards)
             if (currentCard) {
                 currentCard.style.display = 'block';
             }
+        });
+        
+        // Handle next batch button
+        document.getElementById('loadNextBatchBtn')?.addEventListener('click', () => {
+            manager.loadNextBatch();
         });
 
         // Initialize the manager
