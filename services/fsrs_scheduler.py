@@ -201,11 +201,20 @@ def get_due_cards(deck_id, due_only=False, excluded_ids=None, page=1, per_page=N
     
     # Removed: Excluded IDs filtering code
     
-    # Target counts for each state - we want 15 of each primary state
-    target_forgotten = 15
-    target_learning = 15
-    target_new = 15
-    
+    # Target counts for each state - calculate based on per_page
+    cards_per_state = per_page // 3 if per_page else 15
+    target_forgotten = cards_per_state
+    target_learning = cards_per_state
+    target_new = cards_per_state
+    target_mastered = cards_per_state
+
+    # Handle remainder to reach exact per_page
+    remainder = per_page % 3 if per_page else 0
+    if remainder > 0:
+        target_forgotten += 1
+        if remainder > 1:
+            target_learning += 1
+
     # Calculate the total target count (missing variable)
     total_target = target_forgotten + target_learning + target_new
     
@@ -223,24 +232,27 @@ def get_due_cards(deck_id, due_only=False, excluded_ids=None, page=1, per_page=N
         # Calculate offset based on page number (1-based indexing)
         offset = (page - 1) * per_page
         
+        # Calculate buffer size based on per_page
+        buffer = max(10, per_page // 6)  # Minimum buffer of 10, scales with per_page
+        
         # Apply LIMIT and OFFSET to the queries to get paginated results
         forgotten_cards = query.filter(Flashcards.state == 3).order_by(
             case((Flashcards.due_date == None, 0), else_=1),
             Flashcards.due_date.asc(),
             Flashcards.flashcard_id.asc()
-        ).offset(offset).limit(per_page // 3 + 5).all()  # Add a few extra in case we need them
+        ).offset(offset).limit(target_forgotten + buffer).all()  # Add a few extra in case we need them
         
         learning_cards = query.filter(Flashcards.state == 1).order_by(
             case((Flashcards.due_date == None, 0), else_=1),
             Flashcards.due_date.asc(),
             Flashcards.flashcard_id.asc()
-        ).offset(offset).limit(per_page // 3 + 5).all()
+        ).offset(offset).limit(target_learning + buffer).all()  # Add a few extra in case we need them
         
         new_cards = query.filter(Flashcards.state == 0).order_by(
             case((Flashcards.due_date == None, 0), else_=1),
             Flashcards.due_date.asc(),
             Flashcards.flashcard_id.asc()
-        ).offset(offset).limit(per_page // 3 + 5).all()
+        ).offset(offset).limit(target_new + buffer).all()  # Add a few extra in case we need them
         
         # For mastered cards, we're less concerned about pagination
         # since they're only used to fill in when there aren't enough other cards
@@ -248,7 +260,7 @@ def get_due_cards(deck_id, due_only=False, excluded_ids=None, page=1, per_page=N
             case((Flashcards.due_date == None, 0), else_=1),
             Flashcards.due_date.asc(),
             Flashcards.flashcard_id.asc()
-        ).limit(per_page // 3).all()
+        ).limit(target_mastered + buffer).all()
     else:
         # Use existing code for non-paginated queries
         forgotten_cards = query.filter(Flashcards.state == 3).order_by(
