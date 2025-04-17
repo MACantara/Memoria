@@ -473,6 +473,12 @@ export class FlashcardManager {
             this.score++;
             this.totalSessionCompleted++;
             
+            // Update the completed count in the header immediately
+            const completedCount = document.getElementById('completedCount');
+            if (completedCount) {
+                completedCount.textContent = this.totalSessionCompleted;
+            }
+            
             // Debug info
             console.log(`Card ${card.id} completed. Score: ${this.score}/${this.flashcards.length}, Total: ${this.totalSessionCompleted}/${this.totalDueCards}`);
             

@@ -461,6 +461,12 @@ export class UIManager {
         // Update milestone progress - this now handles progress bar updates too
         this.updateMilestones(batchScore, batchTotal, overallScore, overallTotal);
         
+        // Update the completed count immediately
+        const completedCount = document.getElementById('completedCount');
+        if (completedCount) {
+            completedCount.textContent = overallScore;
+        }
+        
         // Update the overall progress display
         const overallProgressBar = document.getElementById('overallProgressBar');
         if (overallProgressBar) {
